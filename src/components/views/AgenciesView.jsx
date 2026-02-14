@@ -13,6 +13,7 @@ const AgenciesView = () => {
     const [showPassword, setShowPassword] = useState(false);
 
     const [formData, setFormData] = useState({
+        organization_id: '',
         name: '',
         code: '',
         agency_type: 'full',
@@ -69,6 +70,12 @@ const AgenciesView = () => {
     useEffect(() => {
         fetchAgencies();
         fetchBranches();
+
+        // Get organization_id from logged-in user
+        const orgId = localStorage.getItem('organization_id');
+        if (orgId) {
+            setFormData(prev => ({ ...prev, organization_id: orgId }));
+        }
     }, []);
 
     // Handle form input change
@@ -93,8 +100,10 @@ const AgenciesView = () => {
     // Open modal for add/edit
     const openModal = (agency = null) => {
         if (agency) {
+            console.log('Editing agency data:', agency);
             setEditingAgency(agency);
             setFormData({
+                organization_id: agency.organization_id || localStorage.getItem('organization_id') || '',
                 name: agency.name || '',
                 code: agency.code || '',
                 agency_type: agency.agency_type || 'full',
@@ -106,12 +115,14 @@ const AgenciesView = () => {
                 city: agency.city || '',
                 is_active: agency.is_active ?? true,
                 portal_access_enabled: agency.portal_access_enabled ?? true,
-                username: agency.username || '',
+                username: agency.username || agency.email || '',
                 password: '' // Don't populate password for security
             });
         } else {
             setEditingAgency(null);
+            const orgId = localStorage.getItem('organization_id');
             setFormData({
+                organization_id: orgId || '',
                 name: '',
                 code: '',
                 agency_type: 'full',
@@ -180,6 +191,13 @@ const AgenciesView = () => {
                 delete payload.password;
             }
 
+            // Remove organization_id when editing (can't change organization)
+            if (editingAgency) {
+                delete payload.organization_id;
+            }
+
+            console.log('Sending payload:', payload);
+
             const response = await fetch(url, {
                 method,
                 headers: {
@@ -195,6 +213,7 @@ const AgenciesView = () => {
                 fetchAgencies();
             } else {
                 const errorData = await response.json();
+                console.error('Error response:', errorData);
                 alert('Error: ' + (errorData.detail || JSON.stringify(errorData)));
             }
         } catch (error) {

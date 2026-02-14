@@ -824,8 +824,6 @@ const OthersView = ({ onBack }) => {
                         vehicle_name: '',
                         vehicle_type: '',
                         sector: '',
-                        sector_id: '',
-                        is_big_sector: false,
                         notes: '',
                         status: 'Active',
                         adult_selling: 0,
@@ -873,6 +871,53 @@ const OthersView = ({ onBack }) => {
                     });
                     setEditingZiaratPriceId(null);
                     await fetchDataForTab(activeTab);
+                    break;
+
+                    await fetchDataForTab(activeTab);
+                    break;
+
+                case "Transport Prices":
+                    if (!transportPriceForm.vehicle_name || !transportPriceForm.vehicle_type || !transportPriceForm.sector) {
+                        setError('Vehicle Name, Type, and Sector are required');
+                        setSaving(false);
+                        return;
+                    }
+
+                    if (editingTransportPriceId) {
+                        await othersAPI.transportPrice.update(editingTransportPriceId, transportPriceForm);
+                        setSuccessMessage('Transport Price updated successfully!');
+                    } else {
+                        await othersAPI.transportPrice.create(transportPriceForm);
+                        setSuccessMessage('Transport Price added successfully!');
+                    }
+
+                    setTransportPriceForm({
+                        vehicle_name: '',
+                        vehicle_type: '',
+                        sector: '',
+                        sector_id: '',
+                        is_big_sector: false,
+                        notes: '',
+                        status: 'Active',
+                        adult_selling: 0,
+                        adult_purchasing: 0,
+                        child_selling: 0,
+                        child_purchasing: 0,
+                        infant_selling: 0,
+                        infant_purchasing: 0
+                    });
+                    setEditingTransportPriceId(null);
+                    await fetchDataForTab(activeTab);
+                    break;
+
+                case "Visa Rates Pex Wise":
+                    if (cityName.trim() && cityCode.trim()) {
+                        await othersAPI.cityIATA.create({ city_name: cityName, iata_code: cityCode, is_active: true });
+                        setCityName('');
+                        setCityCode('');
+                        await fetchDataForTab(activeTab); // Refresh list
+                        setSuccessMessage('City added successfully!');
+                    }
                     break;
 
                 case "Booking Expire Time":

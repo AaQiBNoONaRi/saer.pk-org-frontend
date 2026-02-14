@@ -134,14 +134,6 @@ const BranchesView = () => {
 
         try {
             const token = localStorage.getItem('access_token');
-            const adminData = JSON.parse(localStorage.getItem('admin_data') || '{}');
-            const organizationId = adminData.organization_id;
-
-            if (!organizationId) {
-                alert('Organization ID not found. Please login again.');
-                return;
-            }
-
             const url = editingBranch
                 ? `http://localhost:8000/api/branches/${editingBranch.id || editingBranch._id}/`
                 : 'http://localhost:8000/api/branches/';
@@ -150,11 +142,6 @@ const BranchesView = () => {
 
             // Prepare payload
             const payload = { ...formData };
-
-            // Add organization_id for new branches
-            if (!editingBranch) {
-                payload.organization_id = organizationId;
-            }
 
             // Remove password if empty (for edit)
             if (editingBranch && !payload.password) {
@@ -484,7 +471,6 @@ const BranchesView = () => {
                                                     value={formData.password}
                                                     onChange={handleInputChange}
                                                     required={formData.portal_access_enabled && !editingBranch}
-                                                    autoComplete="new-password"
                                                     className="w-full px-4 py-3 pr-12 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium outline-none focus:ring-2 ring-blue-100 focus:bg-white focus:border-blue-300 transition-all"
                                                     placeholder={editingBranch ? "Leave blank to keep current" : "Enter password"}
                                                 />
