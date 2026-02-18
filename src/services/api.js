@@ -29,7 +29,7 @@ api.interceptors.request.use(
 api.interceptors.response.use(
     (response) => response,
     (error) => {
-        if (error.response?.status === 401) {
+        if (error.response?.status === 401 && !error.config.url.includes('/login')) {
             // Token expired or invalid - clear storage and redirect to login
             localStorage.removeItem('access_token');
             localStorage.removeItem('admin_data');
