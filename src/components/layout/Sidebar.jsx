@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import {
     LayoutDashboard, Box, Users, UsersRound, ScanLine,
     ShieldCheck, Truck, ClipboardList, LogOut, UserCircle,
-    ChevronUp, ChevronDown, CreditCard, Landmark, Menu, X
+    ChevronUp, ChevronDown, CreditCard, Landmark, Menu, X,
+    FileText, FileEdit
 } from 'lucide-react';
 
 
@@ -131,6 +132,11 @@ export default function Sidebar({ activeTab, setActiveTab, isSidebarOpen, setSid
                             <DropdownItem label="Agencies" active={activeTab === 'Agencies'} onClick={() => handleNavClick('Agencies')} />
                             <DropdownItem label="Employees" active={activeTab === 'Employees'} onClick={() => handleNavClick('Employees')} />
                         </NavDropdown>
+                    </NavGroup>
+
+                    <NavGroup title="Content Management" isOpen={isSidebarOpen}>
+                        <NavItem icon={<FileText size={20} />} label="Blogs" active={activeTab === 'Blogs'} onClick={() => handleNavClick('Blogs')} isOpen={isSidebarOpen} />
+                        <NavItem icon={<FileEdit size={20} />} label="Forms" active={activeTab === 'Forms'} onClick={() => handleNavClick('Forms')} isOpen={isSidebarOpen} />
                     </NavGroup>
 
                     <NavGroup title="Operations" isOpen={isSidebarOpen}>
