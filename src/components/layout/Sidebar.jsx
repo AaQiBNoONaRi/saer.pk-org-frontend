@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
     LayoutDashboard, Box, Users, UsersRound, ScanLine,
     ShieldCheck, Truck, ClipboardList, LogOut, UserCircle,
-    ChevronUp, ChevronDown, CreditCard, Landmark, Menu, X
+    ChevronUp, ChevronDown, CreditCard, Landmark, Menu, X, Share2
 } from 'lucide-react';
 
 
@@ -87,13 +87,14 @@ export default function Sidebar({ activeTab, setActiveTab, isSidebarOpen, setSid
                             isOpen={isSidebarOpen}
                             isExpanded={isInventoryOpen}
                             onClick={() => setInventoryOpen(!isInventoryOpen)}
-                            active={['Packages', 'Hotels', 'Tickets', 'Flights', 'Visa & Other'].includes(activeTab)}
+                            active={['Packages', 'Hotels', 'Tickets', 'Flights', 'Visa & Other', 'Share Inventory'].includes(activeTab)}
                         >
                             <DropdownItem label="Packages" active={activeTab === 'Packages'} onClick={() => handleNavClick('Packages')} />
                             <DropdownItem label="Hotels" active={activeTab === 'Hotels'} onClick={() => handleNavClick('Hotels')} />
                             <DropdownItem label="Tickets" active={activeTab === 'Tickets'} onClick={() => handleNavClick('Tickets')} />
                             <DropdownItem label="Flights" active={activeTab === 'Flights'} onClick={() => handleNavClick('Flights')} />
                             <DropdownItem label="Others" active={activeTab === 'Others'} onClick={() => handleNavClick('Other')} />
+                            <DropdownItem label="Share Inventory" active={activeTab === 'Share Inventory'} onClick={() => handleNavClick('Share Inventory')} />
                         </NavDropdown>
                     </NavGroup>
 

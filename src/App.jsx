@@ -19,6 +19,7 @@ import EmployeesView from './components/views/EmployeesView';
 import OrganizationView from './components/views/OrganizationView';
 import BranchesView from './components/views/BranchesView';
 import AgenciesView from './components/views/AgenciesView';
+import ShareInventoryView from './components/views/ShareInventoryView';
 
 // Route mapping: URL path <-> Tab name
 const ROUTES = {
@@ -36,6 +37,7 @@ const ROUTES = {
   '/branch': 'Branch',
   '/agencies': 'Agencies',
   '/employees': 'Employees',
+  '/share-inventory': 'Share Inventory',
 };
 
 // Helper: Get URL path for a tab name
@@ -54,6 +56,7 @@ const getTabForPath = (path) => {
   if (path.startsWith('/tickets/')) return 'Tickets';
   if (path.startsWith('/packages/')) return 'Packages';
   if (path.startsWith('/hotels/')) return 'Hotels';
+  if (path.startsWith('/share-inventory')) return 'Share Inventory';
 
   // Default
   return 'Dashboard';
@@ -231,6 +234,8 @@ const App = () => {
         return <AgenciesView />;
       case 'Employees':
         return <EmployeesView />;
+      case 'Share Inventory':
+        return <ShareInventoryView />;
       default:
         return <GenericView tabName={activeTab} />;
     }
