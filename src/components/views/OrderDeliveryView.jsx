@@ -319,7 +319,7 @@ export default function OrderDeliveryView({ onOrderClick }) {
                                                 <tr key={order.id} className="group hover:bg-blue-50/30 transition-colors">
                                                     <td className="px-6 py-4 font-bold text-blue-600">
                                                         <button
-                                                            onClick={() => onOrderClick && onOrderClick(order.id)}
+                                                            onClick={() => onOrderClick && onOrderClick(order)}
                                                             className="hover:underline hover:text-blue-700"
                                                         >
                                                             {order.id}
