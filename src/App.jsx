@@ -19,7 +19,10 @@ import EmployeesView from './components/views/EmployeesView';
 import OrganizationView from './components/views/OrganizationView';
 import BranchesView from './components/views/BranchesView';
 import AgenciesView from './components/views/AgenciesView';
-import ShareInventoryView from './components/views/ShareInventoryView';
+import BlogsView from './components/views/BlogsView';
+import FormsView from './components/views/FormsView';
+import OrderDeliveryView from './components/views/OrderDeliveryView';
+import OrderDeliveryDetailView from './components/views/OrderDeliveryDetailView';
 
 // Route mapping: URL path <-> Tab name
 const ROUTES = {
@@ -37,7 +40,9 @@ const ROUTES = {
   '/branch': 'Branch',
   '/agencies': 'Agencies',
   '/employees': 'Employees',
-  '/share-inventory': 'Share Inventory',
+  '/blogs': 'Blogs',
+  '/forms': 'Forms',
+  '/order-delivery': 'Order Delivery',
 };
 
 // Helper: Get URL path for a tab name
@@ -73,6 +78,7 @@ const App = () => {
   const [editingTicket, setEditingTicket] = useState(null);
   const [editingPackage, setEditingPackage] = useState(null);
   const [viewingPackage, setViewingPackage] = useState(null);
+  const [viewingOrder, setViewingOrder] = useState(null);
 
   // Handle window resize and sidebar state
   useEffect(() => {
@@ -234,8 +240,20 @@ const App = () => {
         return <AgenciesView />;
       case 'Employees':
         return <EmployeesView />;
-      case 'Share Inventory':
-        return <ShareInventoryView />;
+      case 'Blogs':
+        return <BlogsView />;
+      case 'Forms':
+        return <FormsView />;
+      case 'Order Delivery':
+        if (viewingOrder) {
+          return (
+            <OrderDeliveryDetailView
+              orderId={viewingOrder}
+              onBack={() => setViewingOrder(null)}
+            />
+          );
+        }
+        return <OrderDeliveryView onOrderClick={(id) => setViewingOrder(id)} />;
       default:
         return <GenericView tabName={activeTab} />;
     }

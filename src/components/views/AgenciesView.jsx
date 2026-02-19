@@ -1,38 +1,55 @@
 import React, { useState, useEffect } from 'react';
-import { Building, Plus, Search, Edit2, Trash2, X, Eye, EyeOff } from 'lucide-react';
+import {
+    Building2, Plus, Search, MapPin, Phone, Mail, ArrowLeft,
+    Edit2, Trash2, ShieldCheck, Loader2, AlertCircle, CreditCard,
+    Eye, EyeOff, Building, User, Check, Ticket, Clock
+} from 'lucide-react';
 
 const AgenciesView = () => {
     const [agencies, setAgencies] = useState([]);
     const [branches, setBranches] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [searchTerm, setSearchTerm] = useState('');
+    const [isLoading, setIsLoading] = useState(true);
+    const [selectedAgency, setSelectedAgency] = useState(null);
+    const [viewMode, setViewMode] = useState('list'); // 'list', 'detail', 'add', 'edit'
+
+    const [searchQuery, setSearchQuery] = useState('');
+    const [filterType, setFilterType] = useState('all');
+    const [agencyTypeFilter, setAgencyTypeFilter] = useState('all');
     const [filterBranch, setFilterBranch] = useState('');
-    const [filterType, setFilterType] = useState('');
-    const [showModal, setShowModal] = useState(false);
-    const [editingAgency, setEditingAgency] = useState(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [error, setError] = useState('');
     const [showPassword, setShowPassword] = useState(false);
 
     const [formData, setFormData] = useState({
-        organization_id: '',
         name: '',
         code: '',
         agency_type: 'full',
-        branch_id: '',
         contact_person: '',
         email: '',
         phone: '',
         address: '',
         city: '',
+        country: '',
+        branch_id: '',
         is_active: true,
         portal_access_enabled: true,
         username: '',
-        password: ''
+        password: '',
+        credit_limit: 0,
+        credit_limit_days: 30,
+        agreement_status: 'active',
+        commission_group: 'Standard',
+        logo: ''
     });
 
-    // Fetch agencies
+    useEffect(() => {
+        fetchAgencies();
+        fetchBranches();
+    }, []);
+
     const fetchAgencies = async () => {
         try {
-            setLoading(true);
+            setIsLoading(true);
             const token = localStorage.getItem('access_token');
             const response = await fetch('http://localhost:8000/api/agencies/', {
                 headers: { 'Authorization': `Bearer ${token}` }
@@ -42,15 +59,13 @@ const AgenciesView = () => {
                 const data = await response.json();
                 setAgencies(data);
             }
-        } catch (error) {
-            console.error('Error fetching agencies:', error);
-            alert('Failed to fetch agencies');
+        } catch (err) {
+            console.error("Failed to fetch agencies", err);
         } finally {
-            setLoading(false);
+            setIsLoading(false);
         }
     };
 
-    // Fetch branches for dropdown
     const fetchBranches = async () => {
         try {
             const token = localStorage.getItem('access_token');
@@ -67,27 +82,39 @@ const AgenciesView = () => {
         }
     };
 
-    useEffect(() => {
-        fetchAgencies();
-        fetchBranches();
+    const handleConfirmDelete = async (agency) => {
+        if (!window.confirm(`Are you sure you want to delete "${agency.name}"?`)) return;
+        try {
+            const token = localStorage.getItem('access_token');
+            const response = await fetch(`http://localhost:8000/api/agencies/${agency._id || agency.id}/`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
 
-        // Get organization_id from logged-in user
-        const orgId = localStorage.getItem('organization_id');
-        if (orgId) {
-            setFormData(prev => ({ ...prev, organization_id: orgId }));
+            if (response.ok) {
+                const updatedList = agencies.filter(a => (a._id || a.id) !== (agency._id || agency.id));
+                setAgencies(updatedList);
+                if (selectedAgency && (selectedAgency._id || selectedAgency.id) === (agency._id || agency.id)) {
+                    setSelectedAgency(null);
+                    setViewMode('list');
+                }
+                alert('Agency deleted successfully!');
+            } else {
+                alert('Failed to delete agency');
+            }
+        } catch (err) {
+            alert('Failed to delete agency');
         }
-    }, []);
+    };
 
-    // Handle form input change
     const handleInputChange = (e) => {
         const { name, value, type, checked } = e.target;
 
-        // Auto-fill username from email
         if (name === 'email') {
             setFormData(prev => ({
                 ...prev,
                 email: value,
-                username: value // Auto-fill username with email
+                username: value
             }));
         } else {
             setFormData(prev => ({
@@ -97,106 +124,113 @@ const AgenciesView = () => {
         }
     };
 
-    // Open modal for add/edit
-    const openModal = (agency = null) => {
-        if (agency) {
-            console.log('Editing agency data:', agency);
-            setEditingAgency(agency);
-            setFormData({
-                organization_id: agency.organization_id || localStorage.getItem('organization_id') || '',
-                name: agency.name || '',
-                code: agency.code || '',
-                agency_type: agency.agency_type || 'full',
-                branch_id: agency.branch_id || agency.branch?._id || '',
-                contact_person: agency.contact_person || '',
-                email: agency.email || '',
-                phone: agency.phone || '',
-                address: agency.address || '',
-                city: agency.city || '',
-                is_active: agency.is_active ?? true,
-                portal_access_enabled: agency.portal_access_enabled ?? true,
-                username: agency.username || agency.email || '',
-                password: '' // Don't populate password for security
-            });
-        } else {
-            setEditingAgency(null);
-            const orgId = localStorage.getItem('organization_id');
-            setFormData({
-                organization_id: orgId || '',
-                name: '',
-                code: '',
-                agency_type: 'full',
-                branch_id: '',
-                contact_person: '',
-                email: '',
-                phone: '',
-                address: '',
-                city: '',
-                is_active: true,
-                portal_access_enabled: true,
-                username: '',
-                password: ''
-            });
-        }
-        setShowModal(true);
-        setShowPassword(false);
+    const openAddForm = () => {
+        setFormData({
+            name: '',
+            code: '',
+            agency_type: 'full',
+            contact_person: '',
+            email: '',
+            phone: '',
+            address: '',
+            city: '',
+            country: '',
+            branch_id: '',
+            is_active: true,
+            portal_access_enabled: true,
+            username: '',
+            password: '',
+            credit_limit: 0,
+            credit_limit_days: 30,
+            agreement_status: 'active',
+            commission_group: 'Standard',
+            logo: ''
+        });
+        setError('');
+        setViewMode('add');
     };
 
-    // Close modal
-    const closeModal = () => {
-        setShowModal(false);
-        setEditingAgency(null);
-        setShowPassword(false);
+    const openEditForm = (agency) => {
+        setFormData({
+            name: agency.name || '',
+            code: agency.code || '',
+            agency_type: agency.agency_type || 'full',
+            contact_person: agency.contact_person || '',
+            email: agency.email || '',
+            phone: agency.phone || '',
+            address: agency.address || '',
+            city: agency.city || '',
+            country: agency.country || '',
+            branch_id: agency.branch_id || agency.branch?._id || '',
+            is_active: agency.is_active ?? true,
+            portal_access_enabled: agency.portal_access_enabled ?? true,
+            username: agency.username || agency.email || '',
+            password: '',
+            credit_limit: agency.credit_limit || 0,
+            credit_limit_days: agency.credit_limit_days || 30,
+            agreement_status: agency.agreement_status || 'active',
+            commission_group: agency.commission_group || 'Standard',
+            logo: agency.logo || ''
+        });
+        setSelectedAgency(agency);
+        setError('');
+        setViewMode('edit');
     };
 
-    // Handle form submit
     const handleSubmit = async (e) => {
         e.preventDefault();
+        setError('');
+        setIsSubmitting(true);
 
-        // Validation
         if (!formData.name.trim()) {
-            alert('Agency name is required');
+            setError('Agency name is required');
+            setIsSubmitting(false);
             return;
         }
 
         if (!formData.branch_id) {
-            alert('Please select a branch');
+            setError('Branch selection is required');
+            setIsSubmitting(false);
             return;
         }
 
         if (formData.portal_access_enabled) {
-            if (!formData.username.trim()) {
-                alert('Username is required for portal access');
+            if (!formData.username?.trim()) {
+                setError('Username is required for portal access');
+                setIsSubmitting(false);
                 return;
             }
-            if (!editingAgency && !formData.password.trim()) {
-                alert('Password is required for new agency');
+            if (viewMode === 'add' && !formData.password?.trim()) {
+                setError('Password is required for new agencies');
+                setIsSubmitting(false);
                 return;
             }
         }
 
         try {
             const token = localStorage.getItem('access_token');
-            const url = editingAgency
-                ? `http://localhost:8000/api/agencies/${editingAgency.id || editingAgency._id}/`
+            const orgId = localStorage.getItem('organization_id');
+
+            const payload = {
+                ...formData,
+                organization_id: orgId
+            };
+
+            if (viewMode === 'edit') {
+                delete payload.organization_id;
+                if (!payload.password) delete payload.password;
+            }
+
+            if (!payload.portal_access_enabled) {
+                delete payload.password;
+                delete payload.username;
+            }
+
+            const url = viewMode === 'edit'
+                ? `http://localhost:8000/api/agencies/${selectedAgency._id || selectedAgency.id}/`
                 : 'http://localhost:8000/api/agencies/';
 
-            const method = editingAgency ? 'PUT' : 'POST';
-
-            // Prepare payload
-            const payload = { ...formData };
-
-            // Remove password if empty (for edit)
-            if (editingAgency && !payload.password) {
-                delete payload.password;
-            }
-
-            // Remove organization_id when editing (can't change organization)
-            if (editingAgency) {
-                delete payload.organization_id;
-            }
-
-            console.log('Sending payload:', payload);
+            const method = viewMode === 'edit' ? 'PUT' : 'POST';
 
             const response = await fetch(url, {
                 method,
@@ -208,447 +242,496 @@ const AgenciesView = () => {
             });
 
             if (response.ok) {
-                alert(editingAgency ? 'Agency updated successfully!' : 'Agency created successfully!');
-                closeModal();
-                fetchAgencies();
+                await fetchAgencies();
+                alert(viewMode === 'edit' ? 'Agency updated successfully!' : 'Agency created successfully!');
+                setViewMode('list');
             } else {
                 const errorData = await response.json();
-                console.error('Error response:', errorData);
-                alert('Error: ' + (errorData.detail || JSON.stringify(errorData)));
+                let errorMessage = 'Failed to save agency';
+                if (typeof errorData.detail === 'string') {
+                    errorMessage = errorData.detail;
+                } else if (Array.isArray(errorData.detail)) {
+                    errorMessage = errorData.detail.map(e => e.msg).join(', ');
+                }
+                setError(errorMessage);
             }
-        } catch (error) {
-            console.error('Error saving agency:', error);
-            alert('Failed to save agency');
+        } catch (err) {
+            console.error(err);
+            setError('Failed to save agency');
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
-    // Handle delete
-    const handleDelete = async (agency) => {
-        if (!window.confirm(`Are you sure you want to delete "${agency.name}"? This action cannot be undone.`)) {
-            return;
-        }
+    const filteredAgencies = agencies.filter(agency => {
+        const matchesSearch = agency.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            agency.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            agency.code?.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesFilter = filterType === 'all'
+            ? true
+            : filterType === 'active' ? agency.is_active
+                : !agency.is_active;
+        const matchesAgencyType = agencyTypeFilter === 'all'
+            ? true
+            : agency.agency_type === agencyTypeFilter;
+        const matchesBranch = !filterBranch || (agency.branch_id || agency.branch?._id) === filterBranch;
+        return matchesSearch && matchesFilter && matchesAgencyType && matchesBranch;
+    });
 
-        try {
-            const token = localStorage.getItem('access_token');
-            const response = await fetch(`http://localhost:8000/api/agencies/${agency.id || agency._id}/`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-
-            if (response.ok) {
-                alert('Agency deleted successfully!');
-                fetchAgencies();
-            } else {
-                const errorData = await response.json();
-                alert('Failed to delete agency: ' + (errorData.detail || 'Unknown error'));
-            }
-        } catch (error) {
-            console.error('Error deleting agency:', error);
-            alert('Error deleting agency');
-        }
-    };
-
-    // Get branch name by ID
     const getBranchName = (branchId) => {
         const branch = branches.find(b => (b.id || b._id) === branchId);
         return branch ? branch.name : 'Unknown Branch';
     };
 
-    // Filter agencies
-    const filteredAgencies = agencies.filter(agency => {
-        const matchesSearch =
-            agency.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            agency.code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            agency.city?.toLowerCase().includes(searchTerm.toLowerCase());
-
-        const matchesBranch = !filterBranch || (agency.branch_id || agency.branch?._id) === filterBranch;
-        const matchesType = !filterType || agency.agency_type === filterType;
-
-        return matchesSearch && matchesBranch && matchesType;
-    });
-
-    if (loading) {
-        return <div className="p-8 text-center text-slate-500">Loading agencies...</div>;
-    }
-
-    return (
-        <div className="max-w-7xl mx-auto space-y-6 animate-in fade-in duration-500">
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
-                <div>
-                    <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tight">Agencies</h2>
-                    <p className="text-slate-500 font-medium mt-1">Manage your branch agencies</p>
-                </div>
-                <button
-                    onClick={() => openModal()}
-                    className="w-full sm:w-auto px-6 py-3 bg-blue-600 text-white rounded-xl text-xs font-bold transition-all hover:scale-105 active:scale-95 shadow-lg shadow-blue-100 flex items-center gap-2 justify-center"
-                >
-                    <Plus size={16} /> Add Agency
-                </button>
-            </div>
-
-            {/* Filters */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {/* Search */}
-                <div className="relative md:col-span-1">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-                    <input
-                        type="text"
-                        placeholder="Search agencies..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-medium outline-none focus:ring-2 ring-blue-100 focus:border-blue-300 transition-all"
-                    />
-                </div>
-
-                {/* Branch Filter */}
-                <div>
-                    <select
-                        value={filterBranch}
-                        onChange={(e) => setFilterBranch(e.target.value)}
-                        className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-medium outline-none focus:ring-2 ring-blue-100 focus:border-blue-300 transition-all"
-                    >
-                        <option value="">All Branches</option>
-                        {branches.map(branch => (
-                            <option key={branch.id || branch._id} value={branch.id || branch._id}>
-                                {branch.name}
-                            </option>
-                        ))}
-                    </select>
-                </div>
-
-                {/* Type Filter */}
-                <div>
-                    <select
-                        value={filterType}
-                        onChange={(e) => setFilterType(e.target.value)}
-                        className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-medium outline-none focus:ring-2 ring-blue-100 focus:border-blue-300 transition-all"
-                    >
-                        <option value="">All Types</option>
-                        <option value="full">Full Agency</option>
-                        <option value="area">Area Agency</option>
-                    </select>
-                </div>
-            </div>
-
-            {/* Agencies Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredAgencies.length === 0 ? (
-                    <div className="col-span-full text-center p-12 bg-slate-50 rounded-2xl border border-slate-200 border-dashed">
-                        <Building size={48} className="mx-auto text-slate-300 mb-4" />
-                        <p className="text-slate-400 font-medium">
-                            {searchTerm || filterBranch || filterType
-                                ? 'No agencies found matching your filters'
-                                : 'No agencies yet. Create your first agency!'}
+    // LIST VIEW
+    if (viewMode === 'list') {
+        return (
+            <div className="space-y-6 animate-in fade-in duration-500">
+                <div className="flex justify-between items-center">
+                    <div>
+                        <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+                            <Building2 className="text-blue-600" size={24} />
+                            Agencies <span className="text-slate-400 text-sm">({filteredAgencies.length})</span>
+                        </h1>
+                        <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-wide">
+                            Manage your branch agency partners
                         </p>
                     </div>
-                ) : (
-                    filteredAgencies.map(agency => (
-                        <div
-                            key={agency.id || agency._id}
-                            className="bg-white rounded-2xl border border-slate-200 p-6 hover:shadow-md transition-all duration-300"
-                        >
-                            <div className="flex justify-between items-start mb-4">
-                                <div className="flex-1">
-                                    <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight mb-1">
-                                        {agency.name}
-                                    </h3>
-                                    {agency.code && (
-                                        <p className="text-xs text-slate-500 font-bold">Code: {agency.code}</p>
-                                    )}
-                                </div>
-                                <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${agency.is_active
-                                    ? 'bg-emerald-50 text-emerald-600'
-                                    : 'bg-red-50 text-red-600'
-                                    }`}>
-                                    {agency.is_active ? 'Active' : 'Inactive'}
-                                </span>
-                            </div>
+                    <button
+                        onClick={openAddForm}
+                        className="flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-blue-100 hover:scale-105 transition-all"
+                    >
+                        <Plus size={16} />
+                        <span>Add New Agency</span>
+                    </button>
+                </div>
 
-                            <div className="space-y-2 mb-4">
-                                <div className="flex items-center gap-2">
-                                    <span className={`px-2 py-1 rounded text-xs font-bold ${agency.agency_type === 'full'
-                                        ? 'bg-blue-50 text-blue-600'
-                                        : 'bg-purple-50 text-purple-600'
-                                        }`}>
-                                        {agency.agency_type === 'full' ? 'Full Agency' : 'Area Agency'}
-                                    </span>
-                                </div>
-
-                                <p className="text-sm text-slate-600">
-                                    <span className="font-bold">Branch:</span> {getBranchName(agency.branch_id || agency.branch?._id)}
-                                </p>
-
-                                {agency.contact_person && (
-                                    <p className="text-sm text-slate-600"><span className="font-bold">Contact:</span> {agency.contact_person}</p>
-                                )}
-                                {agency.email && (
-                                    <p className="text-sm text-slate-600"><span className="font-bold">Email:</span> {agency.email}</p>
-                                )}
-                                {agency.phone && (
-                                    <p className="text-sm text-slate-600"><span className="font-bold">Phone:</span> {agency.phone}</p>
-                                )}
-                                {agency.city && (
-                                    <p className="text-sm text-slate-600"><span className="font-bold">City:</span> {agency.city}</p>
-                                )}
-                            </div>
-
-                            <div className="flex gap-2">
-                                <button
-                                    onClick={() => openModal(agency)}
-                                    className="flex-1 py-2 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition-all flex items-center justify-center gap-1"
-                                >
-                                    <Edit2 size={14} /> Edit
-                                </button>
-                                <button
-                                    onClick={() => handleDelete(agency)}
-                                    className="flex-1 py-2 bg-red-50 text-red-600 rounded-lg text-xs font-bold hover:bg-red-100 transition-all flex items-center justify-center gap-1"
-                                >
-                                    <Trash2 size={14} /> Delete
-                                </button>
-                            </div>
+                <div className="bg-white rounded-[32px] p-6 border border-slate-100 shadow-sm">
+                    <div className="space-y-4 mb-6">
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                            <input
+                                type="text"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                placeholder="Search agencies..."
+                                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-blue-100 outline-none transition-all"
+                            />
                         </div>
-                    ))
-                )}
-            </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <select
+                                value={filterType}
+                                onChange={(e) => setFilterType(e.target.value)}
+                                className="px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold text-slate-600 outline-none"
+                            >
+                                <option value="all">All Status</option>
+                                <option value="active">Active Only</option>
+                                <option value="inactive">Inactive Only</option>
+                            </select>
+                            <select
+                                value={agencyTypeFilter}
+                                onChange={(e) => setAgencyTypeFilter(e.target.value)}
+                                className="px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold text-slate-600 outline-none"
+                            >
+                                <option value="all">All Types</option>
+                                <option value="full">Full Agency</option>
+                                <option value="area">Area Agency</option>
+                            </select>
+                            <select
+                                value={filterBranch}
+                                onChange={(e) => setFilterBranch(e.target.value)}
+                                className="px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold text-slate-600 outline-none"
+                            >
+                                <option value="">All Branches</option>
+                                {branches.map(branch => (
+                                    <option key={branch.id || branch._id} value={branch.id || branch._id}>
+                                        {branch.name}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
 
-            {/* Modal */}
-            {showModal && (
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
-                        {/* Modal Header */}
-                        <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 flex justify-between items-center rounded-t-3xl">
-                            <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">
-                                {editingAgency ? 'Edit Agency' : 'Add New Agency'}
-                            </h3>
+                    {isLoading ? (
+                        <div className="flex justify-center p-12"><Loader2 className="animate-spin text-blue-600" size={32} /></div>
+                    ) : filteredAgencies.length === 0 ? (
+                        <div className="text-center p-12 text-slate-400 text-sm font-bold">No agencies found</div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                            {filteredAgencies.map(agency => (
+                                <div
+                                    key={agency._id || agency.id}
+                                    onClick={() => { setSelectedAgency(agency); setViewMode('detail'); }}
+                                    className="p-6 rounded-2xl border border-slate-100 cursor-pointer transition-all hover:shadow-xl hover:scale-[1.02] active:scale-95 bg-white"
+                                >
+                                    <div className="flex justify-between items-start mb-3">
+                                        <h3 className="font-black text-base text-slate-800">{agency.name}</h3>
+                                        <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-widest ${agency.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                                            }`}>
+                                            {agency.is_active ? 'Active' : 'Inactive'}
+                                        </span>
+                                    </div>
+                                    <p className="text-xs text-slate-500 font-medium mb-3">{agency.code || 'NO-REF'}</p>
+                                    <div className="space-y-2">
+                                        <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400">
+                                            <Building size={12} />
+                                            <span>{getBranchName(agency.branch_id || agency.branch?._id)}</span>
+                                        </div>
+                                        {agency.contact_person && (
+                                            <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400">
+                                                <User size={12} />
+                                                <span>{agency.contact_person}</span>
+                                            </div>
+                                        )}
+                                        <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400">
+                                            <Phone size={12} />
+                                            <span>{agency.phone}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400">
+                                            <Mail size={12} />
+                                            <span className="truncate">{agency.email}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    }
+
+    // DETAIL VIEW
+    if (viewMode === 'detail' && selectedAgency) {
+        return (
+            <div className="space-y-6 animate-in fade-in duration-500">
+                {/* Header with back button */}
+                <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
                             <button
-                                onClick={closeModal}
+                                onClick={() => setViewMode('list')}
                                 className="p-2 hover:bg-slate-100 rounded-lg transition-all"
                             >
-                                <X size={20} />
+                                <ArrowLeft size={20} className="text-slate-600" />
+                            </button>
+                            <div>
+                                <h1 className="text-lg font-bold text-slate-900">Agency Details</h1>
+                                <p className="text-xs text-slate-500 uppercase tracking-wide">View and manage agency information</p>
+                            </div>
+                        </div>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => openEditForm(selectedAgency)}
+                                className="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition-all flex items-center gap-2"
+                            >
+                                <Edit2 size={14} /> EDIT
+                            </button>
+                            <button
+                                onClick={() => handleConfirmDelete(selectedAgency)}
+                                className="px-4 py-2 bg-red-50 text-red-600 rounded-lg text-xs font-bold hover:bg-red-100 transition-all flex items-center gap-2"
+                            >
+                                <Trash2 size={14} />
                             </button>
                         </div>
-
-                        {/* Modal Body */}
-                        <form onSubmit={handleSubmit} className="p-6 space-y-6">
-                            {/* Agency Information Section */}
-                            <div>
-                                <h4 className="text-sm font-black text-slate-700 uppercase tracking-wider mb-4">Agency Information</h4>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-xs font-bold text-slate-600 mb-2">Agency Name *</label>
-                                        <input
-                                            type="text"
-                                            name="name"
-                                            value={formData.name}
-                                            onChange={handleInputChange}
-                                            required
-                                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium outline-none focus:ring-2 ring-blue-100 focus:bg-white focus:border-blue-300 transition-all"
-                                            placeholder="Enter agency name"
-                                        />
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-xs font-bold text-slate-600 mb-2">Agency Code</label>
-                                        <input
-                                            type="text"
-                                            name="code"
-                                            value={formData.code}
-                                            onChange={handleInputChange}
-                                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium outline-none focus:ring-2 ring-blue-100 focus:bg-white focus:border-blue-300 transition-all"
-                                            placeholder="Enter agency code"
-                                        />
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-xs font-bold text-slate-600 mb-2">Agency Type *</label>
-                                        <select
-                                            name="agency_type"
-                                            value={formData.agency_type}
-                                            onChange={handleInputChange}
-                                            required
-                                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium outline-none focus:ring-2 ring-blue-100 focus:bg-white focus:border-blue-300 transition-all"
-                                        >
-                                            <option value="full">Full Agency</option>
-                                            <option value="area">Area Agency</option>
-                                        </select>
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-xs font-bold text-slate-600 mb-2">Branch *</label>
-                                        <select
-                                            name="branch_id"
-                                            value={formData.branch_id}
-                                            onChange={handleInputChange}
-                                            required
-                                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium outline-none focus:ring-2 ring-blue-100 focus:bg-white focus:border-blue-300 transition-all"
-                                        >
-                                            <option value="">Select Branch</option>
-                                            {branches.map(branch => (
-                                                <option key={branch.id || branch._id} value={branch.id || branch._id}>
-                                                    {branch.name}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-xs font-bold text-slate-600 mb-2">Contact Person</label>
-                                        <input
-                                            type="text"
-                                            name="contact_person"
-                                            value={formData.contact_person}
-                                            onChange={handleInputChange}
-                                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium outline-none focus:ring-2 ring-blue-100 focus:bg-white focus:border-blue-300 transition-all"
-                                            placeholder="Enter contact person name"
-                                        />
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-xs font-bold text-slate-600 mb-2">Email</label>
-                                        <input
-                                            type="email"
-                                            name="email"
-                                            value={formData.email}
-                                            onChange={handleInputChange}
-                                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium outline-none focus:ring-2 ring-blue-100 focus:bg-white focus:border-blue-300 transition-all"
-                                            placeholder="email@example.com"
-                                        />
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-xs font-bold text-slate-600 mb-2">Phone</label>
-                                        <input
-                                            type="tel"
-                                            name="phone"
-                                            value={formData.phone}
-                                            onChange={handleInputChange}
-                                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium outline-none focus:ring-2 ring-blue-100 focus:bg-white focus:border-blue-300 transition-all"
-                                            placeholder="03001234567"
-                                        />
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-xs font-bold text-slate-600 mb-2">City</label>
-                                        <input
-                                            type="text"
-                                            name="city"
-                                            value={formData.city}
-                                            onChange={handleInputChange}
-                                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium outline-none focus:ring-2 ring-blue-100 focus:bg-white focus:border-blue-300 transition-all"
-                                            placeholder="Enter city"
-                                        />
-                                    </div>
-
-                                    <div className="md:col-span-2">
-                                        <label className="block text-xs font-bold text-slate-600 mb-2">Address</label>
-                                        <textarea
-                                            name="address"
-                                            value={formData.address}
-                                            onChange={handleInputChange}
-                                            rows="2"
-                                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium outline-none focus:ring-2 ring-blue-100 focus:bg-white focus:border-blue-300 transition-all resize-none"
-                                            placeholder="Enter full address"
-                                        />
-                                    </div>
-
-                                    <div className="flex items-center gap-3">
-                                        <input
-                                            type="checkbox"
-                                            name="is_active"
-                                            id="is_active"
-                                            checked={formData.is_active}
-                                            onChange={handleInputChange}
-                                            className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
-                                        />
-                                        <label htmlFor="is_active" className="text-sm font-bold text-slate-700">
-                                            Active Status
-                                        </label>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Portal Access Section */}
-                            <div className="border-t border-slate-200 pt-6">
-                                <div className="flex items-center justify-between mb-4">
-                                    <h4 className="text-sm font-black text-slate-700 uppercase tracking-wider">Portal Access</h4>
-                                    <div className="flex items-center gap-3">
-                                        <input
-                                            type="checkbox"
-                                            name="portal_access_enabled"
-                                            id="portal_access_enabled"
-                                            checked={formData.portal_access_enabled}
-                                            onChange={handleInputChange}
-                                            className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
-                                        />
-                                        <label htmlFor="portal_access_enabled" className="text-sm font-bold text-slate-700">
-                                            Enable Portal Access
-                                        </label>
-                                    </div>
-                                </div>
-
-                                {formData.portal_access_enabled && (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-xs font-bold text-slate-600 mb-2">Username (Auto-filled from Email) *</label>
-                                            <input
-                                                type="text"
-                                                name="username"
-                                                value={formData.username}
-                                                readOnly
-                                                required={formData.portal_access_enabled}
-                                                className="w-full px-4 py-3 bg-slate-100 border border-slate-200 rounded-xl text-sm font-medium outline-none cursor-not-allowed text-slate-600"
-                                                placeholder="Enter email above to auto-fill"
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-xs font-bold text-slate-600 mb-2">
-                                                Password {!editingAgency && '*'}
-                                            </label>
-                                            <div className="relative">
-                                                <input
-                                                    type={showPassword ? 'text' : 'password'}
-                                                    name="password"
-                                                    value={formData.password}
-                                                    onChange={handleInputChange}
-                                                    required={formData.portal_access_enabled && !editingAgency}
-                                                    className="w-full px-4 py-3 pr-12 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium outline-none focus:ring-2 ring-blue-100 focus:bg-white focus:border-blue-300 transition-all"
-                                                    placeholder={editingAgency ? "Leave blank to keep current" : "Enter password"}
-                                                />
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setShowPassword(!showPassword)}
-                                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                                                >
-                                                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Form Actions */}
-                            <div className="flex gap-3 pt-4">
-                                <button
-                                    type="button"
-                                    onClick={closeModal}
-                                    className="flex-1 py-3 bg-slate-100 text-slate-700 rounded-xl text-sm font-bold hover:bg-slate-200 transition-all"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    className="flex-1 py-3 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-100"
-                                >
-                                    {editingAgency ? 'Update Agency' : 'Create Agency'}
-                                </button>
-                            </div>
-                        </form>
                     </div>
                 </div>
-            )}
+
+                {/* Profile Card */}
+                <div className="bg-white rounded-2xl p-8 border border-slate-200 shadow-sm">
+                    <div className="flex items-start justify-between mb-6">
+                        <div className="flex items-start gap-4">
+                            <div className="w-16 h-16 bg-slate-100 rounded-xl flex items-center justify-center text-slate-400">
+                                <Building2 size={32} />
+                            </div>
+                            <div>
+                                <h2 className="text-2xl font-bold text-slate-900 mb-1">{selectedAgency.name}</h2>
+                                <p className="text-sm text-slate-600 mb-1">{selectedAgency.contact_person || 'No Contact Person'}</p>
+                                <div className="flex items-center gap-3 text-xs text-slate-500">
+                                    <span className="flex items-center gap-1">
+                                        <Phone size={12} /> {selectedAgency.phone || '03222018688'}
+                                    </span>
+                                    <span className="flex items-center gap-1">
+                                        <Mail size={12} /> {selectedAgency.email || 'N/A'}
+                                    </span>
+                                </div>
+                                <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
+                                    <MapPin size={12} /> {selectedAgency.address || 'No Address Provided'}
+                                </p>
+                            </div>
+                        </div>
+                        <span className="px-4 py-2 bg-green-100 text-green-700 rounded-lg text-xs font-bold uppercase tracking-wider">
+                            Active Agreement
+                        </span>
+                    </div>
+
+
+                    {/* Stats Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+                        <div className="bg-blue-50 p-6 rounded-xl border border-blue-100">
+                            <div className="flex flex-col items-center text-center">
+                                <Ticket size={24} className="text-blue-600 mb-2" />
+                                <p className="text-3xl font-bold text-blue-600 mb-1">0</p>
+                                <p className="text-xs font-medium text-slate-600 uppercase tracking-wide">Total Bookings</p>
+                            </div>
+                        </div>
+                        <div className="bg-green-50 p-6 rounded-xl border border-green-100">
+                            <div className="flex flex-col items-center text-center">
+                                <Check size={24} className="text-green-600 mb-2" />
+                                <p className="text-3xl font-bold text-green-600 mb-1">0</p>
+                                <p className="text-xs font-medium text-slate-600 uppercase tracking-wide">On-Time Payments</p>
+                            </div>
+                        </div>
+                        <div className="bg-white p-6 rounded-xl border border-slate-200">
+                            <div className="flex flex-col items-center text-center">
+                                <Clock size={24} className="text-slate-600 mb-2" />
+                                <p className="text-3xl font-bold text-slate-900 mb-1">0</p>
+                                <p className="text-xs font-medium text-slate-600 uppercase tracking-wide">Late Payments</p>
+                            </div>
+                        </div>
+                        <div className="bg-red-50 p-6 rounded-xl border border-red-100">
+                            <div className="flex flex-col items-center text-center">
+                                <AlertCircle size={24} className="text-red-600 mb-2" />
+                                <p className="text-3xl font-bold text-red-600 mb-1">0</p>
+                                <p className="text-xs font-medium text-slate-600 uppercase tracking-wide">Disputes</p>
+                            </div>
+                        </div>
+                    </div>
+
+
+
+                    {/* Additional Information */}
+                    <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm mb-6">
+                        <h3 className="text-sm font-bold text-slate-900 mb-6 uppercase tracking-wider">Additional Information</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <p className="text-xs font-medium text-slate-500 mb-1">Code: <span className="text-blue-600 font-bold">{selectedAgency.code || 'N/A'}</span></p>
+                            </div>
+                            <div>
+                                <p className="text-xs font-medium text-slate-500 mb-1">Type: <span className="text-blue-600 font-bold capitalize">{selectedAgency.agency_type || 'Full'}</span></p>
+                            </div>
+                            <div>
+                                <p className="text-xs font-medium text-slate-500 mb-1">Credit Limit: <span className="text-blue-600 font-bold">Rs. {selectedAgency.credit_limit_days || 1000}</span></p>
+                            </div>
+                            <div>
+                                <p className="text-xs font-medium text-slate-500 mb-1">Commission Group: <span className="text-blue-600 font-bold">{selectedAgency.commission_group || 'Standard'}</span></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Agency Portal Access */}
+                    <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                        <div className="flex items-center justify-between mb-6">
+                            <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                                <ShieldCheck size={16} className="text-slate-600" />
+                                Agency Portal Access
+                            </h3>
+                            <span className="px-4 py-1.5 bg-green-100 text-green-700 rounded-lg text-xs font-bold uppercase tracking-wider">
+                                Enabled
+                            </span>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">Username</p>
+                                <div className="flex items-center gap-2 text-sm font-medium text-slate-900 bg-slate-50 px-3 py-2 rounded-lg border border-slate-200">
+                                    <Mail size={14} className="text-slate-400" />
+                                    <span>{selectedAgency.username || selectedAgency.email}</span>
+                                </div>
+                            </div>
+                            <div>
+                                <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">Login Email</p>
+                                <div className="flex items-center gap-2 text-sm font-medium text-slate-900 bg-slate-50 px-3 py-2 rounded-lg border border-slate-200">
+                                    <Mail size={14} className="text-slate-400" />
+                                    <span>{selectedAgency.email || 'N/A'}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="mt-6 p-4 bg-blue-50 rounded-xl border border-blue-100">
+                            <div className="flex items-start gap-2">
+                                <AlertCircle size={14} className="text-blue-600 mt-0.5 shrink-0" />
+                                <p className="text-xs font-medium text-blue-600">
+                                    This agency can log in to the Agency Portal using their email and password
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        );
+    }
+
+    // ADD/EDIT FORM VIEW
+    return (
+        <div className="space-y-6 animate-in fade-in duration-500">
+            <div className="flex items-center gap-4">
+                <button
+                    onClick={() => setViewMode('list')}
+                    className="p-3 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition-all"
+                >
+                    <ArrowLeft size={20} />
+                </button>
+                <div>
+                    <h1 className="text-2xl font-black text-slate-900 tracking-tight">
+                        {viewMode === 'add' ? 'Add New Agency' : 'Edit Agency'}
+                    </h1>
+                    <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-wide">
+                        {viewMode === 'add' ? 'Create a new agency partner' : `Editing: ${selectedAgency?.name}`}
+                    </p>
+                </div>
+            </div>
+
+            <form onSubmit={handleSubmit} className="bg-white rounded-[32px] p-8 border border-slate-100 shadow-sm space-y-8">
+                {error && (
+                    <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-start space-x-3">
+                        <AlertCircle size={20} className="text-red-600 flex-shrink-0 mt-0.5" />
+                        <div>
+                            <p className="text-xs font-black text-red-600 uppercase tracking-wider mb-1">Error</p>
+                            <p className="text-xs font-bold text-red-500">{error}</p>
+                        </div>
+                    </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Agency Name *</label>
+                        <input required type="text" name="name" value={formData.name} onChange={handleInputChange}
+                            className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100" placeholder="Enter agency name" />
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Agency Code</label>
+                        <input type="text" name="code" value={formData.code} onChange={handleInputChange}
+                            className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100" placeholder="Enter agency code" />
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Branch *</label>
+                        <select name="branch_id" value={formData.branch_id} onChange={handleInputChange} required
+                            className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100">
+                            <option value="">Select Branch</option>
+                            {branches.map(branch => (
+                                <option key={branch.id || branch._id} value={branch.id || branch._id}>
+                                    {branch.name}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Agency Type *</label>
+                        <select name="agency_type" value={formData.agency_type} onChange={handleInputChange} required
+                            className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100">
+                            <option value="full">Full Agency</option>
+                            <option value="area">Area Agency</option>
+                        </select>
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Contact Person</label>
+                        <input type="text" name="contact_person" value={formData.contact_person} onChange={handleInputChange}
+                            className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100" placeholder="Full Name" />
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Email</label>
+                        <input type="email" name="email" value={formData.email} onChange={handleInputChange}
+                            className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100" placeholder="email@example.com" />
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Phone</label>
+                        <input type="tel" name="phone" value={formData.phone} onChange={handleInputChange}
+                            className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100" placeholder="+92 300 1234567" />
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">City</label>
+                        <input type="text" name="city" value={formData.city} onChange={handleInputChange}
+                            className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100" placeholder="City Name" />
+                    </div>
+                    <div className="md:col-span-2 space-y-2">
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Address</label>
+                        <textarea name="address" value={formData.address} onChange={handleInputChange} rows="2"
+                            className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100 resize-none" placeholder="Full Address" />
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Credit Limit (Days)</label>
+                        <input type="number" name="credit_limit_days" value={formData.credit_limit_days} onChange={handleInputChange}
+                            className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100" />
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Agreement Status</label>
+                        <select name="agreement_status" value={formData.agreement_status} onChange={handleInputChange}
+                            className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100">
+                            <option value="active">Active</option>
+                            <option value="pending">Pending</option>
+                            <option value="suspended">Suspended</option>
+                        </select>
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Commission Group</label>
+                        <select name="commission_group" value={formData.commission_group} onChange={handleInputChange}
+                            className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100">
+                            <option value="Standard">Standard</option>
+                            <option value="Premium">Premium</option>
+                            <option value="VIP">VIP</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div className="border-t border-slate-100"></div>
+
+                {/* Portal Access */}
+                <div className="bg-slate-50 p-6 rounded-xl border border-slate-200">
+                    <div className="flex items-center justify-between mb-4">
+                        <h4 className="text-sm font-black text-slate-900 uppercase tracking-wider">Portal Access</h4>
+                        <div className="flex items-center gap-3">
+                            <input type="checkbox" name="portal_access_enabled" id="portal_access_enabled" checked={formData.portal_access_enabled} onChange={handleInputChange}
+                                className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500" />
+                            <label htmlFor="portal_access_enabled" className="text-sm font-bold text-slate-700">
+                                Enable Portal Access
+                            </label>
+                        </div>
+                    </div>
+
+                    {formData.portal_access_enabled && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in slide-in-from-top-2 duration-300">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Username (Auto-filled)</label>
+                                <input type="text" name="username" value={formData.username} readOnly
+                                    className="w-full px-4 py-3 bg-slate-200 rounded-2xl text-sm font-bold text-slate-600 cursor-not-allowed" placeholder="Enter email to auto-fill" />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Password {viewMode === 'add' && '*'}</label>
+                                <div className="relative">
+                                    <input type={showPassword ? 'text' : 'password'} name="password" value={formData.password} onChange={handleInputChange} required={viewMode === 'add'}
+                                        className="w-full px-4 py-3 pr-12 bg-white rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100"
+                                        placeholder={viewMode === 'edit' ? "Leave blank to keep current" : "Enter password"} />
+                                    <button type="button" onClick={() => setShowPassword(!showPassword)}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* Status & Actions */}
+                <div className="flex items-center justify-between pt-4">
+                    <div className="flex items-center gap-3">
+                        <input type="checkbox" name="is_active" id="is_active" checked={formData.is_active} onChange={handleInputChange}
+                            className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500" />
+                        <label htmlFor="is_active" className="text-sm font-bold text-slate-700">
+                            Active Status
+                        </label>
+                    </div>
+                    <div className="flex gap-4">
+                        <button type="button" onClick={() => setViewMode('list')}
+                            className="px-8 py-3 bg-slate-100 text-slate-700 rounded-xl text-sm font-bold hover:bg-slate-200 transition-all">
+                            Cancel
+                        </button>
+                        <button type="submit" disabled={isSubmitting}
+                            className="px-8 py-3 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 disabled:opacity-50">
+                            {isSubmitting ? 'Saving...' : viewMode === 'edit' ? 'Update Agency' : 'Create Agency'}
+                        </button>
+                    </div>
+                </div>
+            </form>
         </div>
     );
 };

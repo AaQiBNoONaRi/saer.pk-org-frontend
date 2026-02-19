@@ -1,135 +1,218 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Plus, Edit2, Trash2, Search, X, Eye, EyeOff } from 'lucide-react';
-import { authAPI } from '../../services/api';
+import {
+    Users, Plus, Search, Mail, Phone, ArrowLeft,
+    Edit2, Trash2, Loader2, AlertCircle, User, Eye, EyeOff
+} from 'lucide-react';
 
 const EmployeesView = () => {
     const [employees, setEmployees] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [showModal, setShowModal] = useState(false);
-    const [editingEmployee, setEditingEmployee] = useState(null);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [currentAdmin, setCurrentAdmin] = useState(null);
+    const [organizations, setOrganizations] = useState([]);
+    const [branches, setBranches] = useState([]);
+    const [agencies, setAgencies] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [selectedEmployee, setSelectedEmployee] = useState(null);
+    const [viewMode, setViewMode] = useState('list'); // 'list', 'detail', 'add', 'edit'
+
+    const [searchQuery, setSearchQuery] = useState('');
+    const [filterOrg, setFilterOrg] = useState('');
+    const [filterRole, setFilterRole] = useState('all');
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [error, setError] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
+
     const [formData, setFormData] = useState({
-        emp_id: '',
         name: '',
         email: '',
         phone: '',
-        password: '',
-        entity_type: 'organization',
-        entity_id: '',
-        role: 'agent',
+        role: 'ORGANIZATION_EMPLOYEE',
+        organization_id: '',
+        branch_id: '',
+        agency_id: '',
         is_active: true,
         portal_access_enabled: true,
-        username: ''
+        username: '',
+        password: ''
     });
-    const [showPassword, setShowPassword] = useState(false);
-    const [entities, setEntities] = useState({ organizations: [], branches: [], agencies: [] });
 
     useEffect(() => {
-        // Get current admin data
-        const adminData = authAPI.getAdminData();
-        setCurrentAdmin(adminData);
-
         fetchEmployees();
-        fetchEntities();
+        fetchOrganizations();
+        fetchBranches();
+        fetchAgencies();
     }, []);
 
     const fetchEmployees = async () => {
         try {
+            setIsLoading(true);
             const token = localStorage.getItem('access_token');
             const response = await fetch('http://localhost:8000/api/employees/', {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
+
             if (response.ok) {
                 const data = await response.json();
                 setEmployees(data);
             }
-        } catch (error) {
-            console.error('Error fetching employees:', error);
+        } catch (err) {
+            console.error("Failed to fetch employees", err);
         } finally {
-            setLoading(false);
+            setIsLoading(false);
         }
     };
 
-    const fetchEntities = async () => {
-        const token = localStorage.getItem('access_token');
-
-        console.log('Fetching entities with token:', token ? 'Token exists' : 'No token');
-
-        let organizations = [];
-        let branches = [];
-        let agencies = [];
-
-        // Fetch organizations
+    const fetchOrganizations = async () => {
         try {
-            const orgResponse = await fetch('http://localhost:8000/api/organizations/', {
+            const token = localStorage.getItem('access_token');
+            const response = await fetch('http://localhost:8000/api/organizations/', {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-            console.log('Organizations response status:', orgResponse.status);
-            if (orgResponse.ok) {
-                organizations = await orgResponse.json();
-                console.log('Organizations fetched:', organizations);
-            } else {
-                console.warn('Failed to fetch organizations:', orgResponse.status);
+            if (response.ok) {
+                const data = await response.json();
+                setOrganizations(data);
             }
         } catch (error) {
             console.error('Error fetching organizations:', error);
         }
+    };
 
-        // Fetch branches (don't fail if this errors)
+    const fetchBranches = async () => {
         try {
-            const branchResponse = await fetch('http://localhost:8000/api/branches/', {
+            const token = localStorage.getItem('access_token');
+            const response = await fetch('http://localhost:8000/api/branches/', {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-            if (branchResponse.ok) {
-                branches = await branchResponse.json();
-                console.log('Branches fetched:', branches);
-            } else {
-                console.warn('Failed to fetch branches:', branchResponse.status);
+            if (response.ok) {
+                const data = await response.json();
+                setBranches(data);
             }
         } catch (error) {
-            console.warn('Error fetching branches (continuing anyway):', error);
+            console.error('Error fetching branches:', error);
         }
+    };
 
-        // Fetch agencies (don't fail if this errors)
+    const fetchAgencies = async () => {
         try {
-            const agencyResponse = await fetch('http://localhost:8000/api/agencies/', {
+            const token = localStorage.getItem('access_token');
+            const response = await fetch('http://localhost:8000/api/agencies/', {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-            if (agencyResponse.ok) {
-                agencies = await agencyResponse.json();
-                console.log('Agencies fetched:', agencies);
-            } else {
-                console.warn('Failed to fetch agencies:', agencyResponse.status);
+            if (response.ok) {
+                const data = await response.json();
+                setAgencies(data);
             }
         } catch (error) {
-            console.warn('Error fetching agencies (continuing anyway):', error);
+            console.error('Error fetching agencies:', error);
         }
+    };
 
-        setEntities({ organizations, branches, agencies });
+    const handleDelete = async (employee) => {
+        if (!window.confirm(`Are you sure you want to delete "${employee.name}"?`)) return;
+        try {
+            const token = localStorage.getItem('access_token');
+            const response = await fetch(`http://localhost:8000/api/employees/${employee._id || employee.id}/`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
 
-        // If no organizations found, show warning
-        if (organizations.length === 0) {
-            console.warn('No organizations found in database');
+            if (response.ok) {
+                const updatedList = employees.filter(e => (e._id || e.id) !== (employee._id || employee.id));
+                setEmployees(updatedList);
+                if (selectedEmployee && String(selectedEmployee._id || selectedEmployee.id) === String(employee._id || employee.id)) {
+                    setSelectedEmployee(null);
+                    setViewMode('list');
+                }
+                alert('Employee deleted successfully!');
+            } else {
+                alert('Failed to delete employee');
+            }
+        } catch (err) {
+            alert('Failed to delete employee');
         }
+    };
+
+    const handleInputChange = (e) => {
+        const { name, value, type, checked } = e.target;
+        if (name === 'email') {
+            setFormData(prev => ({
+                ...prev,
+                email: value,
+                username: value
+            }));
+        } else {
+            setFormData(prev => ({
+                ...prev,
+                [name]: type === 'checkbox' ? checked : value
+            }));
+        }
+    };
+
+    const openAddForm = () => {
+        setFormData({
+            name: '',
+            email: '',
+            phone: '',
+            role: 'ORGANIZATION_EMPLOYEE',
+            organization_id: '',
+            branch_id: '',
+            agency_id: '',
+            is_active: true,
+            portal_access_enabled: true,
+            username: '',
+            password: ''
+        });
+        setError('');
+        setViewMode('add');
+    };
+
+    const openEditForm = (employee) => {
+        setFormData({
+            name: employee.name || '',
+            email: employee.email || '',
+            phone: employee.phone || '',
+            role: employee.role || 'ORGANIZATION_EMPLOYEE',
+            organization_id: String(employee.organization_id || employee.organization?._id || ''),
+            branch_id: String(employee.branch_id || employee.branch?._id || ''),
+            agency_id: String(employee.agency_id || employee.agency?._id || ''),
+            is_active: employee.is_active ?? true,
+            portal_access_enabled: employee.portal_access_enabled ?? true,
+            username: employee.username || '',
+            password: ''
+        });
+        setSelectedEmployee(employee);
+        setError('');
+        setViewMode('edit');
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        const token = localStorage.getItem('access_token');
+        setError('');
+        setIsSubmitting(true);
+
+        if (!formData.name.trim() || !formData.email.trim()) {
+            setError('Name and email are required');
+            setIsSubmitting(false);
+            return;
+        }
+
+        if (viewMode === 'add' && !formData.password?.trim()) {
+            setError('Password is required for new employees');
+            setIsSubmitting(false);
+            return;
+        }
 
         try {
-            const url = editingEmployee
-                ? `http://localhost:8000/api/employees/${editingEmployee.emp_id}`
-                : 'http://localhost:8000/api/employees/';
-
-            const method = editingEmployee ? 'PUT' : 'POST';
-
-            // Don't send password if editing and password is empty
+            const token = localStorage.getItem('access_token');
             const payload = { ...formData };
-            if (editingEmployee && !payload.password) {
+
+            if (viewMode === 'edit' && !payload.password) {
                 delete payload.password;
             }
+
+            const url = viewMode === 'edit'
+                ? `http://localhost:8000/api/employees/${selectedEmployee._id || selectedEmployee.id}/`
+                : 'http://localhost:8000/api/employees/';
+
+            const method = viewMode === 'edit' ? 'PUT' : 'POST';
 
             const response = await fetch(url, {
                 method,
@@ -142,432 +225,419 @@ const EmployeesView = () => {
 
             if (response.ok) {
                 await fetchEmployees();
-                handleCloseModal();
-                alert(editingEmployee ? 'Employee updated successfully!' : 'Employee created successfully!');
+                alert(viewMode === 'edit' ? 'Employee updated successfully!' : 'Employee created successfully!');
+                setViewMode('list');
             } else {
-                const error = await response.json();
-                console.error('Backend error:', error);
-                // Handle validation errors
-                if (error.detail && Array.isArray(error.detail)) {
-                    const errorMessages = error.detail.map(err => `${err.loc.join('.')}: ${err.msg}`).join('\n');
-                    alert(`Validation Error:\n${errorMessages}`);
-                } else {
-                    alert(`Error: ${error.detail || 'Failed to save employee'}`);
-                }
+                const errorData = await response.json();
+                setError(errorData.detail || 'Failed to save employee');
             }
-        } catch (error) {
-            console.error('Error saving employee:', error);
-            alert('Error saving employee');
+        } catch (err) {
+            console.error(err);
+            setError('Failed to save employee');
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
-    const handleDelete = async (empId) => {
-        if (!window.confirm('Are you sure you want to delete this employee?')) return;
+    const filteredEmployees = employees.filter(employee => {
+        const matchesSearch = employee.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            employee.email?.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesOrg = !filterOrg || String(employee.organization_id || employee.organization?._id) === filterOrg;
+        const matchesRole = filterRole === 'all' || employee.role === filterRole;
+        return matchesSearch && matchesOrg && matchesRole;
+    });
 
-        try {
-            const token = localStorage.getItem('access_token');
-            const response = await fetch(`http://localhost:8000/api/employees/${empId}`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-
-            if (response.ok) {
-                await fetchEmployees();
-                alert('Employee deleted successfully!');
-            } else {
-                alert('Failed to delete employee');
-            }
-        } catch (error) {
-            console.error('Error deleting employee:', error);
-            alert('Error deleting employee');
-        }
+    const getEntityName = (entities, id) => {
+        if (!id) return 'N/A';
+        const entity = entities.find(e => String(e.id || e._id) === String(id));
+        return entity ? entity.name : 'N/A';
     };
 
-    const handleEdit = (employee) => {
-        setEditingEmployee(employee);
-        setFormData({
-            emp_id: employee.emp_id,
-            name: employee.name,
-            email: employee.email,
-            phone: employee.phone,
-            password: '', // Don't pre-fill password
-            entity_type: employee.entity_type,
-            entity_id: employee.entity_id,
-            role: employee.role,
-            is_active: employee.is_active,
-            portal_access_enabled: employee.portal_access_enabled ?? true,
-            username: employee.username || ''
-        });
-        setShowModal(true);
-        setShowPassword(false);
-    };
-
-    const handleOpenAddModal = () => {
-        // Pre-select current admin's organization if available
-        if (currentAdmin && currentAdmin.org_id) {
-            setFormData({
-                emp_id: '',
-                name: '',
-                email: '',
-                phone: '',
-                password: '',
-                entity_type: 'organization',
-                entity_id: currentAdmin.org_id,
-                role: 'agent',
-                is_active: true,
-                portal_access_enabled: true,
-                username: ''
-            });
-        }
-        setShowModal(true);
-        setShowPassword(false);
-    };
-
-    const handleCloseModal = () => {
-        setShowModal(false);
-        setEditingEmployee(null);
-        setFormData({
-            emp_id: '',
-            name: '',
-            email: '',
-            phone: '',
-            password: '',
-            entity_type: 'organization',
-            entity_id: '',
-            role: 'agent',
-            is_active: true,
-            portal_access_enabled: true,
-            username: ''
-        });
-        setShowPassword(false);
-    };
-
-    const getEntityOptions = () => {
-        switch (formData.entity_type) {
-            case 'organization':
-                return entities.organizations;
-            case 'branch':
-                return entities.branches;
-            case 'agency':
-                return entities.agencies;
-            default:
-                return [];
-        }
-    };
-
-    const filteredEmployees = employees.filter(emp =>
-        emp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        emp.emp_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        emp.email.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-
-    if (loading) {
-        return <div className="p-8 text-center text-slate-500">Loading employees...</div>;
-    }
-
-    return (
-        <div className="max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500">
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
-                <div>
-                    <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tight">Employees</h2>
-                    <p className="text-slate-500 font-medium">Manage employee accounts and roles</p>
-                </div>
-                <button
-                    onClick={handleOpenAddModal}
-                    className="w-full sm:w-auto px-6 py-3 bg-blue-600 text-white rounded-xl text-xs font-bold transition-all hover:scale-105 active:scale-95 shadow-lg shadow-blue-100 flex items-center justify-center gap-2"
-                >
-                    <Plus size={16} /> Add Employee
-                </button>
-            </div>
-
-            {/* Search */}
-            <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
-                <div className="relative">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-                    <input
-                        type="text"
-                        placeholder="Search by name, ID, or email..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-12 pr-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
-                    />
-                </div>
-            </div>
-
-            {/* Employees Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredEmployees.length === 0 ? (
-                    <div className="col-span-full text-center p-12 bg-slate-50 rounded-2xl border border-slate-200 border-dashed">
-                        <Users className="mx-auto text-slate-300 mb-4" size={48} />
-                        <p className="text-slate-400 font-medium">
-                            {searchTerm ? 'No employees found matching your search' : 'No employees yet. Create your first employee!'}
+    // LIST VIEW
+    if (viewMode === 'list') {
+        return (
+            <div className="space-y-6 animate-in fade-in duration-500">
+                <div className="flex justify-between items-center">
+                    <div>
+                        <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+                            <Users className="text-blue-600" size={24} />
+                            Employees <span className="text-slate-400 text-sm">({filteredEmployees.length})</span>
+                        </h1>
+                        <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-wide">
+                            Manage employee accounts
                         </p>
                     </div>
-                ) : (
-                    filteredEmployees.map(employee => (
-                        <div
-                            key={employee._id}
-                            className="bg-white rounded-2xl border border-slate-200 p-6 hover:shadow-md transition-all duration-300"
-                        >
-                            <div className="flex justify-between items-start mb-4">
-                                <div className="flex-1">
-                                    <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight mb-1">
-                                        {employee.name}
-                                    </h3>
-                                    <p className="text-xs text-slate-500 font-bold">ID: {employee.emp_id}</p>
-                                </div>
-                                <div className="flex flex-col gap-1 items-end">
-                                    <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${employee.is_active
-                                        ? 'bg-emerald-50 text-emerald-600'
-                                        : 'bg-red-50 text-red-600'
-                                        }`}>
-                                        {employee.is_active ? 'Active' : 'Inactive'}
-                                    </span>
-                                    <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-blue-50 text-blue-600 uppercase">
-                                        {employee.role}
-                                    </span>
-                                </div>
-                            </div>
+                    <button
+                        onClick={openAddForm}
+                        className="flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-blue-100 hover:scale-105 transition-all"
+                    >
+                        <Plus size={16} />
+                        <span>Add New Employee</span>
+                    </button>
+                </div>
 
-                            <div className="space-y-2 mb-4">
-                                {employee.email && (
-                                    <p className="text-sm text-slate-600"><span className="font-bold">Email:</span> {employee.email}</p>
-                                )}
-                                {employee.phone && (
-                                    <p className="text-sm text-slate-600"><span className="font-bold">Phone:</span> {employee.phone}</p>
-                                )}
-                                {employee.entity_type && (
-                                    <p className="text-sm text-slate-600"><span className="font-bold">Entity:</span> <span className="capitalize">{employee.entity_type}</span></p>
-                                )}
-                            </div>
+                <div className="bg-white rounded-[32px] p-6 border border-slate-100 shadow-sm">
+                    <div className="space-y-4 mb-6">
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                            <input
+                                type="text"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                placeholder="Search employees..."
+                                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-blue-100 outline-none transition-all"
+                            />
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <select
+                                value={filterOrg}
+                                onChange={(e) => setFilterOrg(e.target.value)}
+                                className="px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold text-slate-600 outline-none"
+                            >
+                                <option value="">All Organizations</option>
+                                {organizations.map(org => (
+                                    <option key={org.id || org._id} value={org.id || org._id}>
+                                        {org.name}
+                                    </option>
+                                ))}
+                            </select>
+                            <select
+                                value={filterRole}
+                                onChange={(e) => setFilterRole(e.target.value)}
+                                className="px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold text-slate-600 outline-none"
+                            >
+                                <option value="all">All Roles</option>
+                                <option value="ORGANIZATION_ADMIN">Organization Admin</option>
+                                <option value="ORGANIZATION_EMPLOYEE">Organization Employee</option>
+                                <option value="BRANCH_ADMIN">Branch Admin</option>
+                                <option value="BRANCH_EMPLOYEE">Branch Employee</option>
+                                <option value="AGENCY_ADMIN">Agency Admin</option>
+                                <option value="AGENCY_EMPLOYEE">Agency Employee</option>
+                            </select>
+                        </div>
+                    </div>
 
-                            <div className="flex gap-2">
-                                <button
-                                    onClick={() => handleEdit(employee)}
-                                    className="flex-1 py-2 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition-all flex items-center justify-center gap-1"
+                    {isLoading ? (
+                        <div className="flex justify-center p-12"><Loader2 className="animate-spin text-blue-600" size={32} /></div>
+                    ) : filteredEmployees.length === 0 ? (
+                        <div className="text-center p-12 text-slate-400 text-sm font-bold">No employees found</div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                            {filteredEmployees.map(employee => (
+                                <div
+                                    key={employee._id || employee.id}
+                                    onClick={() => { setSelectedEmployee(employee); setViewMode('detail'); }}
+                                    className="p-6 rounded-2xl border border-slate-100 cursor-pointer transition-all hover:shadow-xl hover:scale-[1.02] active:scale-95 bg-white"
                                 >
-                                    <Edit2 size={14} /> Edit
-                                </button>
-                                <button
-                                    onClick={() => handleDelete(employee.emp_id)}
-                                    className="flex-1 py-2 bg-red-50 text-red-600 rounded-lg text-xs font-bold hover:bg-red-100 transition-all flex items-center justify-center gap-1"
-                                >
-                                    <Trash2 size={14} /> Delete
-                                </button>
+                                    <div className="flex justify-between items-start mb-3">
+                                        <h3 className="font-black text-base text-slate-800">{employee.name}</h3>
+                                        <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-widest ${employee.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                            {employee.is_active ? 'Active' : 'Inactive'}
+                                        </span>
+                                    </div>
+                                    <p className="text-xs text-slate-500 font-medium mb-3">{employee.role?.replace('_', ' ')}</p>
+                                    <div className="space-y-2">
+                                        <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400">
+                                            <Mail size={12} />
+                                            <span className="truncate">{employee.email}</span>
+                                        </div>
+                                        {employee.phone && (
+                                            <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400">
+                                                <Phone size={12} />
+                                                <span>{employee.phone}</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    }
+
+    // DETAIL VIEW
+    if (viewMode === 'detail' && selectedEmployee) {
+        return (
+            <div className="space-y-6 animate-in fade-in duration-500">
+                {/* Header with back button */}
+                <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                            <button
+                                onClick={() => setViewMode('list')}
+                                className="p-2 hover:bg-slate-100 rounded-lg transition-all"
+                            >
+                                <ArrowLeft size={20} className="text-slate-600" />
+                            </button>
+                            <div>
+                                <h1 className="text-lg font-bold text-slate-900">Employee Details</h1>
+                                <p className="text-xs text-slate-500 uppercase tracking-wide">View and manage employee information</p>
                             </div>
                         </div>
-                    ))
-                )}
-            </div>
-
-            {/* Add/Edit Modal */}
-            {showModal && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-                        <div className="sticky top-0 bg-white border-b border-slate-100 p-6 flex items-center justify-between rounded-t-3xl">
-                            <h3 className="text-2xl font-black text-slate-900 uppercase">
-                                {editingEmployee ? 'Edit Employee' : 'Add Employee'}
-                            </h3>
-                            <button onClick={handleCloseModal} className="p-2 hover:bg-slate-100 rounded-lg transition-all">
-                                <X size={20} />
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => openEditForm(selectedEmployee)}
+                                className="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition-all flex items-center gap-2"
+                            >
+                                <Edit2 size={14} /> EDIT
+                            </button>
+                            <button
+                                onClick={() => handleDelete(selectedEmployee)}
+                                className="px-4 py-2 bg-red-50 text-red-600 rounded-lg text-xs font-bold hover:bg-red-100 transition-all flex items-center gap-2"
+                            >
+                                <Trash2 size={14} />
                             </button>
                         </div>
-
-                        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Employee ID</label>
-                                    <input
-                                        type="text"
-                                        value={formData.emp_id}
-                                        onChange={(e) => setFormData({ ...formData, emp_id: e.target.value })}
-                                        className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
-                                        required
-                                        disabled={editingEmployee}
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Name</label>
-                                    <input
-                                        type="text"
-                                        value={formData.name}
-                                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                        className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
-                                        required
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Email</label>
-                                    <input
-                                        type="email"
-                                        value={formData.email}
-                                        onChange={(e) => setFormData({ ...formData, email: e.target.value, username: e.target.value })}
-                                        className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
-                                        required
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Phone</label>
-                                    <input
-                                        type="tel"
-                                        value={formData.phone}
-                                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                                        className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
-                                        required
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Role</label>
-                                    <select
-                                        value={formData.role}
-                                        onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                                        className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
-                                        required
-                                    >
-                                        <option value="admin">Admin</option>
-                                        <option value="manager">Manager</option>
-                                        <option value="agent">Agent</option>
-                                        <option value="support">Support</option>
-                                    </select>
-                                </div>
-
-                                <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Entity Type</label>
-                                    <select
-                                        value={formData.entity_type}
-                                        onChange={(e) => setFormData({ ...formData, entity_type: e.target.value, entity_id: '' })}
-                                        className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
-                                        required
-                                    >
-                                        <option value="organization">Organization</option>
-                                        <option value="branch">Branch</option>
-                                        <option value="agency">Agency</option>
-                                    </select>
-                                </div>
-
-                                <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Entity</label>
-                                    <select
-                                        value={formData.entity_id}
-                                        onChange={(e) => setFormData({ ...formData, entity_id: e.target.value })}
-                                        className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
-                                        required
-                                    >
-                                        <option value="">
-                                            {getEntityOptions().length === 0
-                                                ? `No ${formData.entity_type}s found - Please create one first`
-                                                : `Select ${formData.entity_type}`}
-                                        </option>
-                                        {getEntityOptions().map(entity => (
-                                            <option key={entity._id} value={entity._id}>
-                                                {entity.name || entity.org_name}
-                                            </option>
-                                        ))}
-                                    </select>
-                                    {getEntityOptions().length === 0 && (
-                                        <p className="mt-2 text-xs text-amber-600 font-medium">
-                                            ⚠️ No {formData.entity_type}s available. Please go to Entities → {formData.entity_type === 'organization' ? 'Organization' : formData.entity_type === 'branch' ? 'Branch' : 'Agencies'} to create one first.
-                                        </p>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* Portal Access Section */}
-                            <div className="border-t border-slate-200 pt-6">
-                                <div className="flex items-center justify-between mb-4">
-                                    <h4 className="text-sm font-black text-slate-700 uppercase tracking-wider">Portal Access</h4>
-                                    <div className="flex items-center gap-3">
-                                        <input
-                                            type="checkbox"
-                                            name="portal_access_enabled"
-                                            id="portal_access_enabled"
-                                            checked={formData.portal_access_enabled}
-                                            onChange={(e) => setFormData({ ...formData, portal_access_enabled: e.target.checked })}
-                                            className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
-                                        />
-                                        <label htmlFor="portal_access_enabled" className="text-sm font-bold text-slate-700">
-                                            Enable Portal Access
-                                        </label>
-                                    </div>
-                                </div>
-
-                                {formData.portal_access_enabled && (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-xs font-bold text-slate-600 mb-2">Username (Auto-filled from Email) *</label>
-                                            <input
-                                                type="text"
-                                                name="username"
-                                                value={formData.username}
-                                                readOnly
-                                                required={formData.portal_access_enabled}
-                                                className="w-full px-4 py-3 bg-slate-100 border border-slate-200 rounded-xl text-sm font-medium outline-none cursor-not-allowed text-slate-600"
-                                                placeholder="Enter email above to auto-fill"
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-xs font-bold text-slate-600 mb-2">
-                                                Password {!editingEmployee && '*'}
-                                            </label>
-                                            <div className="relative">
-                                                <input
-                                                    type={showPassword ? 'text' : 'password'}
-                                                    name="password"
-                                                    value={formData.password}
-                                                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                                    required={formData.portal_access_enabled && !editingEmployee}
-                                                    className="w-full px-4 py-3 pr-12 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium outline-none focus:ring-2 ring-blue-100 focus:bg-white focus:border-blue-300 transition-all"
-                                                    placeholder={editingEmployee ? "Leave blank to keep current" : "Enter password"}
-                                                />
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setShowPassword(!showPassword)}
-                                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                                                >
-                                                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-
-                            <div className="flex items-center gap-2">
-                                <input
-                                    type="checkbox"
-                                    id="is_active"
-                                    checked={formData.is_active}
-                                    onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                                    className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                                />
-                                <label htmlFor="is_active" className="text-sm font-bold text-slate-700">Active</label>
-                            </div>
-
-                            <div className="flex gap-3 pt-4">
-                                <button
-                                    type="button"
-                                    onClick={handleCloseModal}
-                                    className="flex-1 px-6 py-3 bg-slate-100 text-slate-700 rounded-xl font-bold hover:bg-slate-200 transition-all"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-100"
-                                >
-                                    {editingEmployee ? 'Update' : 'Create'} Employee
-                                </button>
-                            </div>
-                        </form>
                     </div>
                 </div>
-            )}
+
+                {/* Profile Card */}
+                <div className="bg-white rounded-2xl p-8 border border-slate-200 shadow-sm">
+                    <div className="flex items-start justify-between mb-6">
+                        <div className="flex items-start gap-4">
+                            <div className="w-16 h-16 bg-slate-100 rounded-xl flex items-center justify-center text-slate-400">
+                                <User size={32} />
+                            </div>
+                            <div>
+                                <h2 className="text-2xl font-bold text-slate-900 mb-1">{selectedEmployee.name}</h2>
+                                <p className="text-sm text-slate-600 mb-1">{selectedEmployee.role?.replace('_', ' ')}</p>
+                                <div className="flex items-center gap-3 text-xs text-slate-500">
+                                    <span className="flex items-center gap-1">
+                                        <Phone size={12} /> {selectedEmployee.phone || 'N/A'}
+                                    </span>
+                                    <span className="flex items-center gap-1">
+                                        <Mail size={12} /> {selectedEmployee.email || 'N/A'}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <span className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider ${selectedEmployee.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                            {selectedEmployee.is_active ? 'Active' : 'Inactive'}
+                        </span>
+                    </div>
+
+                    {/* Employee Information */}
+                    <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                        <h3 className="text-sm font-bold text-slate-900 mb-6 uppercase tracking-wider">Employee Information</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-8">
+                            <div>
+                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Email</p>
+                                <p className="font-medium text-slate-900">{selectedEmployee.email || 'N/A'}</p>
+                            </div>
+                            <div>
+                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Phone</p>
+                                <p className="font-medium text-slate-900">{selectedEmployee.phone || 'N/A'}</p>
+                            </div>
+                            <div>
+                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Organization</p>
+                                <p className="font-medium text-slate-900">{getEntityName(organizations, selectedEmployee.organization_id || selectedEmployee.organization?._id)}</p>
+                            </div>
+                            <div>
+                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Branch</p>
+                                <p className="font-medium text-slate-900">{getEntityName(branches, selectedEmployee.branch_id || selectedEmployee.branch?._id)}</p>
+                            </div>
+                            <div>
+                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Agency</p>
+                                <p className="font-medium text-slate-900">{getEntityName(agencies, selectedEmployee.agency_id || selectedEmployee.agency?._id)}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Portal Access Information */}
+                    <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm mt-6">
+                        <h3 className="text-sm font-bold text-slate-900 mb-6 uppercase tracking-wider">Portal Access</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-8">
+                            <div>
+                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Status</p>
+                                <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-widest ${selectedEmployee.portal_access_enabled ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'}`}>
+                                    {selectedEmployee.portal_access_enabled ? 'Enabled' : 'Disabled'}
+                                </span>
+                            </div>
+                            {selectedEmployee.portal_access_enabled && (
+                                <div>
+                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Username</p>
+                                    <p className="font-medium text-slate-900">{selectedEmployee.username || selectedEmployee.email || 'N/A'}</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // ADD/EDIT FORM VIEW
+    return (
+        <div className="space-y-6 animate-in fade-in duration-500">
+            <div className="flex items-center gap-4">
+                <button
+                    onClick={() => setViewMode('list')}
+                    className="p-3 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition-all"
+                >
+                    <ArrowLeft size={20} />
+                </button>
+                <div>
+                    <h1 className="text-2xl font-black text-slate-900 tracking-tight">
+                        {viewMode === 'add' ? 'Add New Employee' : 'Edit Employee'}
+                    </h1>
+                    <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-wide">
+                        {viewMode === 'add' ? 'Create a new employee account' : `Editing: ${selectedEmployee?.name}`}
+                    </p>
+                </div>
+            </div>
+
+            <form onSubmit={handleSubmit} className="bg-white rounded-[32px] p-8 border border-slate-100 shadow-sm space-y-8">
+                {error && (
+                    <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-start space-x-3">
+                        <AlertCircle size={20} className="text-red-600 flex-shrink-0 mt-0.5" />
+                        <div>
+                            <p className="text-xs font-black text-red-600 uppercase tracking-wider mb-1">Error</p>
+                            <p className="text-xs font-bold text-red-500">{error}</p>
+                        </div>
+                    </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Full Name *</label>
+                        <input required type="text" name="name" value={formData.name} onChange={handleInputChange}
+                            className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100" placeholder="Enter full name" />
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Email *</label>
+                        <input required type="email" name="email" value={formData.email} onChange={handleInputChange}
+                            className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100" placeholder="email@example.com" />
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Phone</label>
+                        <input type="tel" name="phone" value={formData.phone} onChange={handleInputChange}
+                            className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100" placeholder="+92 300 1234567" />
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Role *</label>
+                        <select name="role" value={formData.role} onChange={handleInputChange} required
+                            className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100">
+                            <option value="ORGANIZATION_ADMIN">Organization Admin</option>
+                            <option value="ORGANIZATION_EMPLOYEE">Organization Employee</option>
+                            <option value="BRANCH_ADMIN">Branch Admin</option>
+                            <option value="BRANCH_EMPLOYEE">Branch Employee</option>
+                            <option value="AGENCY_ADMIN">Agency Admin</option>
+                            <option value="AGENCY_EMPLOYEE">Agency Employee</option>
+                        </select>
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Organization</label>
+                        <select name="organization_id" value={formData.organization_id} onChange={handleInputChange}
+                            className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100">
+                            <option value="">Select Organization</option>
+                            {organizations.map(org => (
+                                <option key={org.id || org._id} value={org.id || org._id}>
+                                    {org.name}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Branch</label>
+                        <select name="branch_id" value={formData.branch_id} onChange={handleInputChange}
+                            className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100">
+                            <option value="">Select Branch</option>
+                            {branches.map(branch => (
+                                <option key={branch.id || branch._id} value={branch.id || branch._id}>
+                                    {branch.name}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Agency</label>
+                        <select name="agency_id" value={formData.agency_id} onChange={handleInputChange}
+                            className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100">
+                            <option value="">Select Agency</option>
+                            {agencies.map(agency => (
+                                <option key={agency.id || agency._id} value={agency.id || agency._id}>
+                                    {agency.name}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                </div>
+
+                {/* Portal Access Section */}
+                <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100 space-y-4">
+                    <div className="flex items-center gap-3 mb-2">
+                        <input
+                            type="checkbox"
+                            name="portal_access_enabled"
+                            id="portal_access_enabled"
+                            checked={formData.portal_access_enabled}
+                            onChange={handleInputChange}
+                            className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                        />
+                        <label htmlFor="portal_access_enabled" className="text-sm font-bold text-slate-900 select-none">
+                            Enable Portal Access
+                        </label>
+                    </div>
+
+                    {formData.portal_access_enabled && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-top-2 duration-300">
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Username (Auto-filled from Email)</label>
+                                <input
+                                    type="text"
+                                    name="username"
+                                    value={formData.username}
+                                    readOnly
+                                    className="w-full px-4 py-3 bg-slate-100 border border-slate-200 rounded-2xl text-sm font-bold text-slate-500 outline-none cursor-not-allowed"
+                                    placeholder="Enter username"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                                    Password {viewMode === 'add' ? '*' : '(Leave blank to keep current)'}
+                                </label>
+                                <div className="relative">
+                                    <input
+                                        type={showPassword ? 'text' : 'password'}
+                                        name="password"
+                                        value={formData.password}
+                                        onChange={handleInputChange}
+                                        required={viewMode === 'add'}
+                                        className="w-full px-4 py-3 pr-12 bg-white border border-slate-200 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100"
+                                        placeholder={viewMode === 'edit' ? "Leave blank to keep current" : "Enter password"}
+                                    />
+                                    <button type="button" onClick={() => setShowPassword(!showPassword)}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                <div className="flex items-center justify-between pt-4">
+                    <div className="flex items-center gap-3">
+                        <input type="checkbox" name="is_active" id="is_active" checked={formData.is_active} onChange={handleInputChange}
+                            className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500" />
+                        <label htmlFor="is_active" className="text-sm font-bold text-slate-700">
+                            Active Status
+                        </label>
+                    </div>
+                    <div className="flex gap-4">
+                        <button type="button" onClick={() => setViewMode('list')}
+                            className="px-8 py-3 bg-slate-100 text-slate-700 rounded-xl text-sm font-bold hover:bg-slate-200 transition-all">
+                            Cancel
+                        </button>
+                        <button type="submit" disabled={isSubmitting}
+                            className="px-8 py-3 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 disabled:opacity-50">
+                            {isSubmitting ? 'Saving...' : viewMode === 'edit' ? 'Update Employee' : 'Create Employee'}
+                        </button>
+                    </div>
+                </div>
+            </form>
         </div>
     );
 };

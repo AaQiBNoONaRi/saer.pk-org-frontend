@@ -57,6 +57,15 @@ export const authAPI = {
         if (response.data.access_token) {
             localStorage.setItem('access_token', response.data.access_token);
             localStorage.setItem('admin_data', JSON.stringify(response.data.admin));
+            
+            // Store organization_id separately for easy access
+            if (response.data.admin?.organization_id) {
+                localStorage.setItem('organization_id', response.data.admin.organization_id);
+            } else if (response.data.admin?.organization?._id) {
+                localStorage.setItem('organization_id', response.data.admin.organization._id);
+            } else if (response.data.admin?.organization?.id) {
+                localStorage.setItem('organization_id', response.data.admin.organization.id);
+            }
         }
 
         return response.data;
@@ -77,6 +86,7 @@ export const authAPI = {
     logout: () => {
         localStorage.removeItem('access_token');
         localStorage.removeItem('admin_data');
+        localStorage.removeItem('organization_id');
     },
 
     /**
@@ -94,6 +104,14 @@ export const authAPI = {
     getAdminData: () => {
         const data = localStorage.getItem('admin_data');
         return data ? JSON.parse(data) : null;
+    },
+
+    /**
+     * Get organization ID
+     * @returns {string|null}
+     */
+    getOrganizationId: () => {
+        return localStorage.getItem('organization_id');
     },
 };
 
