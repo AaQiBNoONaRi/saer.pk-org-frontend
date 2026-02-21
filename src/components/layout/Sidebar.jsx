@@ -3,12 +3,12 @@ import {
     LayoutDashboard, Box, Users, UsersRound, ScanLine,
     ShieldCheck, Truck, ClipboardList, LogOut, UserCircle,
     ChevronUp, ChevronDown, CreditCard, Landmark, Menu, X,
-    FileText, FileEdit,DollarSign, Percent, BadgePercent
+    FileText, FileEdit, DollarSign, Percent, BadgePercent
 } from 'lucide-react';
 
 
 
-export default function Sidebar({ activeTab, setActiveTab, isSidebarOpen, setSidebarOpen, setIsLoggedIn }) {
+export default function Sidebar({ activeTab, setActiveTab, getPathForTab, isSidebarOpen, setSidebarOpen, setIsLoggedIn }) {
     const [isInventoryOpen, setInventoryOpen] = useState(false);
     const [isCoreBusinessOpen, setCoreBusinessOpen] = useState(false);
     const [isPartnersOpen, setPartnersOpen] = useState(false);
@@ -81,6 +81,7 @@ export default function Sidebar({ activeTab, setActiveTab, isSidebarOpen, setSid
                             active={activeTab === 'Dashboard'}
                             onClick={() => handleNavClick('Dashboard')}
                             isOpen={isSidebarOpen}
+                            href={getPathForTab ? getPathForTab('Dashboard') : '#'}
                         />
 
                         <NavDropdown
@@ -91,12 +92,12 @@ export default function Sidebar({ activeTab, setActiveTab, isSidebarOpen, setSid
                             onClick={() => setInventoryOpen(!isInventoryOpen)}
                             active={['Packages', 'Hotels', 'Tickets', 'Flights', 'Visa & Other', 'Share Inventory'].includes(activeTab)}
                         >
-                            <DropdownItem label="Packages" active={activeTab === 'Packages'} onClick={() => handleNavClick('Packages')} />
-                            <DropdownItem label="Hotels" active={activeTab === 'Hotels'} onClick={() => handleNavClick('Hotels')} />
-                            <DropdownItem label="Tickets" active={activeTab === 'Tickets'} onClick={() => handleNavClick('Tickets')} />
-                            <DropdownItem label="Flights" active={activeTab === 'Flights'} onClick={() => handleNavClick('Flights')} />
-                            <DropdownItem label="Others" active={activeTab === 'Others'} onClick={() => handleNavClick('Other')} />
-                            <DropdownItem label="Share Inventory" active={activeTab === 'Share Inventory'} onClick={() => handleNavClick('Share Inventory')} />
+                            <DropdownItem label="Packages" active={activeTab === 'Packages'} onClick={() => handleNavClick('Packages')} href={getPathForTab ? getPathForTab('Packages') : '#'} />
+                            <DropdownItem label="Hotels" active={activeTab === 'Hotels'} onClick={() => handleNavClick('Hotels')} href={getPathForTab ? getPathForTab('Hotels') : '#'} />
+                            <DropdownItem label="Tickets" active={activeTab === 'Tickets'} onClick={() => handleNavClick('Tickets')} href={getPathForTab ? getPathForTab('Tickets') : '#'} />
+                            <DropdownItem label="Flights" active={activeTab === 'Flights'} onClick={() => handleNavClick('Flights')} href={getPathForTab ? getPathForTab('Flights') : '#'} />
+                            <DropdownItem label="Others" active={activeTab === 'Others'} onClick={() => handleNavClick('Other')} href={getPathForTab ? getPathForTab('Other') : '#'} />
+                            <DropdownItem label="Share Inventory" active={activeTab === 'Share Inventory'} onClick={() => handleNavClick('Share Inventory')} href={getPathForTab ? getPathForTab('Share Inventory') : '#'} />
                         </NavDropdown>
 
                         <NavDropdown
@@ -107,15 +108,15 @@ export default function Sidebar({ activeTab, setActiveTab, isSidebarOpen, setSid
                             onClick={() => setCoreBusinessOpen(!isCoreBusinessOpen)}
                             active={['Discounts', 'Commissions', 'Service Charges'].includes(activeTab)}
                         >
-                            <DropdownItem label="Discounts" active={activeTab === 'Discounts'} onClick={() => handleNavClick('Discounts')} />
-                            <DropdownItem label="Commissions" active={activeTab === 'Commissions'} onClick={() => handleNavClick('Commissions')} />
-                            <DropdownItem label="Service Charges" active={activeTab === 'Service Charges'} onClick={() => handleNavClick('Service Charges')} />
+                            <DropdownItem label="Discounts" active={activeTab === 'Discounts'} onClick={() => handleNavClick('Discounts')} href={getPathForTab ? getPathForTab('Discounts') : '#'} />
+                            <DropdownItem label="Commissions" active={activeTab === 'Commissions'} onClick={() => handleNavClick('Commissions')} href={getPathForTab ? getPathForTab('Commissions') : '#'} />
+                            <DropdownItem label="Service Charges" active={activeTab === 'Service Charges'} onClick={() => handleNavClick('Service Charges')} href={getPathForTab ? getPathForTab('Service Charges') : '#'} />
                         </NavDropdown>
                     </NavGroup>
 
                     <NavGroup title="Financials" isOpen={isSidebarOpen}>
-                        <NavItem icon={<Landmark size={20} />} label="Finance Hub" active={activeTab === 'Finance Hub'} onClick={() => handleNavClick('Finance Hub')} isOpen={isSidebarOpen} />
-                        <NavItem icon={<CreditCard size={20} />} label="Payments" active={activeTab === 'Payments'} onClick={() => handleNavClick('Payments')} isOpen={isSidebarOpen} />
+                        <NavItem icon={<Landmark size={20} />} label="Finance Hub" active={activeTab === 'Finance Hub'} onClick={() => handleNavClick('Finance Hub')} isOpen={isSidebarOpen} href={getPathForTab ? getPathForTab('Finance Hub') : '#'} />
+                        <NavItem icon={<CreditCard size={20} />} label="Payments" active={activeTab === 'Payments'} onClick={() => handleNavClick('Payments')} isOpen={isSidebarOpen} href={getPathForTab ? getPathForTab('Payments') : '#'} />
                     </NavGroup>
 
                     <NavGroup title="CRM & Partners" isOpen={isSidebarOpen}>
@@ -125,6 +126,7 @@ export default function Sidebar({ activeTab, setActiveTab, isSidebarOpen, setSid
                             active={activeTab === 'Customer Database'}
                             onClick={() => handleNavClick('Customer Database')}
                             isOpen={isSidebarOpen}
+                            href={getPathForTab ? getPathForTab('Customer Database') : '#'}
                         />
                         <NavItem
                             icon={<ScanLine size={20} />}
@@ -132,6 +134,7 @@ export default function Sidebar({ activeTab, setActiveTab, isSidebarOpen, setSid
                             active={activeTab === 'Lead Management'}
                             onClick={() => handleNavClick('Lead Management')}
                             isOpen={isSidebarOpen}
+                            href={getPathForTab ? getPathForTab('Lead Management') : '#'}
                         />
 
                         <NavDropdown
@@ -142,22 +145,22 @@ export default function Sidebar({ activeTab, setActiveTab, isSidebarOpen, setSid
                             onClick={() => setPartnersOpen(!isPartnersOpen)}
                             active={['Organization', 'Branch', 'Agencies', 'Employees'].includes(activeTab)}
                         >
-                            <DropdownItem label="Organization" active={activeTab === 'Organization'} onClick={() => handleNavClick('Organization')} />
-                            <DropdownItem label="Branch" active={activeTab === 'Branch'} onClick={() => handleNavClick('Branch')} />
-                            <DropdownItem label="Agencies" active={activeTab === 'Agencies'} onClick={() => handleNavClick('Agencies')} />
-                            <DropdownItem label="Employees" active={activeTab === 'Employees'} onClick={() => handleNavClick('Employees')} />
+                            <DropdownItem label="Organization" active={activeTab === 'Organization'} onClick={() => handleNavClick('Organization')} href={getPathForTab ? getPathForTab('Organization') : '#'} />
+                            <DropdownItem label="Branch" active={activeTab === 'Branch'} onClick={() => handleNavClick('Branch')} href={getPathForTab ? getPathForTab('Branch') : '#'} />
+                            <DropdownItem label="Agencies" active={activeTab === 'Agencies'} onClick={() => handleNavClick('Agencies')} href={getPathForTab ? getPathForTab('Agencies') : '#'} />
+                            <DropdownItem label="Employees" active={activeTab === 'Employees'} onClick={() => handleNavClick('Employees')} href={getPathForTab ? getPathForTab('Employees') : '#'} />
                         </NavDropdown>
                     </NavGroup>
 
                     <NavGroup title="Content Management" isOpen={isSidebarOpen}>
-                        <NavItem icon={<FileText size={20} />} label="Blogs" active={activeTab === 'Blogs'} onClick={() => handleNavClick('Blogs')} isOpen={isSidebarOpen} />
-                        <NavItem icon={<FileEdit size={20} />} label="Forms" active={activeTab === 'Forms'} onClick={() => handleNavClick('Forms')} isOpen={isSidebarOpen} />
+                        <NavItem icon={<FileText size={20} />} label="Blogs" active={activeTab === 'Blogs'} onClick={() => handleNavClick('Blogs')} isOpen={isSidebarOpen} href={getPathForTab ? getPathForTab('Blogs') : '#'} />
+                        <NavItem icon={<FileEdit size={20} />} label="Forms" active={activeTab === 'Forms'} onClick={() => handleNavClick('Forms')} isOpen={isSidebarOpen} href={getPathForTab ? getPathForTab('Forms') : '#'} />
                     </NavGroup>
 
                     <NavGroup title="Operations" isOpen={isSidebarOpen}>
-                        <NavItem icon={<ShieldCheck size={20} />} label="Visa Services" active={activeTab === 'Visa Services'} onClick={() => handleNavClick('Visa Services')} isOpen={isSidebarOpen} />
-                        <NavItem icon={<Truck size={20} />} label="Pax Movement" active={activeTab === 'Pax Movement'} onClick={() => handleNavClick('Pax Movement')} isOpen={isSidebarOpen} />
-                        <NavItem icon={<ClipboardList size={20} />} label="Order Delivery" active={activeTab === 'Order Delivery'} onClick={() => handleNavClick('Order Delivery')} isOpen={isSidebarOpen} />
+                        <NavItem icon={<ShieldCheck size={20} />} label="Visa Services" active={activeTab === 'Visa Services'} onClick={() => handleNavClick('Visa Services')} isOpen={isSidebarOpen} href={getPathForTab ? getPathForTab('Visa Services') : '#'} />
+                        <NavItem icon={<Truck size={20} />} label="Pax Movement" active={activeTab === 'Pax Movement'} onClick={() => handleNavClick('Pax Movement')} isOpen={isSidebarOpen} href={getPathForTab ? getPathForTab('Pax Movement') : '#'} />
+                        <NavItem icon={<ClipboardList size={20} />} label="Order Delivery" active={activeTab === 'Order Delivery'} onClick={() => handleNavClick('Order Delivery')} isOpen={isSidebarOpen} href={getPathForTab ? getPathForTab('Order Delivery') : '#'} />
                     </NavGroup>
                 </nav>
 
@@ -243,9 +246,13 @@ const NavDropdown = ({ icon, label, children, isOpen, isExpanded, onClick, activ
     </div>
 );
 
-const NavItem = ({ icon, label, active, onClick, isOpen }) => (
-    <button
-        onClick={onClick}
+const NavItem = ({ icon, label, active, onClick, isOpen, href = '#' }) => (
+    <a
+        href={href}
+        onClick={(e) => {
+            e.preventDefault();
+            onClick();
+        }}
         className={`flex items-center w-full p-3 rounded-xl transition-all group overflow-hidden ${active
             ? 'bg-blue-600 text-white shadow-lg shadow-blue-100'
             : 'text-slate-500 hover:bg-slate-50 hover:text-blue-600'
@@ -259,15 +266,19 @@ const NavItem = ({ icon, label, active, onClick, isOpen }) => (
                 {label}
             </span>
         )}
-    </button>
+    </a>
 );
 
-const DropdownItem = ({ label, active, onClick }) => (
-    <button
-        onClick={onClick}
-        className={`w-full text-left py-2 px-3 rounded-lg text-[9px] font-black uppercase tracking-[1.5px] transition-all whitespace-nowrap ${active ? 'text-blue-600 bg-blue-50/50 font-black' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
+const DropdownItem = ({ label, active, onClick, href = '#' }) => (
+    <a
+        href={href}
+        onClick={(e) => {
+            e.preventDefault();
+            onClick();
+        }}
+        className={`w-full text-left py-2 px-3 rounded-lg text-[9px] font-black uppercase tracking-[1.5px] transition-all whitespace-nowrap block ${active ? 'text-blue-600 bg-blue-50/50 font-black' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
             }`}
     >
         {label}
-    </button>
+    </a>
 );

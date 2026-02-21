@@ -24,10 +24,19 @@ import BlogsView from './components/views/BlogsView';
 import FormsView from './components/views/FormsView';
 import OrderDeliveryView from './components/views/OrderDeliveryView';
 import OrderDeliveryDetailView from './components/views/OrderDeliveryDetailView';
-import PaymentsView from './components/views/PaymentsView';
-import AddBankAccountView from './components/views/AddBankAccountView';
 import OrderConfirmationView from './components/views/OrderConfirmationView';
 import OrderTicketDetailView from './components/views/OrderTicketDetailView';
+import PaymentsView from './components/views/PaymentsView';
+import AddBankAccountView from './components/views/AddBankAccountView';
+import DiscountsView from './components/views/DiscountsView';
+
+import AddDiscountView from './components/views/AddDiscountView';
+import CommissionsView from './components/views/CommissionsView';
+import AddCommissionView from './components/views/AddCommissionView';
+import ServiceChargesView from './components/views/ServiceChargesView';
+import AddServiceChargeView from './components/views/AddServiceChargeView';
+import ShareInventoryView from './components/views/ShareInventoryView';
+
 
 // Route mapping: URL path <-> Tab name
 const ROUTES = {
@@ -45,13 +54,19 @@ const ROUTES = {
   '/branch': 'Branch',
   '/agencies': 'Agencies',
   '/employees': 'Employees',
-
   '/blogs': 'Blogs',
   '/forms': 'Forms',
   '/order-delivery': 'Order Delivery',
-  '/order-delivery': 'Order Delivery',
+  '/pax-movement': 'Pax Movement',
   '/payments': 'Payments',
   '/payments/add': 'Add Bank Account',
+  '/discounts': 'Discounts',
+  '/discounts/add': 'Add Discount',
+  '/commissions': 'Commissions',
+  '/commissions/add': 'Add Commission',
+  '/service-charges': 'Service Charges',
+  '/service-charges/add': 'Add Service Charge',
+  '/share-inventory': 'Share Inventory',
 };
 
 // Helper: Get URL path for a tab name
@@ -76,10 +91,22 @@ const getTabForPath = (path) => {
   if (path.startsWith('/discounts/')) return 'Discounts';
   if (path.startsWith('/commissions/')) return 'Commissions';
   if (path.startsWith('/service-charges/')) return 'Service Charges';
+  if (path.startsWith('/order-delivery/')) return 'Order Delivery';
+  if (path.startsWith('/pax-movement/')) return 'Pax Movement';
+
 
 
   // Default
   return 'Dashboard';
+};
+
+// Helper: Extract ID from sub-path
+const getIdFromPath = (path, basePath) => {
+  if (path.startsWith(basePath + '/')) {
+    const parts = path.split('/');
+    return parts[parts.length - 1];
+  }
+  return null;
 };
 
 const App = () => {
@@ -94,7 +121,13 @@ const App = () => {
   const [editingPackage, setEditingPackage] = useState(null);
   const [viewingPackage, setViewingPackage] = useState(null);
 
-  const [viewingOrder, setViewingOrder] = useState(null);
+  // Parse initial IDs from URL
+  const path = window.location.pathname;
+  const initialOrderId = getIdFromPath(path, '/order-delivery') || getIdFromPath(path, '/pax-movement');
+  const initialPackageId = getIdFromPath(path, '/packages');
+  const initialTicketId = getIdFromPath(path, '/tickets/edit');
+
+  const [viewingOrder, setViewingOrder] = useState(initialOrderId);
   const [editingAccount, setEditingAccount] = useState(null);
   const [isOrderConfirmed, setIsOrderConfirmed] = useState(false);
 
@@ -113,25 +146,40 @@ const App = () => {
   // Sync URL when activeTab changes
   useEffect(() => {
     if (isLoggedIn) {
-      const path = getPathForTab(activeTab);
+      let path = getPathForTab(activeTab);
       const currentPath = window.location.pathname;
 
-      // Only push new state if:
-      // 1. Current path doesn't match the new tab's base path
-      // 2. AND we aren't already on a correct sub-path (e.g., don't overwrite /others/sub with /others)
+      // Handle sub-paths for IDs
+      if (activeTab === 'Order Delivery' || activeTab === 'Pax Movement') {
+        if (viewingOrder) {
+          const orderId = viewingOrder.id || viewingOrder;
+          path = `${getPathForTab(activeTab)}/${orderId}`;
+        }
+      } else if (activeTab === 'PackageDetails' && viewingPackage) {
+        path = `/packages/${viewingPackage.id || viewingPackage}`;
+      } else if (activeTab === 'Add Ticket' && editingTicket) {
+        path = `/tickets/edit/${editingTicket.id || editingTicket._id}`;
+      }
+
       const isSubPath = currentPath.startsWith(path + '/');
 
       if (currentPath !== path && !isSubPath) {
         window.history.pushState(null, '', path);
       }
     }
-  }, [activeTab, isLoggedIn]);
+  }, [activeTab, isLoggedIn, viewingOrder, viewingPackage, editingTicket]);
 
   // Handle browser back/forward navigation
   useEffect(() => {
     const handlePopState = () => {
-      const newTab = getTabForPath(window.location.pathname);
+      const path = window.location.pathname;
+      const newTab = getTabForPath(path);
       setActiveTab(newTab);
+
+      // Restore IDs from URL on back/forward
+      const orderId = getIdFromPath(path, '/order-delivery') || getIdFromPath(path, '/pax-movement');
+      if (orderId) setViewingOrder(orderId);
+      else setViewingOrder(null);
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
@@ -263,12 +311,52 @@ const App = () => {
         return <BlogsView />;
       case 'Forms':
         return <FormsView />;
+      case 'Discounts':
+        return (
+          <DiscountsView
+            onAdd={() => setActiveTab('Add Discount')}
+            onEdit={(discount) => {
+              // You might need state for editingDiscount
+              setActiveTab('Add Discount');
+            }}
+          />
+        );
+      case 'Add Discount':
+        return <AddDiscountView onBack={() => setActiveTab('Discounts')} />;
+      case 'Commissions':
+        return (
+          <CommissionsView
+            onAdd={() => setActiveTab('Add Commission')}
+            onEdit={(commission) => {
+              setActiveTab('Add Commission');
+            }}
+          />
+        );
+      case 'Add Commission':
+        return <AddCommissionView onBack={() => setActiveTab('Commissions')} />;
+      case 'Service Charges':
+        return (
+          <ServiceChargesView
+            onAdd={() => setActiveTab('Add Service Charge')}
+            onEdit={(charge) => {
+              setActiveTab('Add Service Charge');
+            }}
+          />
+        );
+      case 'Add Service Charge':
+        return <AddServiceChargeView onBack={() => setActiveTab('Service Charges')} />;
+      case 'Share Inventory':
+        return <ShareInventoryView />;
       case 'Order Delivery':
+      case 'Pax Movement':
         if (viewingOrder) {
-          if (viewingOrder.type === 'Group Tickets') {
+          const orderId = viewingOrder.id || (typeof viewingOrder === 'string' ? viewingOrder : null);
+          const orderType = viewingOrder.type || (orderId?.startsWith('ORD-T') ? 'Group Tickets' : 'Umrah Packages');
+
+          if (orderType === 'Group Tickets') {
             return (
               <OrderTicketDetailView
-                order={viewingOrder}
+                order={typeof viewingOrder === 'object' ? viewingOrder : { id: orderId }}
                 onBack={() => setViewingOrder(null)}
               />
             );
@@ -276,7 +364,7 @@ const App = () => {
           if (isOrderConfirmed) {
             return (
               <OrderConfirmationView
-                orderId={viewingOrder.id || viewingOrder}
+                orderId={orderId}
                 onBack={() => {
                   setIsOrderConfirmed(false);
                   setViewingOrder(null);
@@ -286,7 +374,7 @@ const App = () => {
           }
           return (
             <OrderDeliveryDetailView
-              orderId={viewingOrder.id || viewingOrder}
+              orderId={orderId}
               onBack={() => setViewingOrder(null)}
               onConfirm={() => setIsOrderConfirmed(true)}
             />
@@ -329,6 +417,7 @@ const App = () => {
       setSidebarOpen={setSidebarOpen}
       isMobile={isMobile}
       onTabChange={setActiveTab}
+      getPathForTab={getPathForTab}
       isUserMenuOpen={isUserMenuOpen}
       setUserMenuOpen={setUserMenuOpen}
       setIsLoggedIn={setIsLoggedIn}

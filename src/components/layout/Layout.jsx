@@ -9,6 +9,7 @@ const Layout = ({
     setSidebarOpen,
     isMobile,
     onTabChange,
+    getPathForTab,
     isUserMenuOpen,
     setUserMenuOpen,
     setIsLoggedIn
@@ -20,6 +21,7 @@ const Layout = ({
             <Sidebar
                 activeTab={activeTab}
                 setActiveTab={onTabChange}
+                getPathForTab={getPathForTab}
                 isSidebarOpen={isSidebarOpen}
                 setSidebarOpen={setSidebarOpen}
                 setIsLoggedIn={setIsLoggedIn}

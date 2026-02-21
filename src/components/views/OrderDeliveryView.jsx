@@ -318,12 +318,16 @@ export default function OrderDeliveryView({ onOrderClick }) {
                                             filteredOrders.map((order) => (
                                                 <tr key={order.id} className="group hover:bg-blue-50/30 transition-colors">
                                                     <td className="px-6 py-4 font-bold text-blue-600">
-                                                        <button
-                                                            onClick={() => onOrderClick && onOrderClick(order)}
+                                                        <a
+                                                            href={`/order-delivery/${order.id}`}
+                                                            onClick={(e) => {
+                                                                e.preventDefault();
+                                                                onOrderClick && onOrderClick(order);
+                                                            }}
                                                             className="hover:underline hover:text-blue-700"
                                                         >
                                                             {order.id}
-                                                        </button>
+                                                        </a>
                                                     </td>
                                                     <td className="px-6 py-4 text-sm font-medium text-slate-600">{order.type}</td>
                                                     <td className="px-6 py-4">
