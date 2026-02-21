@@ -101,7 +101,7 @@ const AddNotesModal = ({ isOpen, onClose, onReject }) => {
     );
 };
 
-export default function OrderDeliveryDetailView({ onBack, orderId }) {
+export default function OrderDeliveryDetailView({ onBack, orderId, onConfirm }) {
     const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
 
     const handleReject = () => {
@@ -456,7 +456,9 @@ export default function OrderDeliveryDetailView({ onBack, orderId }) {
 
                 {/* Footer Actions */}
                 <div className="flex flex-wrap gap-4 mt-8 pt-4">
-                    <button className="px-8 py-3 bg-blue-600 text-white rounded-lg text-sm font-bold shadow-lg shadow-blue-600/20 hover:bg-blue-700 transition-all active:scale-95">
+                    <button
+                        onClick={onConfirm}
+                        className="px-8 py-3 bg-blue-600 text-white rounded-lg text-sm font-bold shadow-lg shadow-blue-600/20 hover:bg-blue-700 transition-all active:scale-95">
                         Confirm Order
                     </button>
                     <button

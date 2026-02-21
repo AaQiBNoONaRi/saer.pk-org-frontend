@@ -24,14 +24,10 @@ import BlogsView from './components/views/BlogsView';
 import FormsView from './components/views/FormsView';
 import OrderDeliveryView from './components/views/OrderDeliveryView';
 import OrderDeliveryDetailView from './components/views/OrderDeliveryDetailView';
-
-import DiscountsView from './components/views/DiscountsView';
-import CommissionsView from './components/views/CommissionsView';
-import ServiceChargesView from './components/views/ServiceChargesView';
-import AddDiscountView from './components/views/AddDiscountView';
-import AddCommissionView from './components/views/AddCommissionView';
-import AddServiceChargeView from './components/views/AddServiceChargeView';
-
+import PaymentsView from './components/views/PaymentsView';
+import AddBankAccountView from './components/views/AddBankAccountView';
+import OrderConfirmationView from './components/views/OrderConfirmationView';
+import OrderTicketDetailView from './components/views/OrderTicketDetailView';
 
 // Route mapping: URL path <-> Tab name
 const ROUTES = {
@@ -53,14 +49,9 @@ const ROUTES = {
   '/blogs': 'Blogs',
   '/forms': 'Forms',
   '/order-delivery': 'Order Delivery',
-
-  '/discounts': 'Discounts',
-  '/discounts/add': 'Add Discount',
-  '/commissions': 'Commissions',
-  '/commissions/add': 'Add Commission',
-  '/service-charges': 'Service Charges',
-  '/service-charges/add': 'Add Service Charge',
-
+  '/order-delivery': 'Order Delivery',
+  '/payments': 'Payments',
+  '/payments/add': 'Add Bank Account',
 };
 
 // Helper: Get URL path for a tab name
@@ -104,10 +95,8 @@ const App = () => {
   const [viewingPackage, setViewingPackage] = useState(null);
 
   const [viewingOrder, setViewingOrder] = useState(null);
-
-  const [editingDiscount, setEditingDiscount] = useState(null);
-  const [editingCommission, setEditingCommission] = useState(null);
-  const [editingServiceCharge, setEditingServiceCharge] = useState(null);
+  const [editingAccount, setEditingAccount] = useState(null);
+  const [isOrderConfirmed, setIsOrderConfirmed] = useState(false);
 
   // Handle window resize and sidebar state
   useEffect(() => {
@@ -276,85 +265,57 @@ const App = () => {
         return <FormsView />;
       case 'Order Delivery':
         if (viewingOrder) {
+          if (viewingOrder.type === 'Group Tickets') {
+            return (
+              <OrderTicketDetailView
+                order={viewingOrder}
+                onBack={() => setViewingOrder(null)}
+              />
+            );
+          }
+          if (isOrderConfirmed) {
+            return (
+              <OrderConfirmationView
+                orderId={viewingOrder.id || viewingOrder}
+                onBack={() => {
+                  setIsOrderConfirmed(false);
+                  setViewingOrder(null);
+                }}
+              />
+            );
+          }
           return (
             <OrderDeliveryDetailView
-              orderId={viewingOrder}
+              orderId={viewingOrder.id || viewingOrder}
               onBack={() => setViewingOrder(null)}
+              onConfirm={() => setIsOrderConfirmed(true)}
             />
           );
         }
-        return <OrderDeliveryView onOrderClick={(id) => setViewingOrder(id)} />;
-
-      case 'Discounts':
+        return <OrderDeliveryView onOrderClick={(order) => setViewingOrder(order)} />;
+      case 'Payments':
         return (
-          <DiscountsView
-            onAddDiscount={() => {
-              setEditingDiscount(null);
-              setActiveTab('Add Discount');
+          <PaymentsView
+            onAddAccount={() => {
+              setEditingAccount(null);
+              setActiveTab('Add Bank Account');
             }}
-            onEditDiscount={(discount) => {
-              setEditingDiscount(discount);
-              setActiveTab('Add Discount');
+            onEditAccount={(acc) => {
+              setEditingAccount(acc);
+              setActiveTab('Add Bank Account');
             }}
           />
         );
-      case 'Add Discount':
+      case 'Add Bank Account':
         return (
-          <AddDiscountView
+          <AddBankAccountView
             onBack={() => {
-              setEditingDiscount(null);
-              setActiveTab('Discounts');
+              setEditingAccount(null);
+              setActiveTab('Payments');
             }}
-            initialData={editingDiscount}
+            editingAccount={editingAccount}
           />
         );
-      case 'Commissions':
-        return (
-          <CommissionsView
-            onAddCommission={() => {
-              setEditingCommission(null);
-              setActiveTab('Add Commission');
-            }}
-            onEditCommission={(commission) => {
-              setEditingCommission(commission);
-              setActiveTab('Add Commission');
-            }}
-          />
-        );
-      case 'Add Commission':
-        return (
-          <AddCommissionView
-            onBack={() => {
-              setEditingCommission(null);
-              setActiveTab('Commissions');
-            }}
-            initialData={editingCommission}
-          />
-        );
-      case 'Service Charges':
-        return (
-          <ServiceChargesView
-            onAddServiceCharge={() => {
-              setEditingServiceCharge(null);
-              setActiveTab('Add Service Charge');
-            }}
-            onEditServiceCharge={(serviceCharge) => {
-              setEditingServiceCharge(serviceCharge);
-              setActiveTab('Add Service Charge');
-            }}
-          />
-        );
-      case 'Add Service Charge':
-        return (
-          <AddServiceChargeView
-            onBack={() => {
-              setEditingServiceCharge(null);
-              setActiveTab('Service Charges');
-            }}
-            initialData={editingServiceCharge}
-          />
-        );
-
       default:
         return <GenericView tabName={activeTab} />;
     }
