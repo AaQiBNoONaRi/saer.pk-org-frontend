@@ -15,9 +15,12 @@ const HotelCard = ({ hotel, onEdit, onDelete, onManageRooms, onManageAvailabilit
 
     // Format distance for display
     const formatDistance = (meters) => {
-        if (meters < 1000) return `${meters}m`;
+        if (meters == null || isNaN(meters)) return null;
+        if (meters < 1000) return `${Math.round(meters)}m`;
         return `${(meters / 1000).toFixed(1)}km`;
     };
+
+    const distance = formatDistance(hotel.distance_meters);
 
     // Get lowest price
     const getLowestPrice = () => {
@@ -50,7 +53,10 @@ const HotelCard = ({ hotel, onEdit, onDelete, onManageRooms, onManageAvailabilit
                 <MapPin size={14} className="text-blue-500 shrink-0" />
                 <span className="font-bold text-slate-700">{hotel.city}</span>
                 <span className="text-slate-300">|</span>
-                <span>{formatDistance(hotel.distance_from_haram)} to Haram</span>
+                {distance
+                    ? <span>{distance} to Haram</span>
+                    : <span className="italic text-slate-400">Distance not set</span>
+                }
             </div>
 
             {/* Pricing Summary */}

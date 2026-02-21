@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
 import { Plus, Search, Filter, Building2, BedDouble, List as ListIcon } from 'lucide-react';
-import HotelCard from './HotelCard';
 import HotelForm from './HotelForm';
 import HotelCategoriesManagement from './HotelCategoriesManagement';
 import BedTypesManagement from './BedTypesManagement';
@@ -13,6 +12,7 @@ const HotelsView = () => {
     // View State
     const [viewMode, setViewMode] = useState('list'); // list, categories, bed-types, room-map, availability
     const [hotels, setHotels] = useState([]);
+    const [bedTypes, setBedTypes] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedHotel, setSelectedHotel] = useState(null);
 
@@ -21,12 +21,29 @@ const HotelsView = () => {
     const [cityFilter, setCityFilter] = useState('All');
 
     const API_URL = 'http://localhost:8000/api/hotels/';
+    const BED_TYPES_URL = 'http://localhost:8000/api/bed-types/';
+
+    useEffect(() => {
+        fetchBedTypes();
+    }, []);
 
     useEffect(() => {
         if (viewMode === 'list') {
             fetchHotels();
         }
     }, [viewMode]);
+
+    const fetchBedTypes = async () => {
+        try {
+            const token = localStorage.getItem('access_token');
+            const response = await axios.get(BED_TYPES_URL, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setBedTypes(response.data);
+        } catch (error) {
+            console.error('Error fetching bed types:', error);
+        }
+    };
 
     const fetchHotels = async () => {
         setLoading(true);
@@ -267,17 +284,141 @@ const HotelsView = () => {
                             <p className="text-slate-500 font-medium">No hotels found matching your criteria.</p>
                         </div>
                     ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                            {filteredHotels.map(hotel => (
-                                <HotelCard
-                                    key={hotel._id}
-                                    hotel={hotel}
-                                    onEdit={handleEditHotel}
-                                    onDelete={handleDeleteHotel}
-                                    onManageRooms={handleManageRooms}
-                                    onManageAvailability={handleManageAvailability}
-                                />
-                            ))}
+                        <div className="overflow-x-auto bg-white rounded-2xl border border-slate-200 shadow-sm">
+                            <table className="min-w-full divide-y divide-gray-200 text-sm">
+                                <thead className="bg-gray-50">
+                                    <tr>
+                                        <th className="px-4 py-3 text-left font-semibold text-gray-700">Hotel Name</th>
+                                        <th className="px-4 py-3 text-left font-semibold text-gray-700">City</th>
+                                        <th className="px-4 py-3 text-left font-semibold text-gray-700">Address</th>
+                                        <th className="px-4 py-3 text-left font-semibold text-gray-700">Category</th>
+                                        <th className="px-4 py-3 text-left font-semibold text-gray-700">Contact</th>
+                                        <th className="px-4 py-3 text-left font-semibold text-gray-700">Status</th>
+                                        <th className="px-4 py-3 text-left font-semibold text-gray-700">Availability</th>
+                                        <th className="px-4 py-3 text-left font-semibold text-gray-700">Distance (m)</th>
+                                        <th className="px-4 py-3 text-left font-semibold text-gray-700">Walk Time (min)</th>
+                                        <th className="px-4 py-3 text-left font-semibold text-gray-700">Walking Distance (m)</th>
+                                        <th className="px-4 py-3 text-left font-semibold text-gray-700">Price Dates</th>
+                                        <th className="px-4 py-3 text-left font-semibold text-gray-700">Room Price</th>
+                                        <th className="px-4 py-3 text-left font-semibold text-gray-700">Sharing Price</th>
+                                        <th className="px-4 py-3 text-left font-semibold text-gray-700">Quint Price</th>
+                                        <th className="px-4 py-3 text-left font-semibold text-gray-700">Quad Price</th>
+                                        <th className="px-4 py-3 text-left font-semibold text-gray-700">Triple Price</th>
+                                        <th className="px-4 py-3 text-left font-semibold text-gray-700">Double Price</th>
+                                        <th className="px-4 py-3 text-left font-semibold text-gray-700">Pictures</th>
+                                        <th className="px-4 py-3 text-left font-semibold text-gray-700">Location</th>
+                                        <th className="px-4 py-3 text-left font-semibold text-gray-700">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="bg-white divide-y divide-gray-100">
+                                    {filteredHotels.map(hotel => {
+                                        const firstPrice = hotel.prices && hotel.prices.length > 0 ? hotel.prices[0] : null;
+                                        
+                                        // Map prices to named columns using bed type IDs (robust to typos)
+                                        const mapPricesToColumns = (prices) => {
+                                            const cols = { room: 'N/A', sharing: 'N/A', quint: 'N/A', quad: 'N/A', triple: 'N/A', double: 'N/A' };
+                                            if (!prices || !Array.isArray(prices)) return cols;
+
+                                            const bedById = {};
+                                            bedTypes.forEach(bt => {
+                                                if (bt && bt._id) bedById[bt._id] = bt;
+                                            });
+
+                                            for (const p of prices) {
+                                                const bt = bedById[p.bed_type_id];
+                                                const name = (bt?.name || '').toLowerCase();
+
+                                                if (bt?.is_room_price) {
+                                                    cols.room = p.selling_price;
+                                                    continue;
+                                                }
+
+                                                if (name.includes('share') || name.includes('sherr')) cols.sharing = p.selling_price;
+                                                else if (name.includes('doubl') || name.includes('doublr') || name.includes('double')) cols.double = p.selling_price;
+                                                else if (name.includes('triple')) cols.triple = p.selling_price;
+                                                else if (name.includes('quad')) cols.quad = p.selling_price;
+                                                else if (name.includes('quint')) cols.quint = p.selling_price;
+                                                else {
+                                                    // fallback: if no match, and room not set, set room
+                                                    if (cols.room === 'N/A') cols.room = p.selling_price;
+                                                }
+                                            }
+
+                                            return cols;
+                                        };
+                                        const priceCols = mapPricesToColumns(hotel.prices);
+                                        
+                                        const formatDateRange = (from, to) => {
+                                            if (!from || !to) return 'N/A';
+                                            return `${from} — ${to}`;
+                                        };
+
+                                        return (
+                                            <tr key={hotel._id} className="hover:bg-gray-50">
+                                                <td className="px-4 py-3 align-top font-medium text-gray-900">{hotel.name || 'N/A'}</td>
+                                                <td className="px-4 py-3 align-top">{hotel.city || 'N/A'}</td>
+                                                <td className="px-4 py-3 align-top max-w-xs truncate" title={hotel.address}>
+                                                    {hotel.address || 'N/A'}
+                                                </td>
+                                                <td className="px-4 py-3 align-top">{hotel.category_name || 'N/A'}</td>
+                                                <td className="px-4 py-3 align-top">{hotel.contact_number || 'N/A'}</td>
+                                                <td className="px-4 py-3 align-top">
+                                                    <span className={`px-2 py-1 rounded-full text-xs font-bold ${hotel.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                                        {hotel.is_active ? 'Active' : 'Inactive'}
+                                                    </span>
+                                                </td>
+                                                <td className="px-4 py-3 align-top whitespace-nowrap text-xs">
+                                                    {formatDateRange(hotel.available_from, hotel.available_until)}
+                                                </td>
+                                                <td className="px-4 py-3 align-top">{hotel.distance_meters || 'N/A'}</td>
+                                                <td className="px-4 py-3 align-top">{hotel.walking_time_minutes || 'N/A'}</td>
+                                                <td className="px-4 py-3 align-top">{hotel.walking_distance_meters || 'N/A'}</td>
+                                                <td className="px-4 py-3 align-top whitespace-nowrap text-xs">
+                                                    {firstPrice ? formatDateRange(firstPrice.date_from, firstPrice.date_to) : 'N/A'}
+                                                </td>
+                                                <td className="px-4 py-3 align-top font-medium text-blue-600">
+                                                    {priceCols.room !== undefined && priceCols.room !== null ? priceCols.room : (firstPrice?.room_only_price !== undefined && firstPrice?.room_only_price !== null ? firstPrice.room_only_price : 'N/A')}
+                                                </td>
+                                                <td className="px-4 py-3 align-top">{priceCols.sharing}</td>
+                                                <td className="px-4 py-3 align-top">{priceCols.quint}</td>
+                                                <td className="px-4 py-3 align-top">{priceCols.quad}</td>
+                                                <td className="px-4 py-3 align-top">{priceCols.triple}</td>
+                                                <td className="px-4 py-3 align-top">{priceCols.double}</td>
+                                                <td className="px-4 py-3 align-top">
+                                                    {hotel.photos && hotel.photos.length > 0 ? (
+                                                        <a href={hotel.photos[0]} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-xs">
+                                                            View
+                                                        </a>
+                                                    ) : 'N/A'}
+                                                </td>
+                                                <td className="px-4 py-3 align-top">
+                                                    {hotel.google_location_link ? (
+                                                        <a href={hotel.google_location_link} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-xs">
+                                                            Map
+                                                        </a>
+                                                    ) : 'N/A'}
+                                                </td>
+                                                <td className="px-4 py-3 align-top">
+                                                    <div className="flex gap-2">
+                                                        <button 
+                                                            onClick={() => handleEditHotel(hotel)}
+                                                            className="text-xs text-blue-600 hover:underline font-medium"
+                                                        >
+                                                            Edit
+                                                        </button>
+                                                        <button 
+                                                            onClick={() => handleDeleteHotel(hotel)}
+                                                            className="text-xs text-red-600 hover:underline font-medium"
+                                                        >
+                                                            Delete
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
                         </div>
                     )}
                 </>

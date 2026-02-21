@@ -1,47 +1,32 @@
 import React, { useState, useEffect } from 'react';
-import {
-    Building, Plus, Search, MapPin, Phone, Mail, ArrowLeft,
-    Edit2, Trash2, Loader2, AlertCircle, User, Check
-} from 'lucide-react';
+import { Building2, Plus, Search, Edit2, Trash2, X, Eye, EyeOff } from 'lucide-react';
 
 const BranchesView = () => {
     const [branches, setBranches] = useState([]);
-    const [organizations, setOrganizations] = useState([]);
-    const [agencies, setAgencies] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [selectedBranch, setSelectedBranch] = useState(null);
-    const [viewMode, setViewMode] = useState('list'); // 'list', 'detail', 'add', 'edit'
-
-    const [searchQuery, setSearchQuery] = useState('');
-    const [filterOrg, setFilterOrg] = useState('');
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [error, setError] = useState('');
+    const [loading, setLoading] = useState(true);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [showModal, setShowModal] = useState(false);
+    const [editingBranch, setEditingBranch] = useState(null);
+    const [showPassword, setShowPassword] = useState(false);
 
     const [formData, setFormData] = useState({
         name: '',
         code: '',
-        organization_id: '',
         contact_person: '',
         email: '',
         phone: '',
         address: '',
         city: '',
-        country: '',
         is_active: true,
         portal_access_enabled: true,
         username: '',
         password: ''
     });
 
-    useEffect(() => {
-        fetchBranches();
-        fetchOrganizations();
-        fetchAgencies();
-    }, []);
-
+    // Fetch branches
     const fetchBranches = async () => {
         try {
-            setIsLoading(true);
+            setLoading(true);
             const token = localStorage.getItem('access_token');
             const response = await fetch('http://localhost:8000/api/branches/', {
                 headers: { 'Authorization': `Bearer ${token}` }
@@ -51,76 +36,28 @@ const BranchesView = () => {
                 const data = await response.json();
                 setBranches(data);
             }
-        } catch (err) {
-            console.error("Failed to fetch branches", err);
+        } catch (error) {
+            console.error('Error fetching branches:', error);
+            alert('Failed to fetch branches');
         } finally {
-            setIsLoading(false);
+            setLoading(false);
         }
     };
 
-    const fetchOrganizations = async () => {
-        try {
-            const token = localStorage.getItem('access_token');
-            const response = await fetch('http://localhost:8000/api/organizations/', {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+    useEffect(() => {
+        fetchBranches();
+    }, []);
 
-            if (response.ok) {
-                const data = await response.json();
-                setOrganizations(data);
-            }
-        } catch (err) {
-            console.error("Failed to fetch organizations", err);
-        }
-    };
-
-    const fetchAgencies = async () => {
-        try {
-            const token = localStorage.getItem('access_token');
-            const response = await fetch('http://localhost:8000/api/agencies/', {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (response.ok) {
-                const data = await response.json();
-                setAgencies(data);
-            }
-        } catch (err) {
-            console.error("Failed to fetch agencies", err);
-        }
-    };
-
-    const handleDelete = async (branch) => {
-        if (!window.confirm(`Are you sure you want to delete "${branch.name}"?`)) return;
-        try {
-            const token = localStorage.getItem('access_token');
-            const response = await fetch(`http://localhost:8000/api/branches/${branch._id || branch.id}/`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-
-            if (response.ok) {
-                const updatedList = branches.filter(b => (b._id || b.id) !== (branch._id || branch.id));
-                setBranches(updatedList);
-                if (selectedBranch && (selectedBranch._id || selectedBranch.id) === (branch._id || branch.id)) {
-                    setSelectedBranch(null);
-                    setViewMode('list');
-                }
-                alert('Branch deleted successfully!');
-            } else {
-                alert('Failed to delete branch');
-            }
-        } catch (err) {
-            alert('Failed to delete branch');
-        }
-    };
-
+    // Handle form input change
     const handleInputChange = (e) => {
         const { name, value, type, checked } = e.target;
+
+        // Auto-fill username from email
         if (name === 'email') {
             setFormData(prev => ({
                 ...prev,
                 email: value,
-                username: value
+                username: value // Auto-fill username with email
             }));
         } else {
             setFormData(prev => ({
@@ -130,72 +67,86 @@ const BranchesView = () => {
         }
     };
 
-    const openAddForm = () => {
-        setFormData({
-            name: '',
-            code: '',
-            organization_id: '',
-            contact_person: '',
-            email: '',
-            phone: '',
-            address: '',
-            city: '',
-            country: '',
-            is_active: true,
-            portal_access_enabled: true,
-            username: '',
-            password: ''
-        });
-        setError('');
-        setViewMode('add');
+    // Open modal for add/edit
+    const openModal = (branch = null) => {
+        if (branch) {
+            setEditingBranch(branch);
+            setFormData({
+                name: branch.name || '',
+                code: branch.code || '',
+                contact_person: branch.contact_person || '',
+                email: branch.email || '',
+                phone: branch.phone || '',
+                address: branch.address || '',
+                city: branch.city || '',
+                is_active: branch.is_active ?? true,
+                portal_access_enabled: branch.portal_access_enabled ?? true,
+                username: branch.username || '',
+                password: '' // Don't populate password for security
+            });
+        } else {
+            setEditingBranch(null);
+            setFormData({
+                name: '',
+                code: '',
+                contact_person: '',
+                email: '',
+                phone: '',
+                address: '',
+                city: '',
+                is_active: true,
+                portal_access_enabled: true,
+                username: '',
+                password: ''
+            });
+        }
+        setShowModal(true);
+        setShowPassword(false);
     };
 
-    const openEditForm = (branch) => {
-        setFormData({
-            name: branch.name || '',
-            code: branch.code || '',
-            organization_id: branch.organization_id || branch.organization?._id || '',
-            contact_person: branch.contact_person || '',
-            email: branch.email || '',
-            phone: branch.phone || '',
-            address: branch.address || '',
-            city: branch.city || '',
-            country: branch.country || '',
-            is_active: branch.is_active ?? true,
-            portal_access_enabled: branch.portal_access_enabled ?? true,
-            username: branch.username || branch.email || '',
-            password: '' // Don't populate password
-        });
-        setSelectedBranch(branch);
-        setError('');
-        setViewMode('edit');
+    // Close modal
+    const closeModal = () => {
+        setShowModal(false);
+        setEditingBranch(null);
+        setShowPassword(false);
     };
 
+    // Handle form submit
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setError('');
-        setIsSubmitting(true);
 
+        // Validation
         if (!formData.name.trim()) {
-            setError('Branch name is required');
-            setIsSubmitting(false);
+            alert('Branch name is required');
             return;
         }
 
-        if (!formData.organization_id) {
-            setError('Organization selection is required');
-            setIsSubmitting(false);
-            return;
+        if (formData.portal_access_enabled) {
+            if (!formData.username.trim()) {
+                alert('Username is required for portal access');
+                return;
+            }
+            if (!editingBranch && !formData.password.trim()) {
+                alert('Password is required for new branch');
+                return;
+            }
         }
 
         try {
             const token = localStorage.getItem('access_token');
-
-            const url = viewMode === 'edit'
-                ? `http://localhost:8000/api/branches/${selectedBranch._id || selectedBranch.id}/`
+            const url = editingBranch
+                ? `http://localhost:8000/api/branches/${editingBranch.id || editingBranch._id}/`
                 : 'http://localhost:8000/api/branches/';
 
-            const method = viewMode === 'edit' ? 'PUT' : 'POST';
+            const method = editingBranch ? 'PUT' : 'POST';
+
+            // Prepare payload
+            const payload = { ...formData };
+
+            // Remove password if empty (for edit)
+            if (editingBranch && !payload.password) {
+                delete payload.password;
+            }
 
             const response = await fetch(url, {
                 method,
@@ -203,408 +154,360 @@ const BranchesView = () => {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify(formData)
+                body: JSON.stringify(payload)
             });
 
             if (response.ok) {
-                await fetchBranches();
-                alert(viewMode === 'edit' ? 'Branch updated successfully!' : 'Branch created successfully!');
-                setViewMode('list');
+                alert(editingBranch ? 'Branch updated successfully!' : 'Branch created successfully!');
+                closeModal();
+                fetchBranches();
             } else {
                 const errorData = await response.json();
-                setError(errorData.detail || 'Failed to save branch');
+                alert('Error: ' + (errorData.detail || JSON.stringify(errorData)));
             }
-        } catch (err) {
-            console.error(err);
-            setError('Failed to save branch');
-        } finally {
-            setIsSubmitting(false);
+        } catch (error) {
+            console.error('Error saving branch:', error);
+            alert('Failed to save branch');
         }
     };
 
-    const filteredBranches = branches.filter(branch => {
-        const matchesSearch = branch.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            branch.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            branch.code?.toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesOrg = !filterOrg || (branch.organization_id || branch.organization?._id) === filterOrg;
-        return matchesSearch && matchesOrg;
-    });
+    // Handle delete
+    const handleDelete = async (branch) => {
+        if (!window.confirm(`Are you sure you want to delete "${branch.name}"? This action cannot be undone.`)) {
+            return;
+        }
 
-    const getOrganizationName = (orgId) => {
-        const org = organizations.find(o => (o.id || o._id) === orgId);
-        return org ? org.name : 'Unknown Organization';
+        try {
+            const token = localStorage.getItem('access_token');
+            const response = await fetch(`http://localhost:8000/api/branches/${branch.id || branch._id}/`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (response.ok) {
+                alert('Branch deleted successfully!');
+                fetchBranches();
+            } else {
+                const errorData = await response.json();
+                alert('Failed to delete branch: ' + (errorData.detail || 'Unknown error'));
+            }
+        } catch (error) {
+            console.error('Error deleting branch:', error);
+            alert('Error deleting branch');
+        }
     };
 
-    // LIST VIEW
-    if (viewMode === 'list') {
-        return (
-            <div className="space-y-6 animate-in fade-in duration-500">
-                <div className="flex justify-between items-center">
-                    <div>
-                        <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-3">
-                            <Building className="text-slate-400" size={28} />
-                            Branches <span className="text-slate-500 text-lg font-normal">({filteredBranches.length})</span>
-                        </h1>
-                        <p className="text-sm text-slate-500 mt-1">
-                            Manage organization branches
+    // Filter branches
+    const filteredBranches = branches.filter(branch =>
+        branch.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        branch.code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        branch.city?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    if (loading) {
+        return <div className="p-8 text-center text-slate-500">Loading branches...</div>;
+    }
+
+    return (
+        <div className="max-w-7xl mx-auto space-y-6 animate-in fade-in duration-500">
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
+                <div>
+                    <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tight">Branches</h2>
+                    <p className="text-slate-500 font-medium mt-1">Manage your organization branches</p>
+                </div>
+                <button
+                    onClick={() => openModal()}
+                    className="w-full sm:w-auto px-6 py-3 bg-blue-600 text-white rounded-xl text-xs font-bold transition-all hover:scale-105 active:scale-95 shadow-lg shadow-blue-100 flex items-center gap-2 justify-center"
+                >
+                    <Plus size={16} /> Add Branch
+                </button>
+            </div>
+
+            {/* Search */}
+            <div className="relative">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+                <input
+                    type="text"
+                    placeholder="Search branches by name, code, or city..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-medium outline-none focus:ring-2 ring-blue-100 focus:border-blue-300 transition-all"
+                />
+            </div>
+
+            {/* Branches Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredBranches.length === 0 ? (
+                    <div className="col-span-full text-center p-12 bg-slate-50 rounded-2xl border border-slate-200 border-dashed">
+                        <Building2 size={48} className="mx-auto text-slate-300 mb-4" />
+                        <p className="text-slate-400 font-medium">
+                            {searchTerm ? 'No branches found matching your search' : 'No branches yet. Create your first branch!'}
                         </p>
                     </div>
-                    <button
-                        onClick={openAddForm}
-                        className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors"
-                    >
-                        <Plus size={18} />
-                        <span>Add Branch</span>
-                    </button>
-                </div>
-
-                <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
-                    <div className="flex gap-4 mb-6">
-                        <div className="relative flex-1">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                            <input
-                                type="text"
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                placeholder="Search branches..."
-                                className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-                            />
-                        </div>
-                        <select
-                            value={filterOrg}
-                            onChange={(e) => setFilterOrg(e.target.value)}
-                            className="px-4 py-2.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all min-w-[200px]"
+                ) : (
+                    filteredBranches.map(branch => (
+                        <div
+                            key={branch.id || branch._id}
+                            className="bg-white rounded-2xl border border-slate-200 p-6 hover:shadow-md transition-all duration-300"
                         >
-                            <option value="">All Organizations</option>
-                            {organizations.map(org => (
-                                <option key={org.id || org._id} value={org.id || org._id}>
-                                    {org.name}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-
-                    {isLoading ? (
-                        <div className="flex justify-center p-12"><Loader2 className="animate-spin text-blue-600" size={32} /></div>
-                    ) : filteredBranches.length === 0 ? (
-                        <div className="text-center p-12 text-slate-400 text-sm font-bold">No branches found</div>
-                    ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                            {filteredBranches.map(branch => (
-                                <div
-                                    key={branch._id || branch.id}
-                                    onClick={() => { setSelectedBranch(branch); setViewMode('detail'); }}
-                                    className="p-5 rounded-xl border border-slate-200 cursor-pointer transition-all hover:shadow-md hover:border-slate-300 bg-white group"
-                                >
-                                    <div className="flex justify-between items-start mb-4">
-                                        <div className="flex-1">
-                                            <h3 className="font-semibold text-base text-slate-900 mb-1 group-hover:text-blue-600 transition-colors">{branch.name}</h3>
-                                            <p className="text-xs text-slate-500">{branch.code || 'NO-REF'}</p>
-                                        </div>
-                                        <span className={`px-2.5 py-1 rounded-md text-xs font-medium ${branch.is_active ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600'}`}>
-                                            {branch.is_active ? 'Active' : 'Inactive'}
-                                        </span>
-                                    </div>
-                                    <div className="space-y-2.5">
-                                        <div className="flex items-center gap-2 text-xs text-slate-600">
-                                            <Building size={14} className="text-slate-400" />
-                                            <span>{getOrganizationName(branch.organization_id || branch.organization?._id)}</span>
-                                        </div>
-                                        {branch.contact_person && (
-                                            <div className="flex items-center gap-2 text-xs text-slate-600">
-                                                <User size={14} className="text-slate-400" />
-                                                <span>{branch.contact_person}</span>
-                                            </div>
-                                        )}
-                                        {branch.phone && (
-                                            <div className="flex items-center gap-2 text-xs text-slate-600">
-                                                <Phone size={14} className="text-slate-400" />
-                                                <span>{branch.phone}</span>
-                                            </div>
-                                        )}
-                                        {branch.email && (
-                                            <div className="flex items-center gap-2 text-xs text-slate-600">
-                                                <Mail size={14} className="text-slate-400" />
-                                                <span className="truncate">{branch.email}</span>
-                                            </div>
-                                        )}
-                                    </div>
+                            <div className="flex justify-between items-start mb-4">
+                                <div className="flex-1">
+                                    <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight mb-1">
+                                        {branch.name}
+                                    </h3>
+                                    {branch.code && (
+                                        <p className="text-xs text-slate-500 font-bold">Code: {branch.code}</p>
+                                    )}
                                 </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-            </div>
-        );
-    }
-
-    // DETAIL VIEW
-    if (viewMode === 'detail' && selectedBranch) {
-        return (
-            <div className="space-y-6 animate-in fade-in duration-500">
-                {/* Header with back button */}
-                <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                            <button
-                                onClick={() => setViewMode('list')}
-                                className="p-2 hover:bg-slate-100 rounded-lg transition-all"
-                            >
-                                <ArrowLeft size={20} className="text-slate-600" />
-                            </button>
-                            <div>
-                                <h1 className="text-lg font-bold text-slate-900">Branch Details</h1>
-                                <p className="text-xs text-slate-500 uppercase tracking-wide">View and manage branch information</p>
-                            </div>
-                        </div>
-                        <div className="flex gap-2">
-                            <button
-                                onClick={() => openEditForm(selectedBranch)}
-                                className="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition-all flex items-center gap-2"
-                            >
-                                <Edit2 size={14} /> EDIT
-                            </button>
-                            <button
-                                onClick={() => handleDelete(selectedBranch)}
-                                className="px-4 py-2 bg-red-50 text-red-600 rounded-lg text-xs font-bold hover:bg-red-100 transition-all flex items-center gap-2"
-                            >
-                                <Trash2 size={14} />
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Profile Card */}
-                <div className="bg-white rounded-2xl p-8 border border-slate-200 shadow-sm">
-                    <div className="flex items-start justify-between mb-6">
-                        <div className="flex items-start gap-4">
-                            <div className="w-16 h-16 bg-slate-100 rounded-xl flex items-center justify-center text-slate-400">
-                                <Building size={32} />
-                            </div>
-                            <div>
-                                <h2 className="text-2xl font-bold text-slate-900 mb-1">{selectedBranch.name}</h2>
-                                <p className="text-sm text-slate-600 mb-1">{selectedBranch.contact_person || 'No Contact Person'}</p>
-                                <div className="flex items-center gap-3 text-xs text-slate-500">
-                                    <span className="flex items-center gap-1">
-                                        <Phone size={12} /> {selectedBranch.phone || 'N/A'}
-                                    </span>
-                                    <span className="flex items-center gap-1">
-                                        <Mail size={12} /> {selectedBranch.email || 'N/A'}
-                                    </span>
-                                </div>
-                                <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
-                                    <MapPin size={12} /> {selectedBranch.address || 'No Address Provided'}
-                                </p>
-                            </div>
-                        </div>
-                        <span className="px-4 py-2 bg-green-100 text-green-700 rounded-lg text-xs font-bold uppercase tracking-wider">
-                            {selectedBranch.is_active ? 'Active' : 'Inactive'}
-                        </span>
-                    </div>
-
-                    {/* Additional Information */}
-                    <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-                        <h3 className="text-sm font-bold text-slate-900 mb-6 uppercase tracking-wider">Branch Information</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-8">
-                            <div>
-                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Organization</p>
-                                <p className="font-medium text-slate-900">{getOrganizationName(selectedBranch.organization_id || selectedBranch.organization?._id)}</p>
-                            </div>
-                            <div>
-                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Contact Person</p>
-                                <p className="font-medium text-slate-900">{selectedBranch.contact_person || 'N/A'}</p>
-                            </div>
-                            <div>
-                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Email</p>
-                                <p className="font-medium text-slate-900">{selectedBranch.email || 'N/A'}</p>
-                            </div>
-                            <div>
-                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Phone</p>
-                                <p className="font-medium text-slate-900">{selectedBranch.phone || 'N/A'}</p>
-                            </div>
-                            <div className="md:col-span-2">
-                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Address</p>
-                                <p className="font-medium text-slate-900">{selectedBranch.address || 'N/A'}</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Portal Access Information */}
-                    <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm mt-6">
-                        <h3 className="text-sm font-bold text-slate-900 mb-6 uppercase tracking-wider">Portal Access</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-8">
-                            <div>
-                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Status</p>
-                                <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-widest ${selectedBranch.portal_access_enabled ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'}`}>
-                                    {selectedBranch.portal_access_enabled ? 'Enabled' : 'Disabled'}
+                                <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${branch.is_active
+                                    ? 'bg-emerald-50 text-emerald-600'
+                                    : 'bg-red-50 text-red-600'
+                                    }`}>
+                                    {branch.is_active ? 'Active' : 'Inactive'}
                                 </span>
                             </div>
-                            {selectedBranch.portal_access_enabled && (
-                                <div>
-                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Username</p>
-                                    <p className="font-medium text-slate-900">{selectedBranch.username || selectedBranch.email || 'N/A'}</p>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        );
-    }
 
-    // ADD/EDIT FORM VIEW
-    return (
-        <div className="space-y-6 animate-in fade-in duration-500">
-            <div className="flex items-center gap-4">
-                <button
-                    onClick={() => setViewMode('list')}
-                    className="p-3 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition-all"
-                >
-                    <ArrowLeft size={20} />
-                </button>
-                <div>
-                    <h1 className="text-2xl font-black text-slate-900 tracking-tight">
-                        {viewMode === 'add' ? 'Add New Branch' : 'Edit Branch'}
-                    </h1>
-                    <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-wide">
-                        {viewMode === 'add' ? 'Create a new branch' : `Editing: ${selectedBranch?.name}`}
-                    </p>
-                </div>
-            </div>
+                            <div className="space-y-2 mb-4">
+                                {branch.contact_person && (
+                                    <p className="text-sm text-slate-600"><span className="font-bold">Contact:</span> {branch.contact_person}</p>
+                                )}
+                                {branch.email && (
+                                    <p className="text-sm text-slate-600"><span className="font-bold">Email:</span> {branch.email}</p>
+                                )}
+                                {branch.phone && (
+                                    <p className="text-sm text-slate-600"><span className="font-bold">Phone:</span> {branch.phone}</p>
+                                )}
+                                {branch.city && (
+                                    <p className="text-sm text-slate-600"><span className="font-bold">City:</span> {branch.city}</p>
+                                )}
+                            </div>
 
-            <form onSubmit={handleSubmit} className="bg-white rounded-[32px] p-8 border border-slate-100 shadow-sm space-y-8">
-                {error && (
-                    <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-start space-x-3">
-                        <AlertCircle size={20} className="text-red-600 flex-shrink-0 mt-0.5" />
-                        <div>
-                            <p className="text-xs font-black text-red-600 uppercase tracking-wider mb-1">Error</p>
-                            <p className="text-xs font-bold text-red-500">{error}</p>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => openModal(branch)}
+                                    className="flex-1 py-2 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition-all flex items-center justify-center gap-1"
+                                >
+                                    <Edit2 size={14} /> Edit
+                                </button>
+                                <button
+                                    onClick={() => handleDelete(branch)}
+                                    className="flex-1 py-2 bg-red-50 text-red-600 rounded-lg text-xs font-bold hover:bg-red-100 transition-all flex items-center justify-center gap-1"
+                                >
+                                    <Trash2 size={14} /> Delete
+                                </button>
+                            </div>
                         </div>
-                    </div>
+                    ))
                 )}
+            </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Branch Name *</label>
-                        <input required type="text" name="name" value={formData.name} onChange={handleInputChange}
-                            className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100" placeholder="Enter branch name" />
-                    </div>
-                    <div className="space-y-2">
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Branch Code</label>
-                        <input type="text" name="code" value={formData.code} onChange={handleInputChange}
-                            className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100" placeholder="Enter branch code" />
-                    </div>
-                    <div className="space-y-2">
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Organization *</label>
-                        <select name="organization_id" value={formData.organization_id} onChange={handleInputChange} required
-                            className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100">
-                            <option value="">Select Organization</option>
-                            {organizations.map(org => (
-                                <option key={org.id || org._id} value={org.id || org._id}>
-                                    {org.name}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-                    <div className="space-y-2">
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Contact Person</label>
-                        <input type="text" name="contact_person" value={formData.contact_person} onChange={handleInputChange}
-                            className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100" placeholder="Full Name" />
-                    </div>
-                    <div className="space-y-2">
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Email</label>
-                        <input type="email" name="email" value={formData.email} onChange={handleInputChange}
-                            className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100" placeholder="email@example.com" />
-                    </div>
-                    <div className="space-y-2">
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Phone</label>
-                        <input type="tel" name="phone" value={formData.phone} onChange={handleInputChange}
-                            className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100" placeholder="+92 300 1234567" />
-                    </div>
-                    <div className="space-y-2">
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">City</label>
-                        <input type="text" name="city" value={formData.city} onChange={handleInputChange}
-                            className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100" placeholder="City Name" />
-                    </div>
-                    <div className="space-y-2">
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Country</label>
-                        <input type="text" name="country" value={formData.country} onChange={handleInputChange}
-                            className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100" placeholder="Country Name" />
-                    </div>
-                    <div className="md:col-span-2 space-y-2">
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Address</label>
-                        <textarea name="address" value={formData.address} onChange={handleInputChange} rows="2"
-                            className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100 resize-none" placeholder="Full Address" />
-                    </div>
-                </div>
-
-                {/* Portal Access Section */}
-                <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100 space-y-4">
-                    <div className="flex items-center gap-3 mb-2">
-                        <input
-                            type="checkbox"
-                            name="portal_access_enabled"
-                            id="portal_access_enabled"
-                            checked={formData.portal_access_enabled}
-                            onChange={handleInputChange}
-                            className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
-                        />
-                        <label htmlFor="portal_access_enabled" className="text-sm font-bold text-slate-900 select-none">
-                            Enable Portal Access
-                        </label>
-                    </div>
-
-                    {formData.portal_access_enabled && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-top-2 duration-300">
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Username (Auto-filled from Email)</label>
-                                <input
-                                    type="text"
-                                    name="username"
-                                    value={formData.username}
-                                    readOnly
-                                    className="w-full px-4 py-3 bg-slate-100 border border-slate-200 rounded-2xl text-sm font-bold text-slate-500 outline-none cursor-not-allowed"
-                                    placeholder="Enter username"
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                                    Password {viewMode === 'add' ? '*' : '(Leave blank to keep current)'}
-                                </label>
-                                <input
-                                    type="password"
-                                    name="password"
-                                    value={formData.password}
-                                    onChange={handleInputChange}
-                                    className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100"
-                                    placeholder={viewMode === 'add' ? "Enter password" : "Enter new password"}
-                                />
-                            </div>
+            {/* Modal */}
+            {showModal && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+                        {/* Modal Header */}
+                        <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 flex justify-between items-center rounded-t-3xl">
+                            <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">
+                                {editingBranch ? 'Edit Branch' : 'Add New Branch'}
+                            </h3>
+                            <button
+                                onClick={closeModal}
+                                className="p-2 hover:bg-slate-100 rounded-lg transition-all"
+                            >
+                                <X size={20} />
+                            </button>
                         </div>
-                    )}
-                </div>
 
-                <div className="flex items-center justify-between pt-4">
-                    <div className="flex items-center gap-3">
-                        <input type="checkbox" name="is_active" id="is_active" checked={formData.is_active} onChange={handleInputChange}
-                            className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500" />
-                        <label htmlFor="is_active" className="text-sm font-bold text-slate-700">
-                            Active Status
-                        </label>
-                    </div>
-                    <div className="flex gap-4">
-                        <button type="button" onClick={() => setViewMode('list')}
-                            className="px-8 py-3 bg-slate-100 text-slate-700 rounded-xl text-sm font-bold hover:bg-slate-200 transition-all">
-                            Cancel
-                        </button>
-                        <button type="submit" disabled={isSubmitting}
-                            className="px-8 py-3 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 disabled:opacity-50">
-                            {isSubmitting ? 'Saving...' : viewMode === 'edit' ? 'Update Branch' : 'Create Branch'}
-                        </button>
+                        {/* Modal Body */}
+                        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+                            {/* Branch Information Section */}
+                            <div>
+                                <h4 className="text-sm font-black text-slate-700 uppercase tracking-wider mb-4">Branch Information</h4>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-600 mb-2">Branch Name *</label>
+                                        <input
+                                            type="text"
+                                            name="name"
+                                            value={formData.name}
+                                            onChange={handleInputChange}
+                                            required
+                                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium outline-none focus:ring-2 ring-blue-100 focus:bg-white focus:border-blue-300 transition-all"
+                                            placeholder="Enter branch name"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-600 mb-2">Branch Code</label>
+                                        <input
+                                            type="text"
+                                            name="code"
+                                            value={formData.code}
+                                            onChange={handleInputChange}
+                                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium outline-none focus:ring-2 ring-blue-100 focus:bg-white focus:border-blue-300 transition-all"
+                                            placeholder="Enter branch code"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-600 mb-2">Contact Person</label>
+                                        <input
+                                            type="text"
+                                            name="contact_person"
+                                            value={formData.contact_person}
+                                            onChange={handleInputChange}
+                                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium outline-none focus:ring-2 ring-blue-100 focus:bg-white focus:border-blue-300 transition-all"
+                                            placeholder="Enter contact person name"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-600 mb-2">Email</label>
+                                        <input
+                                            type="email"
+                                            name="email"
+                                            value={formData.email}
+                                            onChange={handleInputChange}
+                                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium outline-none focus:ring-2 ring-blue-100 focus:bg-white focus:border-blue-300 transition-all"
+                                            placeholder="email@example.com"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-600 mb-2">Phone</label>
+                                        <input
+                                            type="tel"
+                                            name="phone"
+                                            value={formData.phone}
+                                            onChange={handleInputChange}
+                                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium outline-none focus:ring-2 ring-blue-100 focus:bg-white focus:border-blue-300 transition-all"
+                                            placeholder="03001234567"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-600 mb-2">City</label>
+                                        <input
+                                            type="text"
+                                            name="city"
+                                            value={formData.city}
+                                            onChange={handleInputChange}
+                                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium outline-none focus:ring-2 ring-blue-100 focus:bg-white focus:border-blue-300 transition-all"
+                                            placeholder="Enter city"
+                                        />
+                                    </div>
+
+                                    <div className="md:col-span-2">
+                                        <label className="block text-xs font-bold text-slate-600 mb-2">Address</label>
+                                        <textarea
+                                            name="address"
+                                            value={formData.address}
+                                            onChange={handleInputChange}
+                                            rows="2"
+                                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium outline-none focus:ring-2 ring-blue-100 focus:bg-white focus:border-blue-300 transition-all resize-none"
+                                            placeholder="Enter full address"
+                                        />
+                                    </div>
+
+                                    <div className="flex items-center gap-3">
+                                        <input
+                                            type="checkbox"
+                                            name="is_active"
+                                            id="is_active"
+                                            checked={formData.is_active}
+                                            onChange={handleInputChange}
+                                            className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                                        />
+                                        <label htmlFor="is_active" className="text-sm font-bold text-slate-700">
+                                            Active Status
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Portal Access Section */}
+                            <div className="border-t border-slate-200 pt-6">
+                                <div className="flex items-center justify-between mb-4">
+                                    <h4 className="text-sm font-black text-slate-700 uppercase tracking-wider">Portal Access</h4>
+                                    <div className="flex items-center gap-3">
+                                        <input
+                                            type="checkbox"
+                                            name="portal_access_enabled"
+                                            id="portal_access_enabled"
+                                            checked={formData.portal_access_enabled}
+                                            onChange={handleInputChange}
+                                            className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                                        />
+                                        <label htmlFor="portal_access_enabled" className="text-sm font-bold text-slate-700">
+                                            Enable Portal Access
+                                        </label>
+                                    </div>
+                                </div>
+
+                                {formData.portal_access_enabled && (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-600 mb-2">Username (Auto-filled from Email) *</label>
+                                            <input
+                                                type="text"
+                                                name="username"
+                                                value={formData.username}
+                                                readOnly
+                                                required={formData.portal_access_enabled}
+                                                className="w-full px-4 py-3 bg-slate-100 border border-slate-200 rounded-xl text-sm font-medium outline-none cursor-not-allowed text-slate-600"
+                                                placeholder="Enter email above to auto-fill"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-600 mb-2">
+                                                Password {!editingBranch && '*'}
+                                            </label>
+                                            <div className="relative">
+                                                <input
+                                                    type={showPassword ? 'text' : 'password'}
+                                                    name="password"
+                                                    value={formData.password}
+                                                    onChange={handleInputChange}
+                                                    required={formData.portal_access_enabled && !editingBranch}
+                                                    className="w-full px-4 py-3 pr-12 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium outline-none focus:ring-2 ring-blue-100 focus:bg-white focus:border-blue-300 transition-all"
+                                                    placeholder={editingBranch ? "Leave blank to keep current" : "Enter password"}
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowPassword(!showPassword)}
+                                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                                                >
+                                                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Form Actions */}
+                            <div className="flex gap-3 pt-4">
+                                <button
+                                    type="button"
+                                    onClick={closeModal}
+                                    className="flex-1 py-3 bg-slate-100 text-slate-700 rounded-xl text-sm font-bold hover:bg-slate-200 transition-all"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="flex-1 py-3 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-100"
+                                >
+                                    {editingBranch ? 'Update Branch' : 'Create Branch'}
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
-            </form>
-        </div >
+            )}
+        </div>
     );
 };
 
