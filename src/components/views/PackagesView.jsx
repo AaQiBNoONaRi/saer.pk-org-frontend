@@ -3,6 +3,8 @@ import { Building2, Truck, ShieldCheck, Plane, Utensils, DollarSign } from 'luci
 
 const PackagesView = ({ onNavigate, onEdit }) => {
     const [packages, setPackages] = React.useState([]);
+    const [flights, setFlights] = React.useState([]);
+    const [airlines, setAirlines] = React.useState([]);
     const [loading, setLoading] = React.useState(true);
 
     const fetchPackages = async () => {
@@ -22,8 +24,40 @@ const PackagesView = ({ onNavigate, onEdit }) => {
         }
     };
 
+    const fetchFlights = async () => {
+        try {
+            const token = localStorage.getItem('access_token');
+            const response = await fetch('http://localhost:8000/api/flights/', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                setFlights(data);
+            }
+        } catch (error) {
+            console.error('Error fetching flights:', error);
+        }
+    };
+
+    const fetchAirlines = async () => {
+        try {
+            const token = localStorage.getItem('access_token');
+            const response = await fetch('http://localhost:8000/api/others/flight-iata?is_active=true', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                setAirlines(data);
+            }
+        } catch (error) {
+            console.error('Error fetching airlines:', error);
+        }
+    };
+
     React.useEffect(() => {
         fetchPackages();
+        fetchFlights();
+        fetchAirlines();
     }, []);
 
     const handleDelete = async (pkg) => {
@@ -75,6 +109,8 @@ const PackagesView = ({ onNavigate, onEdit }) => {
                         <UmrahPackageCard
                             key={pkg._id}
                             packageData={pkg}
+                            flights={flights}
+                            airlines={airlines}
                             onEdit={onEdit}
                             onDelete={handleDelete}
                         />
@@ -85,19 +121,38 @@ const PackagesView = ({ onNavigate, onEdit }) => {
     );
 };
 
-const UmrahPackageCard = ({ packageData, onEdit, onDelete }) => {
+const UmrahPackageCard = ({ packageData, flights, airlines, onEdit, onDelete }) => {
     // Helper to format price
     const formatPrice = (price) => price ? price.toLocaleString() : 'N/A';
 
-    // Debug: Log package data to see hotel structure
-    console.log('Package Data:', packageData);
-    console.log('Hotels:', packageData.hotels);
+    // Helper to get airline IATA code
+    const getAirlineCode = (airlineName) => {
+        if (!airlineName || !airlines.length) return '';
+        const airline = airlines.find(a => a.airline_name === airlineName);
+        return airline ? airline.iata_code : '';
+    };
 
     // Get hotels for display
     const hotels = packageData.hotels || [];
 
     // Get prices for display
     const prices = packageData.package_prices || {};
+
+    // Lookup flight details if ID is stored and normalize for display
+    const flightId = typeof packageData.flight === 'object' ? packageData.flight?.id || packageData.flight?._id : packageData.flight;
+    const rawFlight = flights.find(f => (f._id || f.id) === flightId) || (typeof packageData.flight === 'object' ? packageData.flight : null);
+
+    // Normalize flight object to handle both master list format and legacy package format
+    const flight = rawFlight ? {
+        airline: rawFlight.departure_trip?.airline || rawFlight.airline || 'N/A',
+        flight_number: rawFlight.departure_trip?.flight_number || rawFlight.flight_number || 'N/A',
+        departure_city: rawFlight.departure_trip?.departure_city || rawFlight.departure_city || 'N/A',
+        arrival_city: rawFlight.departure_trip?.arrival_city || rawFlight.arrival_city || 'N/A',
+        departure_time: rawFlight.departure_trip?.departure_time || rawFlight.departure_time || rawFlight.time ||
+            (rawFlight.departure_trip?.departure_datetime ? new Date(rawFlight.departure_trip.departure_datetime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : null),
+        arrival_time: rawFlight.departure_trip?.arrival_time || rawFlight.arrival_time ||
+            (rawFlight.departure_trip?.arrival_datetime ? new Date(rawFlight.departure_trip.arrival_datetime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : null)
+    } : null;
 
     return (
         <div className="bg-white rounded-[40px] border border-slate-200 shadow-sm p-4 sm:p-6 lg:p-8 hover:shadow-md transition-all duration-300">
@@ -106,9 +161,10 @@ const UmrahPackageCard = ({ packageData, onEdit, onDelete }) => {
                 <div className="flex-1">
                     <h3 className="text-xl sm:text-2xl font-black text-slate-900 uppercase tracking-tight mb-2">{packageData.title}</h3>
                     <div className="flex items-center gap-2 text-xs font-bold text-slate-500 flex-wrap">
-                        {packageData.flight && (
+                        {flight && (
                             <span className="bg-slate-100 text-slate-700 px-2.5 py-1 rounded-lg flex items-center gap-1">
-                                <Plane size={12} className="text-blue-600" /> <span className="hidden sm:inline">Flight Included</span><span className="sm:hidden">Flight</span>
+                                <Plane size={12} className="text-blue-600" />
+                                <span>{getAirlineCode(flight.airline)}-{flight.flight_number}</span>
                             </span>
                         )}
                         {packageData.visa_pricing && (
@@ -154,44 +210,30 @@ const UmrahPackageCard = ({ packageData, onEdit, onDelete }) => {
                         </div>
                     )}
 
-                    {/* Flight Details (Conditional) */}
-                    {packageData.flight && (
-                        <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100">
-                            <div className="flex items-center gap-2 mb-3">
-                                <Plane size={16} className="text-blue-600" />
-                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Flight Details</span>
-                            </div>
-
-                            <div className="space-y-4">
-                                {/* Outbound */}
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <p className="text-[9px] text-slate-400 font-bold uppercase mb-0.5">Outbound</p>
-                                        <p className="text-xs font-black text-slate-900">{packageData.flight.airline}</p>
+                    {/* Simplified Flight Info */}
+                    {flight && (
+                        <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-blue-100 rounded-lg">
+                                        <Plane size={16} className="text-blue-600" />
                                     </div>
                                     <div>
-                                        <p className="text-[9px] text-slate-400 font-bold uppercase mb-0.5">Route</p>
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{flight.airline}</p>
                                         <p className="text-xs font-black text-slate-900">
-                                            {packageData.flight.departure_city} <span className="text-slate-400">→</span> {packageData.flight.arrival_city}
+                                            {flight.departure_city} → {flight.arrival_city}
+                                        </p>
+                                        <p className="text-[10px] font-bold text-slate-500 mt-1 uppercase tracking-wider">
+                                            {flight.departure_time ? `Dep: ${flight.departure_time}` : null}
+                                            {flight.arrival_time ? (flight.departure_time ? `  •  Arr: ${flight.arrival_time}` : `Arr: ${flight.arrival_time}`) : null}
                                         </p>
                                     </div>
                                 </div>
-
-                                {/* Return (if available) */}
-                                {packageData.flight.return_flight && (
-                                    <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-200">
-                                        <div>
-                                            <p className="text-[9px] text-slate-400 font-bold uppercase mb-0.5">Return</p>
-                                            <p className="text-xs font-black text-slate-900">{packageData.flight.return_flight.airline || packageData.flight.airline}</p>
-                                        </div>
-                                        <div>
-                                            <p className="text-[9px] text-slate-400 font-bold uppercase mb-0.5">Route</p>
-                                            <p className="text-xs font-black text-slate-900">
-                                                {packageData.flight.return_flight.departure_city} <span className="text-slate-400">→</span> {packageData.flight.return_flight.arrival_city}
-                                            </p>
-                                        </div>
-                                    </div>
-                                )}
+                                <div className="text-right">
+                                    <span className="text-[10px] font-black text-slate-500 bg-slate-200 px-2 py-1 rounded-md uppercase">
+                                        {getAirlineCode(flight.airline)}-{flight.flight_number}
+                                    </span>
+                                </div>
                             </div>
                         </div>
                     )}

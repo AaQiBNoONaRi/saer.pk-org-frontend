@@ -11,13 +11,30 @@ import InputGroup from '../ui/InputGroup';
 const AddPackageView = ({ onBack, initialData }) => {
     const [step, setStep] = useState(1);
     const [isEditing, setIsEditing] = useState(false);
+    const [toast, setToast] = useState(null);
+
+    const showToast = (message, type = 'error') => {
+        setToast({ message, type });
+        setTimeout(() => setToast(null), 3000);
+    };
 
     // Database Data State
     const [flights, setFlights] = useState([]);
+    const [hotelOptions, setHotelOptions] = useState([]);
     const [foodOptions, setFoodOptions] = useState([]);
     const [transportOptions, setTransportOptions] = useState([]);
     const [ziyaratOptions, setZiyaratOptions] = useState([]);
     const [loading, setLoading] = useState(true);
+
+    // Bed Type Mapping
+    const [bedTypes, setBedTypes] = useState([]);
+
+    // Airlines State (Added)
+    const [airlines, setAirlines] = useState([]);
+
+    // Hotel search state per hotel row
+    const [hotelSearches, setHotelSearches] = useState({});
+    const [hotelDropdownOpen, setHotelDropdownOpen] = useState({});
 
     // Selected Items State
     const [selectedFlight, setSelectedFlight] = useState(null);
@@ -79,8 +96,49 @@ const AddPackageView = ({ onBack, initialData }) => {
         double: false
     });
 
+    // Helper to fetch airlines
+    const fetchAirlines = async () => {
+        try {
+            const token = localStorage.getItem('access_token');
+            const response = await fetch('http://localhost:8000/api/others/flight-iata?is_active=true', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                setAirlines(data);
+            }
+        } catch (error) {
+            console.error('Error fetching airlines:', error);
+        }
+    };
+
     // Populate form if editing
     useEffect(() => {
+        // Fetch master data on mount
+        fetchBedTypes();
+        fetchHotels();
+        fetchFlights();
+        fetchZiyaratOptions();
+        fetchAirlines(); // Fetch airlines
+
+        // Fetch Transport Options
+        const fetchTransportOptions = async () => {
+            try {
+                const token = localStorage.getItem('access_token');
+                const response = await fetch('http://localhost:8000/api/others/transport-price', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    setTransportOptions(data);
+                }
+            } catch (error) {
+                console.error('Error fetching transport options:', error);
+            }
+        };
+
+        fetchTransportOptions();
+
         if (initialData) {
             console.log('Editing Package Data:', initialData);
             setIsEditing(true);
@@ -88,29 +146,38 @@ const AddPackageView = ({ onBack, initialData }) => {
             setPaxCapacity(initialData.pax_capacity || '');
             setPackageDescription(initialData.description || '');
 
-            // Restore Flight
+            // Restore Flight - Lookup in flights master list
             if (initialData.flight) {
-                // Construct flight object compatible with selection logic
-                setSelectedFlight({
-                    _id: initialData.flight.id,
-                    id: initialData.flight.id,
-                    airline: initialData.flight.airline,
-                    trip_type: initialData.flight.trip_type,
-                    departure_trip: {
+                const flightId = typeof initialData.flight === 'object' ? initialData.flight.id || initialData.flight._id : initialData.flight;
+
+                // We need to wait for flights to be fetched, or use a second effect
+                // For now, let's just attempt lookup if flights are available
+                const existingFlight = flights.find(f => (f._id || f.id) === flightId);
+                if (existingFlight) {
+                    setSelectedFlight(existingFlight);
+                } else if (typeof initialData.flight === 'object') {
+                    // Fallback to compatibility object if it's still coming as an object from legacy data
+                    setSelectedFlight({
+                        _id: initialData.flight.id,
+                        id: initialData.flight.id,
                         airline: initialData.flight.airline,
-                        departure_city: initialData.flight.departure_city,
-                        arrival_city: initialData.flight.arrival_city
-                    },
-                    return_trip: initialData.flight.return_flight ? {
-                        airline: initialData.flight.return_flight.airline,
-                        departure_city: initialData.flight.return_flight.departure_city,
-                        arrival_city: initialData.flight.return_flight.arrival_city
-                    } : null,
-                    adult_selling: initialData.flight.adult_selling,
-                    child_selling: initialData.flight.child_selling,
-                    infant_selling: initialData.flight.infant_selling,
-                    available_seats: 'N/A' // Not saved in package, strictly speaking
-                });
+                        trip_type: initialData.flight.trip_type,
+                        departure_trip: {
+                            airline: initialData.flight.airline,
+                            departure_city: initialData.flight.departure_city,
+                            arrival_city: initialData.flight.arrival_city
+                        },
+                        return_trip: initialData.flight.return_flight ? {
+                            airline: initialData.flight.return_flight.airline,
+                            departure_city: initialData.flight.return_flight.departure_city,
+                            arrival_city: initialData.flight.return_flight.arrival_city
+                        } : null,
+                        adult_selling: initialData.flight.adult_selling,
+                        child_selling: initialData.flight.child_selling,
+                        infant_selling: initialData.flight.infant_selling,
+                        available_seats: 'N/A'
+                    });
+                }
             }
 
             // Restore Hotels
@@ -156,6 +223,7 @@ const AddPackageView = ({ onBack, initialData }) => {
     }, [initialData]);
 
     // Handle date calculation for hotel nights
+    // Handle date calculation for hotel nights
     const calculateNights = (checkIn, checkOut) => {
         if (!checkIn || !checkOut) return 0;
         const start = new Date(checkIn);
@@ -164,11 +232,21 @@ const AddPackageView = ({ onBack, initialData }) => {
         return diff > 0 ? diff : 0;
     };
 
-    const updateHotel = (id, field, value) => {
-        setHotels(hotels.map(h => {
+    const updateHotel = (id, fieldOrUpdates, value) => {
+        setHotels(prevHotels => prevHotels.map(h => {
             if (h.id === id) {
-                const updated = { ...h, [field]: value };
-                if (field === 'checkIn' || field === 'checkOut') {
+                let updated;
+                if (typeof fieldOrUpdates === 'object') {
+                    // Handle batch updates
+                    updated = { ...h, ...fieldOrUpdates };
+                } else {
+                    // Handle single field update
+                    updated = { ...h, [fieldOrUpdates]: value };
+                }
+
+                // Recalculate nights if dates changed
+                if (fieldOrUpdates === 'checkIn' || fieldOrUpdates === 'checkOut' ||
+                    (typeof fieldOrUpdates === 'object' && (fieldOrUpdates.checkIn || fieldOrUpdates.checkOut))) {
                     updated.nights = calculateNights(updated.checkIn, updated.checkOut);
                 }
                 return updated;
@@ -183,6 +261,13 @@ const AddPackageView = ({ onBack, initialData }) => {
 
     const removeHotel = (id) => {
         setHotels(hotels.filter(h => h.id !== id));
+    };
+
+    // Helper to get airline IATA code
+    const getAirlineCode = (airlineName) => {
+        if (!airlineName || !airlines.length) return '';
+        const airline = airlines.find(a => a.airline_name === airlineName);
+        return airline ? airline.iata_code : '';
     };
 
     // Pricing Calculation Functions - BASE PRICE + ROOM PRICE Model
@@ -222,11 +307,20 @@ const AddPackageView = ({ onBack, initialData }) => {
     };
 
     // Calculate final package price (BASE + ROOM)
-    const calculatePackagePrice = (roomType, personType = 'adult') => {
+    const calculatePackagePrice = (roomType, personType = 'adult', hotelId = null) => {
         const base = calculateBasePrice(personType);
 
-        const roomPurchasing = hotelPricing[`${roomType}_purchasing`] || 0;
-        const roomSelling = hotelPricing[`${roomType}_selling`] || 0;
+        let pricingObj = hotelPricing; // Default to global state
+
+        if (hotelId) {
+            const hotel = hotels.find(h => h.id === hotelId);
+            if (hotel && hotel.hotel_pricing) {
+                pricingObj = hotel.hotel_pricing;
+            }
+        }
+
+        const roomPurchasing = pricingObj[`${roomType}_purchasing`] || 0;
+        const roomSelling = pricingObj[`${roomType}_selling`] || 0;
 
         const totalPurchasing = base.purchasing + roomPurchasing;
         const totalSelling = base.selling + roomSelling;
@@ -244,28 +338,15 @@ const AddPackageView = ({ onBack, initialData }) => {
     // Save Package Handler
     const handleSavePackage = async () => {
         try {
+            const organizationId = localStorage.getItem('organization_id');
             const packageData = {
+                organization_id: organizationId,
                 title: packageTitle,
                 pax_capacity: paxCapacity,
                 description: packageDescription,
 
-                // Flight data (if selected)
-                flight: selectedFlight ? {
-                    id: selectedFlight._id || selectedFlight.id,
-                    airline: selectedFlight.departure_trip?.airline || '',
-                    trip_type: selectedFlight.trip_type,
-                    departure_city: selectedFlight.departure_trip?.departure_city || '',
-                    arrival_city: selectedFlight.departure_trip?.arrival_city || '',
-                    // Return flight details if round trip
-                    return_flight: selectedFlight.trip_type === 'Round-trip' ? {
-                        airline: selectedFlight.return_trip?.airline || '',
-                        departure_city: selectedFlight.return_trip?.departure_city || '',
-                        arrival_city: selectedFlight.return_trip?.arrival_city || ''
-                    } : null,
-                    adult_selling: selectedFlight.adult_selling || 0,
-                    child_selling: selectedFlight.child_selling || 0,
-                    infant_selling: selectedFlight.infant_selling || 0
-                } : null,
+                // Flight data (only ID)
+                flight: selectedFlight ? (selectedFlight._id || selectedFlight.id) : null,
 
                 // Hotels with selected room types and pricing
                 hotels: hotels.map(hotel => ({
@@ -299,7 +380,7 @@ const AddPackageView = ({ onBack, initialData }) => {
                 // Transport with pricing AND sector from Step 3
                 transport: selectedTransport ? {
                     id: selectedTransport._id || selectedTransport.id,
-                    title: selectedTransport.title || selectedTransport.name || 'Transport Service',
+                    title: selectedTransport.vehicle_name || selectedTransport.title || 'Transport Service',
                     sector: selectedTransport.sector || '',
                     purchasing: transportPricing.purchasing,
                     selling: transportPricing.selling
@@ -384,10 +465,43 @@ const AddPackageView = ({ onBack, initialData }) => {
     // Fetch all database options on mount
     useEffect(() => {
         fetchFlights();
+        fetchHotels();
         fetchFoodOptions();
         fetchTransportOptions();
         fetchZiyaratOptions();
+        fetchBedTypes();
     }, []);
+
+    const fetchBedTypes = async () => {
+        try {
+            const token = localStorage.getItem('access_token');
+            const response = await fetch('http://localhost:8000/api/bed-types/', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                console.log('Fetched Bed Types:', data);
+                setBedTypes(data);
+            }
+        } catch (error) {
+            console.error('Error fetching bed types:', error);
+        }
+    };
+
+    const fetchHotels = async () => {
+        try {
+            const token = localStorage.getItem('access_token');
+            const response = await fetch('http://localhost:8000/api/hotels/', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                setHotelOptions(data);
+            }
+        } catch (error) {
+            console.error('Error fetching hotels:', error);
+        }
+    };
 
     const fetchFlights = async () => {
         try {
@@ -468,6 +582,16 @@ const AddPackageView = ({ onBack, initialData }) => {
 
     return (
         <div className="min-h-screen bg-[#F8FAFC] font-sans text-slate-900 text-left pb-20 -mt-4 lg:-mt-8 -mx-4 lg:-mx-8">
+            {/* Toast Notification */}
+            {toast && (
+                <div className={`fixed top-6 right-6 z-[9999] flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl text-sm font-bold transition-all animate-in slide-in-from-top-2 duration-300 ${toast.type === 'error'
+                    ? 'bg-red-600 text-white'
+                    : 'bg-emerald-600 text-white'
+                    }`}>
+                    <AlertCircle size={18} />
+                    {toast.message}
+                </div>
+            )}
             {/* Header */}
             <header className="sticky top-0 bg-white/95 backdrop-blur-md border-b border-slate-200 z-50 px-8 py-2">
                 <div className="max-w-6xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -500,7 +624,45 @@ const AddPackageView = ({ onBack, initialData }) => {
                             </button>
                         )}
                         <button
-                            onClick={() => step < 3 ? setStep(step + 1) : handleSavePackage()}
+                            onClick={() => {
+                                if (step === 1) {
+                                    if (!packageTitle.trim() && !paxCapacity.toString().trim()) {
+                                        showToast('Package Title and Pax Capacity are required');
+                                        return;
+                                    }
+                                    if (!packageTitle.trim()) {
+                                        showToast('Package Title is required');
+                                        return;
+                                    }
+                                    if (!paxCapacity.toString().trim()) {
+                                        showToast('Pax Capacity is required');
+                                        return;
+                                    }
+                                    setStep(2);
+                                } else if (step === 2) {
+                                    // Validate Step 2: At least one hotel required
+                                    console.log('Validating Hotels:', hotels);
+                                    // Check if name exists OR if an ID is present (meaning a hotel was selected)
+                                    const validHotels = hotels.filter(h => (h.name && h.name.trim() !== '') || h.hotelId || (h.id && h.id.toString().length > 10));
+
+                                    if (validHotels.length === 0) {
+                                        // ONE LAST CHECK: If the user has selected room types, maybe the hotel object is malformed but exists?
+                                        // Let's check for ANY hotel with valid room types
+                                        const hotelsWithRooms = hotels.filter(h => h.selected_room_types && Object.values(h.selected_room_types).some(v => v));
+                                        if (hotelsWithRooms.length > 0) {
+                                            console.log('Found hotels with selected rooms but missing names. Allowing pass.', hotelsWithRooms);
+                                            setStep(3);
+                                            return;
+                                        }
+
+                                        showToast('Please select at least one hotel');
+                                        return;
+                                    }
+                                    setStep(3);
+                                } else {
+                                    handleSavePackage();
+                                }
+                            }}
                             className="px-8 py-3.5 bg-blue-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-xl shadow-blue-100 hover:scale-[1.02] transition-all flex items-center justify-center gap-2"
                         >
                             {step === 3 ? <><Save size={16} /> Publish Package</> : <>Next Step <ChevronRight size={16} /></>}
@@ -575,25 +737,59 @@ const AddPackageView = ({ onBack, initialData }) => {
                                     <div className="mt-3 p-3 bg-blue-50 rounded-lg text-xs space-y-2">
                                         <div className="flex justify-between items-start">
                                             <div>
-                                                <p className="font-bold text-blue-900 flex items-center gap-2">
-                                                    {selectedFlight.departure_trip.airline}
-                                                    <span className="text-blue-500 text-[10px] bg-blue-100 px-2 py-0.5 rounded-full">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <p className="font-bold text-blue-900">
+                                                        {selectedFlight.departure_trip.airline}
+                                                    </p>
+                                                    <span className="text-blue-500 text-[10px] bg-blue-100 px-2 py-0.5 rounded-full font-bold">
                                                         {selectedFlight.trip_type}
                                                     </span>
-                                                </p>
-                                                <div className="mt-1 space-y-1">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="text-[10px] font-bold text-slate-400 uppercase w-8">Out</span>
-                                                        <span className="text-blue-700 font-medium">
-                                                            {selectedFlight.departure_trip.departure_city} → {selectedFlight.departure_trip.arrival_city}
-                                                        </span>
-                                                    </div>
-                                                    {selectedFlight.return_trip && (
+                                                </div>
+
+                                                <div className="mt-2 space-y-2">
+                                                    {/* Outbound */}
+                                                    <div className="flex flex-col gap-0.5">
                                                         <div className="flex items-center gap-2">
-                                                            <span className="text-[10px] font-bold text-slate-400 uppercase w-8">Ret</span>
-                                                            <span className="text-blue-700 font-medium">
-                                                                {selectedFlight.return_trip.departure_city} → {selectedFlight.return_trip.arrival_city}
+                                                            <span className="text-[10px] font-bold text-slate-400 uppercase w-8">Out</span>
+                                                            <span className="text-blue-700 font-bold text-xs">
+                                                                {selectedFlight.departure_trip.departure_city} → {selectedFlight.departure_trip.arrival_city}
                                                             </span>
+                                                        </div>
+                                                        <div className="flex items-center gap-2 pl-10">
+                                                            {selectedFlight.departure_trip.flight_number && (
+                                                                <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-1.5 rounded">
+                                                                    {getAirlineCode(selectedFlight.departure_trip.airline) ? `${getAirlineCode(selectedFlight.departure_trip.airline)}-` : ''}{selectedFlight.departure_trip.flight_number}
+                                                                </span>
+                                                            )}
+                                                            {selectedFlight.departure_trip.departure_time && (
+                                                                <span className="text-[10px] font-bold text-slate-500">
+                                                                    {selectedFlight.departure_trip.departure_time}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Return */}
+                                                    {selectedFlight.return_trip && (
+                                                        <div className="flex flex-col gap-0.5 border-t border-blue-100 pt-2 relative">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-[10px] font-bold text-slate-400 uppercase w-8">Ret</span>
+                                                                <span className="text-blue-700 font-bold text-xs">
+                                                                    {selectedFlight.return_trip.departure_city} → {selectedFlight.return_trip.arrival_city}
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex items-center gap-2 pl-10">
+                                                                {selectedFlight.return_trip.flight_number && (
+                                                                    <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-1.5 rounded">
+                                                                        {getAirlineCode(selectedFlight.return_trip.airline) ? `${getAirlineCode(selectedFlight.return_trip.airline)}-` : ''}{selectedFlight.return_trip.flight_number}
+                                                                    </span>
+                                                                )}
+                                                                {selectedFlight.return_trip.departure_time && (
+                                                                    <span className="text-[10px] font-bold text-slate-500">
+                                                                        {selectedFlight.return_trip.departure_time}
+                                                                    </span>
+                                                                )}
+                                                            </div>
                                                         </div>
                                                     )}
                                                 </div>
@@ -634,26 +830,64 @@ const AddPackageView = ({ onBack, initialData }) => {
                                             </button>
                                         )}
                                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-6 items-end">
-                                            <div className="lg:col-span-2">
-                                                <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest">Location</label>
-                                                <select
-                                                    value={hotel.city}
-                                                    onChange={(e) => updateHotel(hotel.id, 'city', e.target.value)}
-                                                    className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none"
-                                                >
-                                                    <option>Makkah</option>
-                                                    <option>Madinah</option>
-                                                    <option>Jeddah</option>
-                                                </select>
-                                            </div>
-                                            <div className="lg:col-span-4">
-                                                <InputGroup
-                                                    label="Hotel Name"
-                                                    placeholder="Enter hotel name..."
-                                                    icon={<Hotel size={14} />}
-                                                    value={hotel.name}
-                                                    onChange={(e) => updateHotel(hotel.id, 'name', e.target.value)}
-                                                />
+
+                                            <div className="lg:col-span-6 relative">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest">Hotel Name</label>
+                                                <div className="relative">
+                                                    <Hotel size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Search hotel..."
+                                                        value={hotelSearches[hotel.id] !== undefined ? hotelSearches[hotel.id] : hotel.name}
+                                                        onChange={(e) => {
+                                                            const val = e.target.value;
+                                                            setHotelSearches(prev => ({ ...prev, [hotel.id]: val }));
+                                                            setHotelDropdownOpen(prev => ({ ...prev, [hotel.id]: true }));
+                                                            updateHotel(hotel.id, 'name', val); // Sync name with input
+
+                                                            // Clear existing ID if user modifies name
+                                                            if (hotel.hotelId) updateHotel(hotel.id, 'hotelId', null);
+                                                        }}
+                                                        onFocus={() => setHotelDropdownOpen(prev => ({ ...prev, [hotel.id]: true }))}
+                                                        onBlur={() => setTimeout(() => setHotelDropdownOpen(prev => ({ ...prev, [hotel.id]: false })), 200)}
+                                                        className="w-full pl-8 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                                                    />
+                                                    {hotelDropdownOpen[hotel.id] && (
+                                                        <div className="absolute z-20 top-full mt-1 left-0 right-0 bg-white border border-slate-200 rounded-xl shadow-xl max-h-48 overflow-y-auto">
+                                                            {hotelOptions
+                                                                .filter(h => {
+                                                                    const q = (hotelSearches[hotel.id] || '').toLowerCase();
+                                                                    return !q || h.name?.toLowerCase().includes(q) || h.city?.toLowerCase().includes(q);
+                                                                })
+                                                                .map(h => (
+                                                                    <button
+                                                                        key={h._id}
+                                                                        type="button"
+                                                                        onMouseDown={() => {
+                                                                            updateHotel(hotel.id, {
+                                                                                name: h.name,
+                                                                                hotelId: h._id,
+                                                                                city: h.city
+                                                                            });
+                                                                            setHotelSearches(prev => ({ ...prev, [hotel.id]: h.name }));
+                                                                            setHotelDropdownOpen(prev => ({ ...prev, [hotel.id]: false }));
+                                                                        }}
+                                                                        className="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition-colors border-b border-slate-50 last:border-0"
+                                                                    >
+                                                                        <span>{h.name}</span>
+                                                                        {h.city && <span className="ml-2 text-[10px] text-slate-400 font-normal">— {h.city}</span>}
+                                                                    </button>
+                                                                ))
+                                                            }
+                                                            {hotelOptions.filter(h => {
+                                                                const q = (hotelSearches[hotel.id] || '').toLowerCase();
+                                                                return !q || h.name?.toLowerCase().includes(q) || h.city?.toLowerCase().includes(q);
+                                                            }).length === 0 && (
+                                                                    <div className="px-4 py-3 text-xs text-slate-400 text-center">No hotels found</div>
+                                                                )}
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
                                             <div className="lg:col-span-2">
                                                 <InputGroup label="Check In" type="date" value={hotel.checkIn} onChange={(e) => updateHotel(hotel.id, 'checkIn', e.target.value)} />
@@ -669,56 +903,68 @@ const AddPackageView = ({ onBack, initialData }) => {
                                             </div>
                                         </div>
 
+
                                         {/* Room Type Selection */}
                                         <div className="mt-6 pt-6 border-t border-slate-100">
-                                            <label className="text-[10px] font-black text-slate-400 uppercase mb-3 block tracking-widest">Room Types</label>
-                                            <div className="flex items-center gap-6 flex-wrap">
-                                                <label className="flex items-center gap-2 cursor-pointer group">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={selectedRoomTypes.sharing}
-                                                        onChange={(e) => setSelectedRoomTypes({ ...selectedRoomTypes, sharing: e.target.checked })}
-                                                        className="w-4 h-4 rounded border-2 border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-100 cursor-pointer"
-                                                    />
-                                                    <span className="text-xs font-bold text-slate-700 group-hover:text-blue-600 transition-colors">Sharing</span>
-                                                </label>
-                                                <label className="flex items-center gap-2 cursor-pointer group">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={selectedRoomTypes.quint}
-                                                        onChange={(e) => setSelectedRoomTypes({ ...selectedRoomTypes, quint: e.target.checked })}
-                                                        className="w-4 h-4 rounded border-2 border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-100 cursor-pointer"
-                                                    />
-                                                    <span className="text-xs font-bold text-slate-700 group-hover:text-blue-600 transition-colors">Quint</span>
-                                                </label>
-                                                <label className="flex items-center gap-2 cursor-pointer group">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={selectedRoomTypes.quad}
-                                                        onChange={(e) => setSelectedRoomTypes({ ...selectedRoomTypes, quad: e.target.checked })}
-                                                        className="w-4 h-4 rounded border-2 border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-100 cursor-pointer"
-                                                    />
-                                                    <span className="text-xs font-bold text-slate-700 group-hover:text-blue-600 transition-colors">Quad</span>
-                                                </label>
-                                                <label className="flex items-center gap-2 cursor-pointer group">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={selectedRoomTypes.triple}
-                                                        onChange={(e) => setSelectedRoomTypes({ ...selectedRoomTypes, triple: e.target.checked })}
-                                                        className="w-4 h-4 rounded border-2 border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-100 cursor-pointer"
-                                                    />
-                                                    <span className="text-xs font-bold text-slate-700 group-hover:text-blue-600 transition-colors">Triple</span>
-                                                </label>
-                                                <label className="flex items-center gap-2 cursor-pointer group">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={selectedRoomTypes.double}
-                                                        onChange={(e) => setSelectedRoomTypes({ ...selectedRoomTypes, double: e.target.checked })}
-                                                        className="w-4 h-4 rounded border-2 border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-100 cursor-pointer"
-                                                    />
-                                                    <span className="text-xs font-bold text-slate-700 group-hover:text-blue-600 transition-colors">Double</span>
-                                                </label>
-                                            </div>
+                                            <label className="text-[10px] font-black text-slate-400 uppercase mb-3 block tracking-widest">Available Room Types</label>
+
+                                            {/* Logic to determine available bed types for this hotel */}
+                                            {(() => {
+                                                // Find full hotel object from options to get pricing/bed_types
+                                                const fullHotelData = hotelOptions.find(h => h._id === hotel.hotelId);
+
+                                                // If no hotel selected yet, show placeholder or disabled
+                                                if (!fullHotelData) {
+                                                    return <p className="text-xs text-slate-400 italic">Select a hotel above to see available room types</p>;
+                                                }
+
+                                                // Get available bed type IDs from hotel prices
+                                                const availableBedTypeIds = fullHotelData.prices?.map(p => p.bed_type_id) || [];
+
+                                                console.log('Hotel:', fullHotelData.name);
+                                                console.log('Available Bed Type IDs:', availableBedTypeIds);
+                                                console.log('All Bed Types:', bedTypes);
+
+                                                // Map keys (sharing, quint, etc) to bed type names for check
+                                                // Assuming backend Bed Types are named: "Sharing", "Quint", "Quad", "Triple", "Double"
+                                                const roomTypeKeys = [
+                                                    { key: 'sharing', label: 'Sharing' },
+                                                    { key: 'quint', label: 'Quint' },
+                                                    { key: 'quad', label: 'Quad' },
+                                                    { key: 'triple', label: 'Triple' },
+                                                    { key: 'double', label: 'Double' }
+                                                ];
+
+                                                return (
+                                                    <div className="flex items-center gap-6 flex-wrap">
+                                                        {roomTypeKeys.map(({ key, label }) => {
+                                                            const bedTypeObj = bedTypes.find(bt => bt.name?.toLowerCase().includes(label.toLowerCase()));
+
+                                                            // Check availability based on hotel prices
+                                                            let isAvailable = false;
+                                                            if (availableBedTypeIds.length > 0 && bedTypeObj) {
+                                                                isAvailable = availableBedTypeIds.includes(bedTypeObj.id);
+                                                            } else if (availableBedTypeIds.length === 0) {
+                                                                // If no prices defined at all, maybe new hotel? Show as potentially available
+                                                                isAvailable = true;
+                                                            }
+
+                                                            return (
+                                                                <label key={key} className={`flex items-center gap-2 cursor-pointer group ${!isAvailable ? 'opacity-50' : ''}`}>
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={selectedRoomTypes[key]}
+                                                                        onChange={(e) => setSelectedRoomTypes({ ...selectedRoomTypes, [key]: e.target.checked })}
+                                                                        className="w-4 h-4 rounded border-2 border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-100 cursor-pointer"
+                                                                    />
+                                                                    <span className="text-xs font-bold text-slate-700 group-hover:text-blue-600 transition-colors">{label}</span>
+                                                                </label>
+                                                            );
+                                                        })}
+                                                        {availableBedTypeIds.length === 0 && <p className="text-xs text-red-500">No room pricing found for this hotel.</p>}
+                                                    </div>
+                                                );
+                                            })()}
                                         </div>
                                     </div>
                                 ))}
@@ -799,15 +1045,16 @@ const AddPackageView = ({ onBack, initialData }) => {
                                         <option value="">Select Transport</option>
                                         {transportOptions.map(transport => (
                                             <option key={transport._id} value={transport._id}>
-                                                {transport.title} ({transport.capacity} seats)
+                                                {transport.vehicle_name} ({transport.vehicle_type}) - {transport.sector}
                                             </option>
                                         ))}
                                     </select>
                                     {selectedTransport && (
                                         <div className="mt-3 p-3 bg-green-50 rounded-lg text-xs">
-                                            <p className="font-bold text-green-900">{selectedTransport.title}</p>
-                                            <p className="text-green-700">Capacity: {selectedTransport.capacity} passengers</p>
-                                            <p className="text-green-600">{selectedTransport.description}</p>
+                                            <p className="font-bold text-green-900">{selectedTransport.vehicle_name}</p>
+                                            <p className="text-green-700">Type: {selectedTransport.vehicle_type}</p>
+                                            <p className="text-green-700">Sector: {selectedTransport.sector}</p>
+                                            {selectedTransport.notes && <p className="text-green-600 italic">{selectedTransport.notes}</p>}
                                         </div>
                                     )}
                                 </div>
@@ -957,7 +1204,7 @@ const AddPackageView = ({ onBack, initialData }) => {
                         {selectedTransport && (
                             <PricingSection title={`${(hotels.length > 0 ? 2 : 1) + (selectedFood ? 1 : 0) + (selectedZiyarat ? 1 : 0) + 1}. Transport Logistics`} icon={<Truck size={20} />}>
                                 <PricingMatrixRow
-                                    label={`${selectedTransport.title} Pricing`}
+                                    label={`${selectedTransport.vehicle_name || selectedTransport.title} Pricing`}
                                     showTriple={false}
                                     pricing={transportPricing}
                                     onChange={(field, value) => setTransportPricing({ ...transportPricing, [field]: value })}
@@ -1130,12 +1377,25 @@ const AddPackageView = ({ onBack, initialData }) => {
 
                                                     {/* Departure Trip */}
                                                     <div className="mb-2">
-                                                        <p className="text-sm font-black text-slate-900 mb-1">{flight.departure_trip.airline}</p>
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <p className="text-sm font-black text-slate-900">{flight.departure_trip.airline}</p>
+                                                            {flight.departure_trip.flight_number && (
+                                                                <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-1.5 rounded uppercase">
+                                                                    {getAirlineCode(flight.departure_trip.airline)}-{flight.departure_trip.flight_number}
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                         <div className="flex items-center gap-2 text-xs text-slate-600">
                                                             <span className="font-bold">{flight.departure_trip.departure_city}</span>
                                                             <span className="text-blue-500">→</span>
                                                             <span className="font-bold">{flight.departure_trip.arrival_city}</span>
                                                             <span className="text-slate-400">|</span>
+                                                            {flight.departure_trip.departure_time && (
+                                                                <>
+                                                                    <span className="font-bold">{flight.departure_trip.departure_time}</span>
+                                                                    <span className="text-slate-400">•</span>
+                                                                </>
+                                                            )}
                                                             <span>{new Date(flight.departure_trip.departure_datetime).toLocaleDateString()}</span>
                                                         </div>
                                                     </div>
@@ -1148,6 +1408,17 @@ const AddPackageView = ({ onBack, initialData }) => {
                                                                 <span className="text-emerald-500">→</span>
                                                                 <span className="font-bold">{flight.return_trip.arrival_city}</span>
                                                                 <span className="text-slate-400">|</span>
+                                                                {flight.return_trip.flight_number && (
+                                                                    <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-1.5 rounded uppercase mr-1">
+                                                                        {getAirlineCode(flight.return_trip.airline)}-{flight.return_trip.flight_number}
+                                                                    </span>
+                                                                )}
+                                                                {flight.return_trip.departure_time && (
+                                                                    <>
+                                                                        <span className="font-bold">{flight.return_trip.departure_time}</span>
+                                                                        <span className="text-slate-400">•</span>
+                                                                    </>
+                                                                )}
                                                                 <span>{new Date(flight.return_trip.departure_datetime).toLocaleDateString()}</span>
                                                             </div>
                                                         </div>

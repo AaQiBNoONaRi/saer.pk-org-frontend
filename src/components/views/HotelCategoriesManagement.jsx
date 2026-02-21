@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { toast } from 'react-hot-toast';
-import { Plus, Edit2, Trash2, X, Save, AlertCircle } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Save, AlertCircle, CheckCircle } from 'lucide-react';
 
 const API_URL = 'http://localhost:8000/api/hotel-categories/';
 
@@ -11,6 +10,12 @@ const HotelCategoriesManagement = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingCategory, setEditingCategory] = useState(null);
     const [formData, setFormData] = useState({ name: '', description: '', is_active: true });
+    const [notification, setNotification] = useState(null); // { message, type: 'success'|'error' }
+
+    const showToast = (message, type = 'success') => {
+        setNotification({ message, type });
+        setTimeout(() => setNotification(null), 3500);
+    };
 
     useEffect(() => {
         fetchCategories();
@@ -25,7 +30,7 @@ const HotelCategoriesManagement = () => {
             setCategories(response.data);
         } catch (error) {
             console.error('Error fetching categories:', error);
-            toast.error('Failed to load categories');
+            showToast('Failed to load categories', 'error');
         } finally {
             setLoading(false);
         }
@@ -54,16 +59,16 @@ const HotelCategoriesManagement = () => {
 
             if (editingCategory) {
                 await axios.put(`${API_URL}${editingCategory._id}`, formData, { headers });
-                toast.success('Category updated successfully');
+                showToast('Category updated successfully', 'success');
             } else {
                 await axios.post(API_URL, formData, { headers });
-                toast.success('Category created successfully');
+                showToast('Category created successfully', 'success');
             }
             fetchCategories();
             setIsModalOpen(false);
         } catch (error) {
             console.error('Error saving category:', error);
-            toast.error(error.response?.data?.detail || 'Failed to save category');
+            showToast(error.response?.data?.detail || 'Failed to save category', 'error');
         }
     };
 
@@ -74,16 +79,31 @@ const HotelCategoriesManagement = () => {
             await axios.delete(`${API_URL}${id}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            toast.success('Category deleted successfully');
+            showToast('Category deleted successfully', 'success');
             fetchCategories();
         } catch (error) {
             console.error('Error deleting category:', error);
-            toast.error('Failed to delete category');
+            showToast('Failed to delete category', 'error');
         }
     };
 
+
     return (
         <div className="bg-white rounded-lg shadow p-6">
+            {/* Notification Banner */}
+            {notification && (
+                <div className={`mb-4 flex items-center gap-2 px-4 py-3 rounded-lg text-sm font-medium ${notification.type === 'success'
+                        ? 'bg-green-50 text-green-800 border border-green-200'
+                        : 'bg-red-50 text-red-800 border border-red-200'
+                    }`}>
+                    {notification.type === 'success'
+                        ? <CheckCircle size={16} />
+                        : <AlertCircle size={16} />
+                    }
+                    {notification.message}
+                </div>
+            )}
+
             <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-semibold text-gray-800">Hotel Categories</h2>
                 <button

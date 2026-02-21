@@ -330,6 +330,7 @@ const AddTicketView = ({ onBack, editingTicket }) => {
                 total_seats: parseInt(formData.totalSeats) || 0,
                 available_seats: parseInt(formData.totalSeats) || 0, // Auto-set to total seats
                 allow_reselling: formData.allowReselling,
+                pnr: formData.pnr,
                 is_active: true
             };
 
