@@ -3,13 +3,14 @@ import {
     LayoutDashboard, Box, Users, UsersRound, ScanLine,
     ShieldCheck, Truck, ClipboardList, LogOut, UserCircle,
     ChevronUp, ChevronDown, CreditCard, Landmark, Menu, X,
-    FileText, FileEdit
+    FileText, FileEdit,DollarSign, Percent, BadgePercent
 } from 'lucide-react';
 
 
 
 export default function Sidebar({ activeTab, setActiveTab, isSidebarOpen, setSidebarOpen, setIsLoggedIn }) {
     const [isInventoryOpen, setInventoryOpen] = useState(false);
+    const [isCoreBusinessOpen, setCoreBusinessOpen] = useState(false);
     const [isPartnersOpen, setPartnersOpen] = useState(false);
     const [isUserMenuOpen, setUserMenuOpen] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
@@ -37,14 +38,14 @@ export default function Sidebar({ activeTab, setActiveTab, isSidebarOpen, setSid
             {/* 1. Backdrop Overlay for Mobile */}
             {isSidebarOpen && isMobile && (
                 <div
-                    className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[45] transition-opacity duration-300"
+                    className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-45 transition-opacity duration-300"
                     onClick={() => setSidebarOpen(false)}
                 />
             )}
 
             {/* 2. Main Sidebar Container */}
             <aside
-                className={`fixed inset-y-0 left-0 lg:relative z-[50] flex flex-col bg-white border-r border-slate-200 transition-all duration-300 ease-in-out shrink-0 overflow-hidden shadow-xl lg:shadow-none
+                className={`fixed inset-y-0 left-0 lg:relative z-50 flex flex-col bg-white border-r border-slate-200 transition-all duration-300 ease-in-out shrink-0 overflow-hidden shadow-xl lg:shadow-none
                 ${isSidebarOpen ? 'w-72 translate-x-0' : isMobile ? 'w-72 -translate-x-full' : 'w-20 translate-x-0'}`}
             >
                 {/* Logo Section */}
@@ -96,6 +97,19 @@ export default function Sidebar({ activeTab, setActiveTab, isSidebarOpen, setSid
                             <DropdownItem label="Flights" active={activeTab === 'Flights'} onClick={() => handleNavClick('Flights')} />
                             <DropdownItem label="Others" active={activeTab === 'Others'} onClick={() => handleNavClick('Other')} />
                             <DropdownItem label="Share Inventory" active={activeTab === 'Share Inventory'} onClick={() => handleNavClick('Share Inventory')} />
+                        </NavDropdown>
+
+                        <NavDropdown
+                            icon={<BadgePercent size={20} />}
+                            label="Pricing"
+                            isOpen={isSidebarOpen}
+                            isExpanded={isCoreBusinessOpen}
+                            onClick={() => setCoreBusinessOpen(!isCoreBusinessOpen)}
+                            active={['Discounts', 'Commissions', 'Service Charges'].includes(activeTab)}
+                        >
+                            <DropdownItem label="Discounts" active={activeTab === 'Discounts'} onClick={() => handleNavClick('Discounts')} />
+                            <DropdownItem label="Commissions" active={activeTab === 'Commissions'} onClick={() => handleNavClick('Commissions')} />
+                            <DropdownItem label="Service Charges" active={activeTab === 'Service Charges'} onClick={() => handleNavClick('Service Charges')} />
                         </NavDropdown>
                     </NavGroup>
 
@@ -150,7 +164,7 @@ export default function Sidebar({ activeTab, setActiveTab, isSidebarOpen, setSid
                 {/* Footer Profile Section */}
                 <div className="p-4 border-t bg-slate-50 shrink-0 relative">
                     {isUserMenuOpen && isSidebarOpen && (
-                        <div className="absolute bottom-full left-4 right-4 mb-2 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden animate-in slide-in-from-bottom-2 duration-200 z-[60]">
+                        <div className="absolute bottom-full left-4 right-4 mb-2 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden animate-in slide-in-from-bottom-2 duration-200 z-60">
                             <button onClick={() => { handleNavClick('Profile'); setUserMenuOpen(false); }} className="w-full flex items-center space-x-3 p-4 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors border-b border-slate-50 text-left">
                                 <UserCircle size={18} className="text-slate-400" />
                                 <span>Profile Setup</span>
@@ -167,7 +181,7 @@ export default function Sidebar({ activeTab, setActiveTab, isSidebarOpen, setSid
                         onClick={() => isSidebarOpen && setUserMenuOpen(!isUserMenuOpen)}
                     >
                         <div className="flex items-center space-x-3 min-w-0">
-                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-blue-800 text-white flex items-center justify-center font-bold shadow-lg shrink-0 uppercase">HA</div>
+                            <div className="w-10 h-10 rounded-xl bg-linear-to-br from-blue-600 to-blue-800 text-white flex items-center justify-center font-bold shadow-lg shrink-0 uppercase">HA</div>
                             {isSidebarOpen && (
                                 <div className="min-w-0 transition-opacity duration-200">
                                     <p className="text-xs font-black text-slate-800 uppercase truncate">Hassan Ali</p>

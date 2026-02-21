@@ -19,10 +19,19 @@ import EmployeesView from './components/views/EmployeesView';
 import OrganizationView from './components/views/OrganizationView';
 import BranchesView from './components/views/BranchesView';
 import AgenciesView from './components/views/AgenciesView';
+
 import BlogsView from './components/views/BlogsView';
 import FormsView from './components/views/FormsView';
 import OrderDeliveryView from './components/views/OrderDeliveryView';
 import OrderDeliveryDetailView from './components/views/OrderDeliveryDetailView';
+
+import DiscountsView from './components/views/DiscountsView';
+import CommissionsView from './components/views/CommissionsView';
+import ServiceChargesView from './components/views/ServiceChargesView';
+import AddDiscountView from './components/views/AddDiscountView';
+import AddCommissionView from './components/views/AddCommissionView';
+import AddServiceChargeView from './components/views/AddServiceChargeView';
+
 
 // Route mapping: URL path <-> Tab name
 const ROUTES = {
@@ -40,9 +49,18 @@ const ROUTES = {
   '/branch': 'Branch',
   '/agencies': 'Agencies',
   '/employees': 'Employees',
+
   '/blogs': 'Blogs',
   '/forms': 'Forms',
   '/order-delivery': 'Order Delivery',
+
+  '/discounts': 'Discounts',
+  '/discounts/add': 'Add Discount',
+  '/commissions': 'Commissions',
+  '/commissions/add': 'Add Commission',
+  '/service-charges': 'Service Charges',
+  '/service-charges/add': 'Add Service Charge',
+
 };
 
 // Helper: Get URL path for a tab name
@@ -61,7 +79,13 @@ const getTabForPath = (path) => {
   if (path.startsWith('/tickets/')) return 'Tickets';
   if (path.startsWith('/packages/')) return 'Packages';
   if (path.startsWith('/hotels/')) return 'Hotels';
+
   if (path.startsWith('/share-inventory')) return 'Share Inventory';
+
+  if (path.startsWith('/discounts/')) return 'Discounts';
+  if (path.startsWith('/commissions/')) return 'Commissions';
+  if (path.startsWith('/service-charges/')) return 'Service Charges';
+
 
   // Default
   return 'Dashboard';
@@ -78,7 +102,12 @@ const App = () => {
   const [editingTicket, setEditingTicket] = useState(null);
   const [editingPackage, setEditingPackage] = useState(null);
   const [viewingPackage, setViewingPackage] = useState(null);
+
   const [viewingOrder, setViewingOrder] = useState(null);
+
+  const [editingDiscount, setEditingDiscount] = useState(null);
+  const [editingCommission, setEditingCommission] = useState(null);
+  const [editingServiceCharge, setEditingServiceCharge] = useState(null);
 
   // Handle window resize and sidebar state
   useEffect(() => {
@@ -240,6 +269,7 @@ const App = () => {
         return <AgenciesView />;
       case 'Employees':
         return <EmployeesView />;
+
       case 'Blogs':
         return <BlogsView />;
       case 'Forms':
@@ -254,6 +284,77 @@ const App = () => {
           );
         }
         return <OrderDeliveryView onOrderClick={(id) => setViewingOrder(id)} />;
+
+      case 'Discounts':
+        return (
+          <DiscountsView
+            onAddDiscount={() => {
+              setEditingDiscount(null);
+              setActiveTab('Add Discount');
+            }}
+            onEditDiscount={(discount) => {
+              setEditingDiscount(discount);
+              setActiveTab('Add Discount');
+            }}
+          />
+        );
+      case 'Add Discount':
+        return (
+          <AddDiscountView
+            onBack={() => {
+              setEditingDiscount(null);
+              setActiveTab('Discounts');
+            }}
+            initialData={editingDiscount}
+          />
+        );
+      case 'Commissions':
+        return (
+          <CommissionsView
+            onAddCommission={() => {
+              setEditingCommission(null);
+              setActiveTab('Add Commission');
+            }}
+            onEditCommission={(commission) => {
+              setEditingCommission(commission);
+              setActiveTab('Add Commission');
+            }}
+          />
+        );
+      case 'Add Commission':
+        return (
+          <AddCommissionView
+            onBack={() => {
+              setEditingCommission(null);
+              setActiveTab('Commissions');
+            }}
+            initialData={editingCommission}
+          />
+        );
+      case 'Service Charges':
+        return (
+          <ServiceChargesView
+            onAddServiceCharge={() => {
+              setEditingServiceCharge(null);
+              setActiveTab('Add Service Charge');
+            }}
+            onEditServiceCharge={(serviceCharge) => {
+              setEditingServiceCharge(serviceCharge);
+              setActiveTab('Add Service Charge');
+            }}
+          />
+        );
+      case 'Add Service Charge':
+        return (
+          <AddServiceChargeView
+            onBack={() => {
+              setEditingServiceCharge(null);
+              setActiveTab('Service Charges');
+            }}
+            initialData={editingServiceCharge}
+          />
+        );
+
       default:
         return <GenericView tabName={activeTab} />;
     }
