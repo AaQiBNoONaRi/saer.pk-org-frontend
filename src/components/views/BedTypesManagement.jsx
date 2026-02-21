@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { toast } from 'react-hot-toast';
 import { Plus, Edit2, Trash2, X, Save, Lock } from 'lucide-react';
 
 const API_URL = 'http://localhost:8000/api/bed-types/';
@@ -27,7 +26,7 @@ const BedTypesManagement = () => {
             setBedTypes(sorted);
         } catch (error) {
             console.error('Error fetching bed types:', error);
-            toast.error('Failed to load bed types');
+            alert('Failed to load bed types');
         } finally {
             setLoading(false);
         }
@@ -60,22 +59,22 @@ const BedTypesManagement = () => {
 
             if (editingType) {
                 await axios.put(`${API_URL}${editingType._id}`, formData, { headers });
-                toast.success('Bed type updated successfully');
+                console.log('Bed type updated successfully');
             } else {
                 await axios.post(API_URL, formData, { headers });
-                toast.success('Bed type created successfully');
+                console.log('Bed type created successfully');
             }
             fetchBedTypes();
             setIsModalOpen(false);
         } catch (error) {
             console.error('Error saving bed type:', error);
-            toast.error(error.response?.data?.detail || 'Failed to save bed type');
+            alert(error.response?.data?.detail || 'Failed to save bed type');
         }
     };
 
     const handleDelete = async (type) => {
         if (type.is_room_price) {
-            toast.error("Cannot delete the default 'Room Price' type.");
+            alert("Cannot delete the default 'Room Price' type.");
             return;
         }
         if (!window.confirm('Are you sure you want to delete this bed type?')) return;
@@ -84,11 +83,11 @@ const BedTypesManagement = () => {
             await axios.delete(`${API_URL}${type._id}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            toast.success('Bed type deleted successfully');
+            console.log('Bed type deleted successfully');
             fetchBedTypes();
         } catch (error) {
             console.error('Error deleting bed type:', error);
-            toast.error('Failed to delete bed type');
+            alert('Failed to delete bed type');
         }
     };
 

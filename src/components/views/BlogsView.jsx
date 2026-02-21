@@ -5,7 +5,9 @@ import {
     Image as ImageIcon, Video, Link2, Quote, Settings,
     BookOpen, Tag, Calendar, X, ChevronDown, Filter, MoreHorizontal, Layers
 } from 'lucide-react';
-import { v4 as uuidv4 } from 'uuid';
+
+// Generate unique ID
+const generateId = () => `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
 const BlogsView = () => {
     const [blogs, setBlogs] = useState([]);
@@ -150,7 +152,7 @@ const BlogsView = () => {
 
     const addBlock = (type) => {
         const newBlock = {
-            id: uuidv4(),
+            id: generateId(),
             type,
             order: blocks.length,
             content: getDefaultContent(type),

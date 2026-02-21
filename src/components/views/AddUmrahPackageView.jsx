@@ -4,7 +4,7 @@ import { ArrowLeft, Save, Hotel, Plus, X, Users, Package } from 'lucide-react';
 const AddUmrahPackageView = ({ onBack, initialData }) => {
     const [saving, setSaving] = useState(false);
     const [hotels, setHotels] = useState([]);
-    
+
     // Group & Discount State - FIXED AMOUNTS ONLY
     const [groupName, setGroupName] = useState('');
     const [ticketDiscount, setTicketDiscount] = useState(0);
@@ -74,9 +74,9 @@ const AddUmrahPackageView = ({ onBack, initialData }) => {
             const url = initialData
                 ? `http://localhost:8000/api/umrah-packages/${initialData._id}`
                 : 'http://localhost:8000/api/umrah-packages/';
-            
+
             const method = initialData ? 'PUT' : 'POST';
-            
+
             const response = await fetch(url, {
                 method,
                 headers: {
@@ -127,7 +127,7 @@ const AddUmrahPackageView = ({ onBack, initialData }) => {
             updated[index] = {
                 ...updated[index],
                 hotel_id: value,
-                hotel_name: selectedHotel?.hotel_name || ''
+                hotel_name: selectedHotel?.name || ''
             };
         } else if (field.startsWith('rooms.')) {
             const roomType = field.split('.')[1];
@@ -270,9 +270,12 @@ const AddUmrahPackageView = ({ onBack, initialData }) => {
                                             className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-100 outline-none font-bold text-sm bg-white"
                                         >
                                             <option value="">Choose hotel...</option>
+                                            {hotels.length === 0 && (
+                                                <option disabled value="">Loading hotels...</option>
+                                            )}
                                             {hotels.map(h => (
                                                 <option key={h._id} value={h._id}>
-                                                    {h.hotel_name} - {h.city}
+                                                    {h.name} — {h.city}
                                                 </option>
                                             ))}
                                         </select>

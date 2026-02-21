@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { toast } from 'react-hot-toast';
 import { Plus, Search, Filter, Building2, BedDouble, List as ListIcon } from 'lucide-react';
 import HotelCard from './HotelCard';
 import HotelForm from './HotelForm';
@@ -40,7 +39,7 @@ const HotelsView = () => {
             setHotels(response.data);
         } catch (error) {
             console.error('Error fetching hotels:', error);
-            toast.error('Failed to fetch hotels');
+            console.error('❌ Failed to fetch hotels');
         } finally {
             setLoading(false);
         }
@@ -71,11 +70,11 @@ const HotelsView = () => {
             console.error('❌ Error status:', error.response?.status);
             console.error('❌ Request URL was:', `${API_URL}${hotel._id}`);
             if (error.response && error.response.status === 404) {
-                toast.error('Hotel not found. It may have been deleted. Refreshing list...');
+                alert('Hotel not found. It may have been deleted. Refreshing list...');
                 fetchHotels();
             } else {
                 console.error('Error fetching hotel:', error);
-                toast.error('Failed to load hotel details');
+                alert('Failed to load hotel details');
             }
         }
     };
@@ -87,11 +86,11 @@ const HotelsView = () => {
                 await axios.delete(`${API_URL}${hotel._id}`, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
-                toast.success('Hotel deleted successfully');
+                console.log('✅ Hotel deleted successfully');
                 fetchHotels();
             } catch (error) {
                 console.error('Error deleting hotel:', error);
-                toast.error('Failed to delete hotel');
+                alert('Failed to delete hotel');
             }
         }
     };
@@ -105,7 +104,7 @@ const HotelsView = () => {
                 console.log('Attempting to update hotel with ID:', selectedHotel._id);
                 try {
                     const res = await axios.put(`${API_URL}${selectedHotel._id}`, formData, { headers });
-                    toast.success('Hotel updated successfully');
+                    console.log('✅ Hotel updated successfully');
                     // Clear selection and refresh list
                     setSelectedHotel(null);
                     setViewMode('list');
@@ -117,13 +116,13 @@ const HotelsView = () => {
                         const create = window.confirm('Hotel not found on server. Do you want to create a new hotel with this data?');
                         if (create) {
                             const res = await axios.post(API_URL, formData, { headers });
-                            toast.success('Hotel created successfully');
+                            console.log('✅ Hotel created successfully');
                             setSelectedHotel(null);
                             setViewMode('list');
                             fetchHotels();
                             return res.data;
                         } else {
-                            toast.error('Update aborted: original hotel not found.');
+                            alert('Update aborted: original hotel not found.');
                             setSelectedHotel(null);
                             setViewMode('list');
                             throw err;
@@ -133,7 +132,7 @@ const HotelsView = () => {
                 }
             } else {
                 const res = await axios.post(API_URL, formData, { headers });
-                toast.success('Hotel created successfully');
+                console.log('✅ Hotel created successfully');
                 setSelectedHotel(null);
                 setViewMode('list');
                 fetchHotels();

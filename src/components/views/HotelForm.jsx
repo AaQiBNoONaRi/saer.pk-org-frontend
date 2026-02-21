@@ -39,7 +39,7 @@ const HotelForm = ({ hotel = null, onSave, onCancel }) => {
 
     // Helper states
     const [contactInput, setContactInput] = useState({ contact_person: '', contact_number: '' });
-    
+
     // Price Period Management
     const [currentPricePeriod, setCurrentPricePeriod] = useState({
         date_from: '',
@@ -48,7 +48,7 @@ const HotelForm = ({ hotel = null, onSave, onCancel }) => {
     });
     const [showPricePeriodForm, setShowPricePeriodForm] = useState(false);
     const [selectedBedTypeToAdd, setSelectedBedTypeToAdd] = useState('');
-    
+
     // File uploads
     const [photoFiles, setPhotoFiles] = useState([]);
     const [videoFile, setVideoFile] = useState(null);
@@ -158,20 +158,20 @@ const HotelForm = ({ hotel = null, onSave, onCancel }) => {
             alert('Please select date range');
             return;
         }
-        
+
         // Validate dates are within availability period
         if (formData.available_from && formData.available_until) {
             const periodFrom = new Date(currentPricePeriod.date_from);
             const periodTo = new Date(currentPricePeriod.date_to);
             const availFrom = new Date(formData.available_from);
             const availTo = new Date(formData.available_until);
-            
+
             if (periodFrom < availFrom || periodTo > availTo) {
                 alert(`Price period dates must be within availability period (${formData.available_from} to ${formData.available_until})`);
                 return;
             }
         }
-        
+
         if (currentPricePeriod.bed_prices.length === 0) {
             alert('Please add at least one bed type price');
             return;
@@ -193,13 +193,13 @@ const HotelForm = ({ hotel = null, onSave, onCancel }) => {
             alert('Please select a bed type');
             return;
         }
-        
+
         // Check if bed type already added
         if (currentPricePeriod.bed_prices.find(bp => bp.bed_type_id === selectedBedTypeToAdd)) {
             alert('This bed type is already added');
             return;
         }
-        
+
         setCurrentPricePeriod(prev => ({
             ...prev,
             bed_prices: [...prev.bed_prices, {
@@ -376,8 +376,19 @@ const HotelForm = ({ hotel = null, onSave, onCancel }) => {
                 walking_time_minutes: parseInt(formData.walking_time_minutes || 0),
                 walking_distance_meters: parseFloat(formData.walking_distance_meters || 0),
                 photos: formData.photos.filter(p => typeof p === 'string'),
-                prices: flatPrices
+                prices: flatPrices,
+                // Convert empty strings to null for Optional date fields — Pydantic rejects ""
+                available_from: formData.available_from || null,
+                available_until: formData.available_until || null,
+                address: formData.address || null,
+                contact_number: formData.contact_number || null,
+                google_location_link: formData.google_location_link || null,
+                category_id: formData.category_id || null,
             };
+            // Remove any keys that are null to keep the payload clean (backend has defaults)
+            Object.keys(payload).forEach(key => {
+                if (payload[key] === null) delete payload[key];
+            });
 
             await onSave(payload);
         } catch (error) {
@@ -563,7 +574,7 @@ const HotelForm = ({ hotel = null, onSave, onCancel }) => {
 
                         {/* Add Price Period Button */}
                         {!showPricePeriodForm && (
-                            <button 
+                            <button
                                 onClick={() => setShowPricePeriodForm(true)}
                                 className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
                             >
@@ -576,7 +587,7 @@ const HotelForm = ({ hotel = null, onSave, onCancel }) => {
                             <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 shadow-inner space-y-4">
                                 <div className="flex items-center justify-between mb-4">
                                     <h4 className="font-bold text-slate-900 text-sm uppercase">New Price Period</h4>
-                                    <button 
+                                    <button
                                         onClick={() => {
                                             setShowPricePeriodForm(false);
                                             setCurrentPricePeriod({ date_from: '', date_to: '', bed_prices: [] });
@@ -591,22 +602,22 @@ const HotelForm = ({ hotel = null, onSave, onCancel }) => {
                                 <div className="grid grid-cols-2 gap-4 bg-white p-4 rounded-xl">
                                     <div>
                                         <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 pl-2">Period Date From</label>
-                                        <input 
-                                            type="date" 
+                                        <input
+                                            type="date"
                                             className="w-full pl-4 pr-6 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm font-bold text-slate-700 focus:bg-white focus:border-blue-200 focus:ring-4 ring-blue-50 transition-all outline-none"
-                                            value={currentPricePeriod.date_from} 
-                                            onChange={e => setCurrentPricePeriod(p => ({ ...p, date_from: e.target.value }))} 
+                                            value={currentPricePeriod.date_from}
+                                            onChange={e => setCurrentPricePeriod(p => ({ ...p, date_from: e.target.value }))}
                                             min={formData.available_from}
                                             max={formData.available_until}
                                         />
                                     </div>
                                     <div>
                                         <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 pl-2">Period Date To</label>
-                                        <input 
-                                            type="date" 
+                                        <input
+                                            type="date"
                                             className="w-full pl-4 pr-6 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm font-bold text-slate-700 focus:bg-white focus:border-blue-200 focus:ring-4 ring-blue-50 transition-all outline-none"
-                                            value={currentPricePeriod.date_to} 
-                                            onChange={e => setCurrentPricePeriod(p => ({ ...p, date_to: e.target.value }))} 
+                                            value={currentPricePeriod.date_to}
+                                            onChange={e => setCurrentPricePeriod(p => ({ ...p, date_to: e.target.value }))}
                                             min={formData.available_from}
                                             max={formData.available_until}
                                         />
@@ -662,15 +673,15 @@ const HotelForm = ({ hotel = null, onSave, onCancel }) => {
                                                                 <div>{bedType?.name || 'Unknown'}</div>
                                                             )}
                                                         </div>
-                                                        <input 
-                                                            type="number" 
+                                                        <input
+                                                            type="number"
                                                             placeholder="0.00"
                                                             className="w-full px-3 py-2 bg-slate-50 border border-slate-100 rounded-lg text-xs font-bold text-green-700 focus:bg-white focus:border-blue-200 focus:ring-2 ring-blue-50 transition-all outline-none"
                                                             value={bp.selling_price || ''}
                                                             onChange={e => updateBedPrice(bp.bed_type_id, 'selling_price', e.target.value)}
                                                         />
-                                                        <input 
-                                                            type="number" 
+                                                        <input
+                                                            type="number"
                                                             placeholder="0.00"
                                                             className="w-full px-3 py-2 bg-slate-50 border border-slate-100 rounded-lg text-xs font-bold text-blue-700 focus:bg-white focus:border-blue-200 focus:ring-2 ring-blue-50 transition-all outline-none"
                                                             value={bp.purchase_price || ''}
@@ -699,8 +710,8 @@ const HotelForm = ({ hotel = null, onSave, onCancel }) => {
                                     )}
                                 </div>
 
-                                <button 
-                                    onClick={addPricePeriod} 
+                                <button
+                                    onClick={addPricePeriod}
                                     className="w-full py-3 bg-slate-900 text-white font-bold rounded-xl hover:bg-black transition-all shadow-lg hover:shadow-xl"
                                 >
                                     Save Price Period
@@ -719,8 +730,8 @@ const HotelForm = ({ hotel = null, onSave, onCancel }) => {
                                                 {period.date_from} → {period.date_to}
                                             </div>
                                         </div>
-                                        <button 
-                                            onClick={() => removePricePeriod(idx)} 
+                                        <button
+                                            onClick={() => removePricePeriod(idx)}
                                             className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
                                         >
                                             <Trash2 size={18} />
@@ -778,11 +789,11 @@ const HotelForm = ({ hotel = null, onSave, onCancel }) => {
                             <label className="block border-2 border-dashed border-slate-200 rounded-2xl p-8 text-center hover:bg-slate-50 transition-colors cursor-pointer">
                                 <ImageIcon className="mx-auto text-slate-300 mb-2" size={32} />
                                 <p className="text-sm font-bold text-slate-500">Click to upload photos</p>
-                                <input 
-                                    type="file" 
-                                    multiple 
+                                <input
+                                    type="file"
+                                    multiple
                                     accept="image/*"
-                                    className="hidden" 
+                                    className="hidden"
                                     onChange={handlePhotoUpload}
                                 />
                                 <p className="text-xs text-slate-400 mt-2">{photoFiles.length} file(s) selected</p>
@@ -791,8 +802,8 @@ const HotelForm = ({ hotel = null, onSave, onCancel }) => {
                                 <div className="mt-3 grid grid-cols-4 gap-2">
                                     {photoFiles.map((file, idx) => (
                                         <div key={idx} className="relative group">
-                                            <img 
-                                                src={URL.createObjectURL(file)} 
+                                            <img
+                                                src={URL.createObjectURL(file)}
                                                 alt={`Preview ${idx}`}
                                                 className="w-full h-20 object-cover rounded-lg border border-slate-200"
                                             />
@@ -815,10 +826,10 @@ const HotelForm = ({ hotel = null, onSave, onCancel }) => {
                             <label className="block border-2 border-dashed border-slate-200 rounded-2xl p-8 text-center hover:bg-slate-50 transition-colors cursor-pointer">
                                 <Upload className="mx-auto text-slate-300 mb-2" size={32} />
                                 <p className="text-sm font-bold text-slate-500">Click to upload video</p>
-                                <input 
-                                    type="file" 
+                                <input
+                                    type="file"
                                     accept="video/*"
-                                    className="hidden" 
+                                    className="hidden"
                                     onChange={handleVideoUpload}
                                 />
                                 <p className="text-xs text-slate-400 mt-2">{videoFile ? videoFile.name : 'No file chosen'}</p>

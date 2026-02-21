@@ -18,7 +18,9 @@ import {
     FileText,
     X
 } from 'lucide-react';
-import { v4 as uuidv4 } from 'uuid';
+
+// Generate unique ID
+const generateId = () => `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
 // --- Reusable UI Components ---
 
@@ -145,14 +147,14 @@ const FormsView = () => {
             position: 'End of Blog (Below Content)',
         });
         setFields([
-            { id: uuidv4(), label: 'Full Name', name: 'full_name', type: 'text', placeholder: 'John Doe', required: true },
-            { id: uuidv4(), label: 'Email Address', name: 'email_address', type: 'email', placeholder: 'john@example.com', required: true }
+            { id: generateId(), label: 'Full Name', name: 'full_name', type: 'text', placeholder: 'John Doe', required: true },
+            { id: generateId(), label: 'Email Address', name: 'email_address', type: 'email', placeholder: 'john@example.com', required: true }
         ]);
         setButtons([
-            { id: uuidv4(), label: 'Submit', action: 'submit', type: 'primary' }
+            { id: generateId(), label: 'Submit', action: 'submit', type: 'primary' }
         ]);
         setNotes([
-            { id: uuidv4(), text: 'We will contact you within 24 hours.', type: 'info' }
+            { id: generateId(), text: 'We will contact you within 24 hours.', type: 'info' }
         ]);
         setSelectedForm(null);
         setViewMode('builder');
@@ -167,7 +169,7 @@ const FormsView = () => {
             position: form.position || 'End of Blog (Below Content)',
         });
         setFields(form.schema?.fields || []);
-        setButtons(form.schema?.buttons || [{ id: uuidv4(), label: 'Submit', action: 'submit', type: 'primary' }]);
+        setButtons(form.schema?.buttons || [{ id: generateId(), label: 'Submit', action: 'submit', type: 'primary' }]);
         setNotes(form.schema?.notes || []);
         setViewMode('builder');
     };
@@ -263,7 +265,7 @@ const FormsView = () => {
 
     const addField = () => {
         const newField = {
-            id: uuidv4(),
+            id: generateId(),
             label: 'New Field',
             name: 'new_field',
             type: 'text',
