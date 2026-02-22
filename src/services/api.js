@@ -30,10 +30,16 @@ api.interceptors.response.use(
     (response) => response,
     (error) => {
         if (error.response?.status === 401 && !error.config.url.includes('/login')) {
-            // Token expired or invalid - clear storage and redirect to login
-            localStorage.removeItem('access_token');
-            localStorage.removeItem('admin_data');
-            window.location.href = '/';
+            // Don't clear session if this is an employee session —
+            // employee tokens are rejected by admin endpoints (expected 401)
+            const isEmployeeSession = !!localStorage.getItem('employee_data');
+            if (!isEmployeeSession) {
+                // Admin token expired or invalid - clear and redirect to login
+                localStorage.removeItem('access_token');
+                localStorage.removeItem('admin_data');
+                localStorage.removeItem('organization_id');
+                window.location.href = '/';
+            }
         }
         return Promise.reject(error);
     }
@@ -57,7 +63,7 @@ export const authAPI = {
         if (response.data.access_token) {
             localStorage.setItem('access_token', response.data.access_token);
             localStorage.setItem('admin_data', JSON.stringify(response.data.admin));
-            
+
             // Store organization_id separately for easy access
             if (response.data.admin?.organization_id) {
                 localStorage.setItem('organization_id', response.data.admin.organization_id);

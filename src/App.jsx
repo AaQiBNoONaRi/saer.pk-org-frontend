@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 
 // Components
 import LoginPage from './components/auth/LoginPage';
+import EmployeeApp from './components/employee/EmployeeApp';
 import Layout from './components/layout/Layout';
 import DashboardView from './components/views/DashboardView';
 import TicketsView from './components/views/TicketsView';
@@ -19,6 +20,7 @@ import EmployeesView from './components/views/EmployeesView';
 import OrganizationView from './components/views/OrganizationView';
 import BranchesView from './components/views/BranchesView';
 import AgenciesView from './components/views/AgenciesView';
+import ShareInventoryView from './components/views/ShareInventoryView';
 
 import BlogsView from './components/views/BlogsView';
 import FormsView from './components/views/FormsView';
@@ -85,7 +87,17 @@ const getTabForPath = (path) => {
 const App = () => {
   // Initialize activeTab from URL
   const initialTab = getTabForPath(window.location.pathname);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  // --- Employee session detection ---
+  // If employee_data is in localStorage, skip admin portal entirely
+  const isEmployeeSession = !!localStorage.getItem('employee_data') && !!localStorage.getItem('access_token');
+  if (isEmployeeSession) {
+    return <EmployeeApp />;
+  }
+
+  // --- Admin session detection ---
+  const hasAdminToken = !!localStorage.getItem('access_token');
+  const [isLoggedIn, setIsLoggedIn] = useState(hasAdminToken);
   const [activeTab, setActiveTab] = useState(initialTab);
   const [isSidebarOpen, setSidebarOpen] = useState(true);
   const [isUserMenuOpen, setUserMenuOpen] = useState(false);
@@ -256,6 +268,8 @@ const App = () => {
         return <BranchesView />;
       case 'Agencies':
         return <AgenciesView />;
+      case 'Share Inventory':
+        return <ShareInventoryView />;
       case 'Employees':
         return <EmployeesView />;
 
