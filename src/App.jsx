@@ -120,6 +120,9 @@ const App = () => {
   const [editingTicket, setEditingTicket] = useState(null);
   const [editingPackage, setEditingPackage] = useState(null);
   const [viewingPackage, setViewingPackage] = useState(null);
+  const [editingDiscount, setEditingDiscount] = useState(null);
+  const [editingCommission, setEditingCommission] = useState(null);
+  const [editingServiceCharge, setEditingServiceCharge] = useState(null);
 
   // Parse initial IDs from URL
   const path = window.location.pathname;
@@ -314,37 +317,72 @@ const App = () => {
       case 'Discounts':
         return (
           <DiscountsView
-            onAdd={() => setActiveTab('Add Discount')}
-            onEdit={(discount) => {
-              // You might need state for editingDiscount
+            onAddDiscount={() => {
+              setEditingDiscount(null);
+              setActiveTab('Add Discount');
+            }}
+            onEditDiscount={(discount) => {
+              setEditingDiscount(discount);
               setActiveTab('Add Discount');
             }}
           />
         );
       case 'Add Discount':
-        return <AddDiscountView onBack={() => setActiveTab('Discounts')} />;
+        return (
+          <AddDiscountView
+            onBack={() => {
+              setEditingDiscount(null);
+              setActiveTab('Discounts');
+            }}
+            initialData={editingDiscount}
+          />
+        );
       case 'Commissions':
         return (
           <CommissionsView
-            onAdd={() => setActiveTab('Add Commission')}
-            onEdit={(commission) => {
+            onAddCommission={() => {
+              setEditingCommission(null);
+              setActiveTab('Add Commission');
+            }}
+            onEditCommission={(commission) => {
+              setEditingCommission(commission);
               setActiveTab('Add Commission');
             }}
           />
         );
       case 'Add Commission':
-        return <AddCommissionView onBack={() => setActiveTab('Commissions')} />;
+        return (
+          <AddCommissionView
+            onBack={() => {
+              setEditingCommission(null);
+              setActiveTab('Commissions');
+            }}
+            initialData={editingCommission}
+          />
+        );
       case 'Service Charges':
         return (
           <ServiceChargesView
-            onAdd={() => setActiveTab('Add Service Charge')}
-            onEdit={(charge) => {
+            onAddServiceCharge={() => {
+              setEditingServiceCharge(null);
+              setActiveTab('Add Service Charge');
+            }}
+            onEditServiceCharge={(charge) => {
+              setEditingServiceCharge(charge);
               setActiveTab('Add Service Charge');
             }}
           />
         );
       case 'Add Service Charge':
-        return <AddServiceChargeView onBack={() => setActiveTab('Service Charges')} />;
+        return (
+          <AddServiceChargeView
+            onBack={() => {
+              setEditingServiceCharge(null);
+              setActiveTab('Service Charges');
+            }}
+            initialData={editingServiceCharge}
+          />
+        );
       case 'Share Inventory':
         return <ShareInventoryView />;
       case 'Order Delivery':

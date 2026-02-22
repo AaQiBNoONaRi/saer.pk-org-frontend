@@ -74,7 +74,7 @@ const DiscountsView = ({ onAddDiscount, onEditDiscount }) => {
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
                 <div>
                     <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tight">Discounts</h2>
-                    <p className="text-slate-500 font-medium">Manage price reductions for customers</p>
+                    <p className="text-slate-500 font-medium">Manage discount groups for tickets, packages and hotels</p>
                 </div>
                 <button
                     onClick={onAddDiscount}
@@ -116,7 +116,6 @@ const DiscountsView = ({ onAddDiscount, onEditDiscount }) => {
                                     <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight mb-1">
                                         {discount.name}
                                     </h3>
-                                    <p className="text-xs text-slate-500">{discount.description}</p>
                                 </div>
                                 <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
                                     discount.is_active
@@ -129,21 +128,24 @@ const DiscountsView = ({ onAddDiscount, onEditDiscount }) => {
 
                             <div className="space-y-2 mb-4">
                                 <div className="flex items-center justify-between text-sm">
-                                    <span className="font-bold text-slate-600">Value:</span>
+                                    <span className="font-bold text-slate-600">Ticket Discount:</span>
                                     <span className="font-black text-blue-600">
-                                        {discount.discount_type === 'percentage' 
-                                            ? `${discount.value}%` 
-                                            : `PKR ${Number(discount.value || 0).toLocaleString()}`}
+                                        {discount.ticket_discount_type === 'percentage'
+                                            ? `${discount.ticket_discount}%`
+                                            : `PKR ${Number(discount.ticket_discount || 0).toLocaleString()}`
+                                        }
                                     </span>
                                 </div>
                                 <div className="flex items-center justify-between text-sm">
-                                    <span className="font-bold text-slate-600">Applies To:</span>
-                                    <span className="capitalize text-slate-900 font-bold">{discount.applies_to}</span>
+                                    <span className="font-bold text-slate-600">Package Discount:</span>
+                                    <span className="font-black text-blue-600">
+                                        PKR {Number(discount.package_discount || 0).toLocaleString()}
+                                    </span>
                                 </div>
-                                {discount.room_type && (
+                                {discount.hotel_discounts && discount.hotel_discounts.length > 0 && (
                                     <div className="flex items-center justify-between text-sm">
-                                        <span className="font-bold text-slate-600">Room Type:</span>
-                                        <span className="capitalize text-slate-900 font-bold">{discount.room_type}</span>
+                                        <span className="font-bold text-slate-600">Hotel Periods:</span>
+                                        <span className="capitalize text-slate-900 font-bold">{discount.hotel_discounts.length}</span>
                                     </div>
                                 )}
                             </div>

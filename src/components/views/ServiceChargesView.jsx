@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Edit2, Trash2, CreditCard, Percent, DollarSign } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, DollarSign, CheckCircle } from 'lucide-react';
 
 const ServiceChargesView = ({ onAddServiceCharge, onEditServiceCharge }) => {
     const [serviceCharges, setServiceCharges] = useState([]);
@@ -33,7 +33,7 @@ const ServiceChargesView = ({ onAddServiceCharge, onEditServiceCharge }) => {
     };
 
     const handleDelete = async (id) => {
-        if (!window.confirm('Are you sure you want to delete this service charge?')) return;
+        if (!window.confirm('Are you sure you want to delete this service charge group?')) return;
         
         try {
             const token = localStorage.getItem('access_token');
@@ -44,7 +44,7 @@ const ServiceChargesView = ({ onAddServiceCharge, onEditServiceCharge }) => {
 
             if (response.ok) {
                 await fetchServiceCharges();
-                alert('Service charge deleted!');
+                alert('Service charge group deleted!');
             }
         } catch (error) {
             console.error('Error deleting service charge:', error);
@@ -62,27 +62,25 @@ const ServiceChargesView = ({ onAddServiceCharge, onEditServiceCharge }) => {
 
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
-            {/* Header */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
                 <div>
                     <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tight">Service Charges</h2>
-                    <p className="text-slate-500 font-medium">Manage additional fees for services</p>
+                    <p className="text-slate-500 font-medium">Manage service charge groups for tickets, packages, and hotels</p>
                 </div>
                 <button
                     onClick={onAddServiceCharge}
                     className="w-full sm:w-auto px-6 py-3 bg-blue-600 text-white rounded-xl text-xs font-bold transition-all hover:scale-105 shadow-lg shadow-blue-100 flex items-center justify-center gap-2"
                 >
-                    <Plus size={16} /> Add Service Charge
+                    <Plus size={16} /> Add Service Charge Group
                 </button>
             </div>
 
-            {/* Search */}
             <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
                 <div className="relative">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
                     <input
                         type="text"
-                        placeholder="Search service charges..."
+                        placeholder="Search service charge groups..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="w-full pl-12 pr-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
@@ -90,12 +88,11 @@ const ServiceChargesView = ({ onAddServiceCharge, onEditServiceCharge }) => {
                 </div>
             </div>
 
-            {/* Service Charges Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {filteredCharges.length === 0 ? (
                     <div className="col-span-full text-center p-12 bg-slate-50 rounded-2xl border border-slate-200 border-dashed">
-                        <CreditCard className="mx-auto text-slate-300 mb-4" size={48} />
-                        <p className="text-slate-400 font-medium">No service charges found</p>
+                        <DollarSign className="mx-auto text-slate-300 mb-4" size={48} />
+                        <p className="text-slate-400 font-medium">No service charge groups found</p>
                     </div>
                 ) : (
                     filteredCharges.map(charge => (
@@ -104,51 +101,44 @@ const ServiceChargesView = ({ onAddServiceCharge, onEditServiceCharge }) => {
                             className="bg-white rounded-2xl border border-slate-200 p-6 hover:shadow-md transition-all"
                         >
                             <div className="flex justify-between items-start mb-4">
-                                <div className="flex-1">
-                                    <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight mb-1">
-                                        {charge.name}
-                                    </h3>
-                                    <p className="text-xs text-slate-500">{charge.description}</p>
-                                </div>
-                                <div className="flex flex-col gap-1">
-                                    <span className={`px-2.5 py-1 rounded-lg text-xs font-bold text-center ${
-                                        charge.is_active
-                                            ? 'bg-emerald-50 text-emerald-600'
-                                            : 'bg-red-50 text-red-600'
-                                    }`}>
-                                        {charge.is_active ? 'Active' : 'Inactive'}
-                                    </span>
-                                    {charge.is_automatic && (
-                                        <span className="px-2.5 py-1 rounded-lg text-xs font-bold text-center bg-blue-50 text-blue-600">
-                                            Auto
-                                        </span>
-                                    )}
-                                </div>
+                                <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">
+                                    {charge.name}
+                                </h3>
+                                <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
+                                    charge.is_active
+                                        ? 'bg-emerald-50 text-emerald-600'
+                                        : 'bg-red-50 text-red-600'
+                                }`}>
+                                    {charge.is_active ? 'Active' : 'Inactive'}
+                                </span>
                             </div>
 
-                            <div className="space-y-2 mb-4">
+                            <div className="space-y-3 mb-4">
+                                <div className="bg-purple-50 p-3 rounded-lg">
+                                    <div className="flex items-center justify-between text-sm mb-1">
+                                        <span className="font-bold text-slate-600">Ticket Charge:</span>
+                                        <span className="font-black text-purple-600">
+                                            {charge.ticket_charge_type === 'percentage'
+                                                ? `${charge.ticket_charge}%`
+                                                : `PKR ${Number(charge.ticket_charge || 0).toLocaleString()}`
+                                            }
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center justify-between text-sm">
+                                        <span className="font-bold text-slate-600">Package Charge:</span>
+                                        <span className="font-black text-purple-600">
+                                            PKR {Number(charge.package_charge || 0).toLocaleString()}
+                                        </span>
+                                    </div>
+                                </div>
+
                                 <div className="flex items-center justify-between text-sm">
-                                    <span className="font-bold text-slate-600">Value:</span>
-                                    <span className="font-black text-blue-600">
-                                        {charge.charge_type === 'percentage' 
-                                            ? `${charge.value}%` 
-                                            : `PKR ${Number(charge.value || 0).toLocaleString()}`}
+                                    <span className="font-bold text-slate-600">Hotel Periods:</span>
+                                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-50 text-emerald-600 rounded-lg text-xs font-black">
+                                        <CheckCircle size={14} />
+                                        {charge.hotel_charges?.length || 0} configured
                                     </span>
                                 </div>
-                                <div className="flex items-center justify-between text-sm">
-                                    <span className="font-bold text-slate-600">Applies To:</span>
-                                    <span className="capitalize text-slate-900 font-bold">{charge.applies_to}</span>
-                                </div>
-                                <div className="flex items-center justify-between text-sm">
-                                    <span className="font-bold text-slate-600">Type:</span>
-                                    <span className="capitalize text-slate-900 font-bold">{charge.charge_type}</span>
-                                </div>
-                                {charge.room_type && (
-                                    <div className="flex items-center justify-between text-sm">
-                                        <span className="font-bold text-slate-600">Room Type:</span>
-                                        <span className="capitalize text-slate-900 font-bold">{charge.room_type}</span>
-                                    </div>
-                                )}
                             </div>
 
                             <div className="flex gap-2">
