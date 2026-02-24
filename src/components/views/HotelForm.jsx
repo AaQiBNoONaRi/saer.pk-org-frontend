@@ -369,8 +369,8 @@ const HotelForm = ({ hotel = null, onSave, onCancel }) => {
                     }
 
                     flatPrices.push({
-                        date_from: period.date_from,
-                        date_to: period.date_to,
+                        date_from: period.date_from || null,
+                        date_to: period.date_to || null,
                         bed_type_id: bedTypeId,
                         selling_price: parseFloat(bp.selling_price),
                         purchase_price: bp.purchase_price ? parseFloat(bp.purchase_price) : 0,

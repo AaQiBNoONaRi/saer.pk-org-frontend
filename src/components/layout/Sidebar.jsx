@@ -174,6 +174,7 @@ export default function Sidebar({ activeTab, setActiveTab, getPathForTab, isSide
                     <NavGroup title="Operations" isOpen={isSidebarOpen}>
                         <NavItem icon={<ShieldCheck size={20} />} label="Visa Services" active={activeTab === 'Visa Services'} onClick={() => handleNavClick('Visa Services')} isOpen={isSidebarOpen} href={getPathForTab ? getPathForTab('Visa Services') : '#'} />
                         <NavItem icon={<Truck size={20} />} label="Pax Movement" active={activeTab === 'Pax Movement'} onClick={() => handleNavClick('Pax Movement')} isOpen={isSidebarOpen} href={getPathForTab ? getPathForTab('Pax Movement') : '#'} />
+                        <NavItem icon={<ClipboardList size={20} />} label="Daily Operations" active={activeTab === 'Daily Operations'} onClick={() => handleNavClick('Daily Operations')} isOpen={isSidebarOpen} href={getPathForTab ? getPathForTab('Daily Operations') : '#'} />
                         <NavItem icon={<ClipboardList size={20} />} label="Order Delivery" active={activeTab === 'Order Delivery'} onClick={() => handleNavClick('Order Delivery')} isOpen={isSidebarOpen} href={getPathForTab ? getPathForTab('Order Delivery') : '#'} />
                     </NavGroup>
                 </nav>

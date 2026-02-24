@@ -30,6 +30,8 @@ import OrderDeliveryView from './components/views/OrderDeliveryView';
 import OrderDeliveryDetailView from './components/views/OrderDeliveryDetailView';
 import OrderConfirmationView from './components/views/OrderConfirmationView';
 import OrderTicketDetailView from './components/views/OrderTicketDetailView';
+import PaxMovementView from './components/views/PaxMovementView';
+import DailyOperationsView from './components/views/DailyOperationsView';
 import PaymentsView from './components/views/PaymentsView';
 import LeadDetailView from './components/views/LeadDetailView';
 import AddBankAccountView from './components/views/AddBankAccountView';
@@ -63,6 +65,7 @@ const ROUTES = {
   '/forms': 'Forms',
   '/order-delivery': 'Order Delivery',
   '/pax-movement': 'Pax Movement',
+  '/daily-operations': 'Daily Operations',
   '/payments': 'Payments',
   '/payments/add': 'Add Bank Account',
   '/discounts': 'Discounts',
@@ -101,6 +104,7 @@ const getTabForPath = (path) => {
   if (path.startsWith('/service-charges/')) return 'Service Charges';
   if (path.startsWith('/order-delivery/')) return 'Order Delivery';
   if (path.startsWith('/pax-movement/')) return 'Pax Movement';
+  if (path.startsWith('/daily-operations/')) return 'Daily Operations';
 
 
 
@@ -138,6 +142,9 @@ const App = () => {
   const [editingTicket, setEditingTicket] = useState(null);
   const [editingPackage, setEditingPackage] = useState(null);
   const [viewingPackage, setViewingPackage] = useState(null);
+  const [editingDiscount, setEditingDiscount] = useState(null);
+  const [editingCommission, setEditingCommission] = useState(null);
+  const [editingServiceCharge, setEditingServiceCharge] = useState(null);
 
   // Parse initial IDs from URL
   const path = window.location.pathname;
@@ -170,7 +177,7 @@ const App = () => {
       const currentPath = window.location.pathname;
 
       // Handle sub-paths for IDs
-      if (activeTab === 'Order Delivery' || activeTab === 'Pax Movement') {
+      if (activeTab === 'Order Delivery' || activeTab === 'Pax Movement' || activeTab === 'Daily Operations') {
         if (viewingOrder) {
           const orderId = viewingOrder.id || viewingOrder;
           path = `${getPathForTab(activeTab)}/${orderId}`;
@@ -343,69 +350,110 @@ const App = () => {
       case 'Discounts':
         return (
           <DiscountsView
-            onAdd={() => setActiveTab('Add Discount')}
-            onEdit={(discount) => {
-              // You might need state for editingDiscount
+            onAddDiscount={() => {
+              setEditingDiscount(null);
+              setActiveTab('Add Discount');
+            }}
+            onEditDiscount={(discount) => {
+              setEditingDiscount(discount);
               setActiveTab('Add Discount');
             }}
           />
         );
       case 'Add Discount':
-        return <AddDiscountView onBack={() => setActiveTab('Discounts')} />;
+        return (
+          <AddDiscountView
+            onBack={() => {
+              setEditingDiscount(null);
+              setActiveTab('Discounts');
+            }}
+            initialData={editingDiscount}
+          />
+        );
       case 'Commissions':
         return (
           <CommissionsView
-            onAdd={() => setActiveTab('Add Commission')}
-            onEdit={(commission) => {
+            onAddCommission={() => {
+              setEditingCommission(null);
+              setActiveTab('Add Commission');
+            }}
+            onEditCommission={(commission) => {
+              setEditingCommission(commission);
               setActiveTab('Add Commission');
             }}
           />
         );
       case 'Add Commission':
-        return <AddCommissionView onBack={() => setActiveTab('Commissions')} />;
+        return (
+          <AddCommissionView
+            onBack={() => {
+              setEditingCommission(null);
+              setActiveTab('Commissions');
+            }}
+            initialData={editingCommission}
+          />
+        );
       case 'Service Charges':
         return (
           <ServiceChargesView
-            onAdd={() => setActiveTab('Add Service Charge')}
-            onEdit={(charge) => {
+            onAddServiceCharge={() => {
+              setEditingServiceCharge(null);
+              setActiveTab('Add Service Charge');
+            }}
+            onEditServiceCharge={(charge) => {
+              setEditingServiceCharge(charge);
               setActiveTab('Add Service Charge');
             }}
           />
         );
       case 'Add Service Charge':
-        return <AddServiceChargeView onBack={() => setActiveTab('Service Charges')} />;
+        return (
+          <AddServiceChargeView
+            onBack={() => {
+              setEditingServiceCharge(null);
+              setActiveTab('Service Charges');
+            }}
+            initialData={editingServiceCharge}
+          />
+        );
       case 'Share Inventory':
         return <ShareInventoryView />;
-      case 'Order Delivery':
       case 'Pax Movement':
+        return <PaxMovementView />;
+      case 'Daily Operations':
+        return <DailyOperationsView />;
+      case 'Order Delivery':
         if (viewingOrder) {
-          const orderId = viewingOrder.id || (typeof viewingOrder === 'string' ? viewingOrder : null);
-          const orderType = viewingOrder.type || (orderId?.startsWith('ORD-T') ? 'Group Tickets' : 'Umrah Packages');
+          // viewingOrder can be a string ID or the full object
+          const order = (typeof viewingOrder === 'object') ? viewingOrder : null;
+          const status = (order?.booking_status || order?.status || order?.orderStatus || '').toLowerCase();
+          const isTicket = order?.booking_type === 'ticket' || order?.type === 'Group Tickets';
 
-          if (orderType === 'Group Tickets') {
+          if (isTicket) {
             return (
               <OrderTicketDetailView
-                order={typeof viewingOrder === 'object' ? viewingOrder : { id: orderId }}
+                order={viewingOrder}
                 onBack={() => setViewingOrder(null)}
               />
             );
           }
-          if (isOrderConfirmed) {
+
+          // If approved, show the Visa/Confirmation management page
+          if (status === 'approved') {
             return (
               <OrderConfirmationView
-                orderId={orderId}
-                onBack={() => {
-                  setIsOrderConfirmed(false);
-                  setViewingOrder(null);
-                }}
+                booking={order?._raw || order}
+                orderId={viewingOrder.id || viewingOrder.booking_reference || viewingOrder}
+                onBack={() => setViewingOrder(null)}
               />
             );
           }
+
           return (
             <OrderDeliveryDetailView
-              orderId={orderId}
+              booking={viewingOrder}
               onBack={() => setViewingOrder(null)}
-              onConfirm={() => setIsOrderConfirmed(true)}
+              onConfirm={(updated) => setViewingOrder(updated)}
             />
           );
         }

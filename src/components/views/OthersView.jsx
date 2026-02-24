@@ -8,6 +8,7 @@ import {
     Loader2, ChevronDown
 } from 'lucide-react';
 import othersAPI from '../../services/othersAPI';
+import SearchableSelect from '../ui/SearchableSelect';
 
 const COLORS = {
     primary: '#3B82F6',
@@ -266,12 +267,8 @@ const OthersView = ({ onBack }) => {
                     setShirkas(shirkasRes.data || []);
                     break;
                 case "Small Sectors":
-                    const [sectorsRes, citiesForSectors] = await Promise.all([
-                        othersAPI.smallSector.getAll(true),
-                        othersAPI.cityIATA.getAll(true)
-                    ]);
+                    const sectorsRes = await othersAPI.smallSector.getAll(true);
                     setSmallSectors(sectorsRes.data || []);
-                    setCityIATAs(citiesForSectors.data || []);
                     break;
                 case "Big Sectors":
                     const [bigRes, smallRes] = await Promise.all([
@@ -1324,25 +1321,28 @@ const ShirkaSection = ({ shirkas, name, setName }) => (
 );
 
 const SmallSectorsSection = ({ form, setForm, sectors = [], cities = [], onEdit, onDelete, isEditing }) => {
-    const cityNames = cities.map(c => c.city_name).filter(Boolean);
+    // Filter cities for departure (exclude arrival city)
+    const departureCities = cities.filter(c => c.city_name !== form.arrival_city);
+    // Filter cities for arrival (exclude departure city)
+    const arrivalCities = cities.filter(c => c.city_name !== form.departure_city);
 
     return (
         <div className="space-y-10">
             <SectionHeading title={isEditing ? "Edit Short-Haul Sector" : "Short-Haul Sectors"} subtitle="Define logistics segments for transport mapping." />
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                <SearchableSelect
+                <SelectGroup
                     label="Departure City"
-                    options={cityNames}
+                    options={departureCities.map(c => c.city_name)}
                     value={form.departure_city}
-                    onChange={(val) => setForm({ ...form, departure_city: val })}
-                    placeholder="Search departure city..."
+                    onChange={(e) => setForm({ ...form, departure_city: e.target.value })}
+                    placeholder="Select departure city..."
                 />
-                <SearchableSelect
+                <SelectGroup
                     label="Arrival City"
-                    options={cityNames}
+                    options={arrivalCities.map(c => c.city_name)}
                     value={form.arrival_city}
-                    onChange={(val) => setForm({ ...form, arrival_city: val })}
-                    placeholder="Search arrival city..."
+                    onChange={(e) => setForm({ ...form, arrival_city: e.target.value })}
+                    placeholder="Select arrival city..."
                 />
                 <SelectGroup
                     label="Sector Type"
@@ -2220,7 +2220,7 @@ const CityIATASection = ({ cities = [], cityName = '', setCityName, cityCode = '
                 <h4 className="text-xs font-black text-slate-400 uppercase tracking-[3px]">Existing Cities</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {cities.map((city) => (
-                        <div key={city.id} className="flex items-center justify-between p-5 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-blue-200 transition-all">
+                        <div key={city.id || city._id || city.iata_code} className="flex items-center justify-between p-5 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-blue-200 transition-all">
                             <div className="flex-1">
                                 <div className="font-black text-sm text-slate-700">{city.city_name}</div>
                                 <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">
@@ -2434,69 +2434,5 @@ const ExpiryRow = ({ label, h, m, onChangeH, onChangeM }) => (
         </div>
     </div>
 );
-
-const SearchableSelect = ({ label, options = [], value, onChange, placeholder = 'Search and select...' }) => {
-    const [query, setQuery] = useState('');
-    const [open, setOpen] = useState(false);
-    const ref = React.useRef(null);
-
-    useEffect(() => {
-        const handleOutside = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
-        document.addEventListener('mousedown', handleOutside);
-        return () => document.removeEventListener('mousedown', handleOutside);
-    }, []);
-
-    const filtered = options.filter(opt => String(opt).toLowerCase().includes(query.toLowerCase()));
-
-    return (
-        <div className="space-y-2" ref={ref}>
-            <label className="text-[10px] font-black text-slate-400 uppercase mb-1 block pl-1 tracking-widest">{label}</label>
-            <div className="relative">
-                <div
-                    className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold outline-none focus-within:ring-4 ring-blue-50 focus-within:bg-white transition-all cursor-pointer flex items-center gap-2"
-                    onClick={() => { setOpen(prev => !prev); if (!open) setQuery(''); }}
-                >
-                    {open ? (
-                        <input
-                            autoFocus
-                            value={query}
-                            onChange={e => setQuery(e.target.value)}
-                            className="flex-1 bg-transparent outline-none text-xs font-bold text-slate-700 placeholder-slate-400 min-w-0"
-                            placeholder="Type to search..."
-                            onClick={e => e.stopPropagation()}
-                        />
-                    ) : (
-                        <span className={`flex-1 text-xs font-bold truncate ${value ? 'text-slate-700' : 'text-slate-400'}`}>
-                            {value || placeholder}
-                        </span>
-                    )}
-                    <ChevronDown size={14} className={`text-slate-400 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
-                </div>
-
-                {open && (
-                    <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden">
-                        <div className="max-h-56 overflow-y-auto">
-                            {filtered.length === 0 ? (
-                                <div className="px-5 py-3 text-xs text-slate-400 font-bold">No results found</div>
-                            ) : (
-                                filtered.map((opt, i) => (
-                                    <div
-                                        key={i}
-                                        onClick={() => { onChange(opt); setQuery(''); setOpen(false); }}
-                                        className={`px-5 py-3 text-xs font-bold cursor-pointer transition-colors hover:bg-blue-50 hover:text-blue-700 ${
-                                            opt === value ? 'bg-blue-50 text-blue-700' : 'text-slate-700'
-                                        }`}
-                                    >
-                                        {opt}
-                                    </div>
-                                ))
-                            )}
-                        </div>
-                    </div>
-                )}
-            </div>
-        </div>
-    );
-};
 
 export default OthersView;

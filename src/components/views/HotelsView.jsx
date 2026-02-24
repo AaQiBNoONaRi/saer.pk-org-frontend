@@ -186,6 +186,7 @@ const HotelsView = () => {
 
             if (selectedHotel) {
                 console.log('Attempting to update hotel with ID:', selectedHotel._id);
+                console.log('Payload:', JSON.stringify(formData, null, 2));
                 try {
                     const res = await axios.put(`${API_URL}${selectedHotel._id}`, formData, { headers });
                     console.log('✅ Hotel updated successfully');
@@ -215,6 +216,7 @@ const HotelsView = () => {
                     throw err;
                 }
             } else {
+                console.log('Creating new hotel with payload:', JSON.stringify(formData, null, 2));
                 const res = await axios.post(API_URL, formData, { headers });
                 console.log('✅ Hotel created successfully');
                 setSelectedHotel(null);

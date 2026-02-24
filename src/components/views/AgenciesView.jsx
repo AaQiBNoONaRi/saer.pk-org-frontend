@@ -8,6 +8,8 @@ import {
 const AgenciesView = () => {
     const [agencies, setAgencies] = useState([]);
     const [branches, setBranches] = useState([]);
+    const [discountGroups, setDiscountGroups] = useState([]);
+    const [commissionGroups, setCommissionGroups] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedAgency, setSelectedAgency] = useState(null);
     const [viewMode, setViewMode] = useState('list'); // 'list', 'detail', 'add', 'edit'
@@ -24,6 +26,8 @@ const AgenciesView = () => {
         name: '',
         code: '',
         agency_type: 'full',
+        discount_group_id: '',
+        commission_group_id: '',
         contact_person: '',
         email: '',
         phone: '',
@@ -38,13 +42,14 @@ const AgenciesView = () => {
         credit_limit: 0,
         credit_limit_days: 30,
         agreement_status: 'active',
-        commission_group: 'Standard',
         logo: ''
     });
 
     useEffect(() => {
         fetchAgencies();
         fetchBranches();
+        fetchDiscountGroups();
+        fetchCommissionGroups();
     }, []);
 
     const fetchAgencies = async () => {
@@ -79,6 +84,36 @@ const AgenciesView = () => {
             }
         } catch (error) {
             console.error('Error fetching branches:', error);
+        }
+    };
+
+    const fetchDiscountGroups = async () => {
+        try {
+            const token = localStorage.getItem('access_token');
+            const response = await fetch('http://localhost:8000/api/discounts/', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                setDiscountGroups(data);
+            }
+        } catch (error) {
+            console.error('Error fetching discount groups:', error);
+        }
+    };
+
+    const fetchCommissionGroups = async () => {
+        try {
+            const token = localStorage.getItem('access_token');
+            const response = await fetch('http://localhost:8000/api/commissions/', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                setCommissionGroups(data);
+            }
+        } catch (error) {
+            console.error('Error fetching commission groups:', error);
         }
     };
 
@@ -129,6 +164,8 @@ const AgenciesView = () => {
             name: '',
             code: '',
             agency_type: 'full',
+            discount_group_id: '',
+            commission_group_id: '',
             contact_person: '',
             email: '',
             phone: '',
@@ -143,7 +180,6 @@ const AgenciesView = () => {
             credit_limit: 0,
             credit_limit_days: 30,
             agreement_status: 'active',
-            commission_group: 'Standard',
             logo: ''
         });
         setError('');
@@ -169,7 +205,6 @@ const AgenciesView = () => {
             credit_limit: agency.credit_limit || 0,
             credit_limit_days: agency.credit_limit_days || 30,
             agreement_status: agency.agreement_status || 'active',
-            commission_group: agency.commission_group || 'Standard',
             logo: agency.logo || ''
         });
         setSelectedAgency(agency);
@@ -510,11 +545,21 @@ const AgenciesView = () => {
                             <div>
                                 <p className="text-xs font-medium text-slate-500 mb-1">Type: <span className="text-blue-600 font-bold capitalize">{selectedAgency.agency_type || 'Full'}</span></p>
                             </div>
+                            {selectedAgency.agency_type === 'full' && selectedAgency.discount_group && (
+                                <div>
+                                    <p className="text-xs font-medium text-slate-500 mb-1">Discount Group: <span className="text-blue-600 font-bold">{selectedAgency.discount_group.name || 'N/A'}</span></p>
+                                </div>
+                            )}
+                            {selectedAgency.agency_type === 'area' && selectedAgency.commission_group && (
+                                <div>
+                                    <p className="text-xs font-medium text-slate-500 mb-1">Commission Group: <span className="text-blue-600 font-bold">{selectedAgency.commission_group.name || 'N/A'}</span></p>
+                                </div>
+                            )}
                             <div>
-                                <p className="text-xs font-medium text-slate-500 mb-1">Credit Limit: <span className="text-blue-600 font-bold">Rs. {selectedAgency.credit_limit_days || 1000}</span></p>
+                                <p className="text-xs font-medium text-slate-500 mb-1">Credit Limit (PKR): <span className="text-blue-600 font-bold">Rs. {selectedAgency.credit_limit?.toLocaleString() || 0}</span></p>
                             </div>
                             <div>
-                                <p className="text-xs font-medium text-slate-500 mb-1">Commission Group: <span className="text-blue-600 font-bold">{selectedAgency.commission_group || 'Standard'}</span></p>
+                                <p className="text-xs font-medium text-slate-500 mb-1">Credit Limit (Days): <span className="text-blue-600 font-bold">{selectedAgency.credit_limit_days || 0} Days</span></p>
                             </div>
                         </div>
                     </div>
@@ -623,6 +668,34 @@ const AgenciesView = () => {
                             <option value="area">Area Agency</option>
                         </select>
                     </div>
+                    {formData.agency_type === 'full' && (
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Discount Group</label>
+                            <select name="discount_group_id" value={formData.discount_group_id} onChange={handleInputChange}
+                                className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100">
+                                <option value="">Select Discount Group</option>
+                                {discountGroups.map(group => (
+                                    <option key={group._id || group.id} value={group._id || group.id}>
+                                        {group.name}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
+                    {formData.agency_type === 'area' && (
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Commission Group</label>
+                            <select name="commission_group_id" value={formData.commission_group_id} onChange={handleInputChange}
+                                className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100">
+                                <option value="">Select Commission Group</option>
+                                {commissionGroups.map(group => (
+                                    <option key={group._id || group.id} value={group._id || group.id}>
+                                        {group.name}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
                     <div className="space-y-2">
                         <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Contact Person</label>
                         <input type="text" name="contact_person" value={formData.contact_person} onChange={handleInputChange}
@@ -649,6 +722,11 @@ const AgenciesView = () => {
                             className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100 resize-none" placeholder="Full Address" />
                     </div>
                     <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Credit Limit (Amount PKR)</label>
+                        <input type="number" name="credit_limit" value={formData.credit_limit} onChange={handleInputChange}
+                            className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100" placeholder="e.g. 500000" />
+                    </div>
+                    <div className="space-y-2">
                         <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Credit Limit (Days)</label>
                         <input type="number" name="credit_limit_days" value={formData.credit_limit_days} onChange={handleInputChange}
                             className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100" />
@@ -660,15 +738,6 @@ const AgenciesView = () => {
                             <option value="active">Active</option>
                             <option value="pending">Pending</option>
                             <option value="suspended">Suspended</option>
-                        </select>
-                    </div>
-                    <div className="space-y-2">
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Commission Group</label>
-                        <select name="commission_group" value={formData.commission_group} onChange={handleInputChange}
-                            className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100">
-                            <option value="Standard">Standard</option>
-                            <option value="Premium">Premium</option>
-                            <option value="VIP">VIP</option>
                         </select>
                     </div>
                 </div>

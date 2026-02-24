@@ -1,7 +1,25 @@
 import React from 'react';
 import { ChevronLeft, Circle, Plane } from 'lucide-react';
 
-export default function TicketPrintView() {
+export default function TicketPrintView({ booking, orderId }) {
+    const pkg = booking?.package_details || {};
+    const flight = pkg.flight || (Array.isArray(pkg.flight) ? pkg.flight[0] : null);
+    const passengers = booking?.passengers || [];
+    const agency = booking?.agency_details || {};
+
+    // Formatting helpers
+    const formatTime = (dateTimeStr) => {
+        if (!dateTimeStr) return '—';
+        try {
+            return dateTimeStr.split(' / ')[1] || dateTimeStr;
+        } catch (e) { return dateTimeStr; }
+    };
+    const formatDate = (dateTimeStr) => {
+        if (!dateTimeStr) return '—';
+        try {
+            return dateTimeStr.split(' / ')[0] || dateTimeStr;
+        } catch (e) { return dateTimeStr; }
+    };
     return (
         <div className="min-h-screen bg-[#E5E7EB] py-8 px-4 font-sans text-slate-800 flex justify-center overflow-y-auto">
 
@@ -43,7 +61,7 @@ export default function TicketPrintView() {
                         </div>
                         <div>
                             <p className="text-[10px] font-black text-slate-800 mb-0.5">Agent Name:</p>
-                            <p className="text-[10px] font-medium text-slate-500 leading-tight">Reman Rafique<br />+923631569595</p>
+                            <p className="text-[10px] font-medium text-slate-500 leading-tight">{booking?.agent_name || agency.name || '—'}<br />{agency.phone_number || '—'}</p>
                         </div>
                         <div>
                             <p className="text-[10px] font-black text-slate-800 mb-0.5">Address:</p>
@@ -51,7 +69,7 @@ export default function TicketPrintView() {
                         </div>
                         <div>
                             <p className="text-[10px] font-black text-slate-800 mb-0.5">Code:</p>
-                            <p className="text-[10px] font-medium text-slate-500">9236 626262</p>
+                            <p className="text-[10px] font-medium text-slate-500">{agency.agency_code || '—'}</p>
                         </div>
                     </div>
                 </div>
@@ -67,9 +85,9 @@ export default function TicketPrintView() {
                             {/* Depart */}
                             <div className="text-center sm:text-left min-w-[120px]">
                                 <p className="text-sm font-bold text-slate-500 mb-1">Depart</p>
-                                <h3 className="text-4xl font-black text-slate-800 tracking-tight mb-1">20:15</h3>
-                                <p className="text-sm font-semibold text-slate-400 mb-1">October 4, 225</p>
-                                <p className="text-lg font-black text-slate-800">Sialkot(SKT)</p>
+                                <h3 className="text-4xl font-black text-slate-800 tracking-tight mb-1">{formatTime(flight?.departure_trip?.departure_time)}</h3>
+                                <p className="text-sm font-semibold text-slate-400 mb-1">{formatDate(flight?.departure_trip?.departure_time)}</p>
+                                <p className="text-lg font-black text-slate-800">{flight?.departure_trip?.from_city || '—'}</p>
                             </div>
 
                             {/* Connector */}
@@ -78,18 +96,18 @@ export default function TicketPrintView() {
                                     <div className="h-px bg-slate-300 flex-1 border-t border-dashed border-slate-400"></div>
                                 </div>
                                 <div className="bg-[#EBF5FF] px-3 z-10 flex flex-col items-center">
-                                    <Circle size={8} className="text-slate-800 fill-slate-800 mb-1" />
-                                    <p className="text-[10px] font-black text-slate-800 whitespace-nowrap">1st Stop at Dubai</p>
-                                    <p className="text-[9px] font-bold text-slate-400">4h 10m</p>
+                                    <Plane size={16} className="text-blue-500 mb-1" />
+                                    <p className="text-[10px] font-black text-slate-800 whitespace-nowrap">{flight?.airline || '—'}</p>
+                                    <p className="text-[9px] font-bold text-slate-400">{flight?.flight_no || '—'}</p>
                                 </div>
                             </div>
 
                             {/* Arrival */}
                             <div className="text-center sm:text-right min-w-[120px]">
                                 <p className="text-sm font-bold text-slate-500 mb-1">Arrival</p>
-                                <h3 className="text-4xl font-black text-slate-800 tracking-tight mb-1">2:15</h3>
-                                <p className="text-sm font-semibold text-slate-400 mb-1">October 5, 225</p>
-                                <p className="text-lg font-black text-slate-800">Muscat(MCT)</p>
+                                <h3 className="text-4xl font-black text-slate-800 tracking-tight mb-1">{formatTime(flight?.departure_trip?.arrival_time)}</h3>
+                                <p className="text-sm font-semibold text-slate-400 mb-1">{formatDate(flight?.departure_trip?.arrival_time)}</p>
+                                <p className="text-lg font-black text-slate-800">{flight?.departure_trip?.to_city || '—'}</p>
                             </div>
                         </div>
 
@@ -109,7 +127,7 @@ export default function TicketPrintView() {
                                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Class</p>
                                 </div>
                                 <div className="text-center">
-                                    <p className="text-sm font-black text-slate-800 mb-0.5">95LAHD</p>
+                                    <p className="text-sm font-black text-slate-800 mb-0.5">{passengers[0]?.pnr || '—'}</p>
                                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">PNR</p>
                                 </div>
                                 <div className="text-center">
@@ -126,28 +144,28 @@ export default function TicketPrintView() {
                     <h2 className="text-xl font-black text-slate-800 mb-4">Passenger Details</h2>
 
                     <div className="space-y-3">
-                        {[1, 2, 3].map((num) => (
-                            <div key={num} className="border border-slate-200 rounded-2xl p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:shadow-sm transition-shadow">
+                        {passengers.map((pax, idx) => (
+                            <div key={idx} className="border border-slate-200 rounded-2xl p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:shadow-sm transition-shadow">
 
                                 <div className="flex items-center gap-8 w-full sm:w-auto">
                                     <div className="min-w-[50px]">
                                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Pex NO</p>
-                                        <p className="text-xl font-black text-slate-800">0{num}</p>
+                                        <p className="text-xl font-black text-slate-800">{String(idx + 1).padStart(2, '0')}</p>
                                     </div>
                                     <div>
                                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Traveler Name</p>
-                                        <p className="text-sm font-black text-slate-800 underline decoration-slate-300 underline-offset-4">BILAL AHMAD MUHAMMAD NASIR</p>
+                                        <p className="text-sm font-black text-slate-800 underline decoration-slate-300 underline-offset-4 uppercase">{pax.first_name} {pax.last_name}</p>
                                     </div>
                                 </div>
 
                                 <div className="flex items-center justify-between sm:justify-end gap-12 w-full sm:w-auto mt-2 sm:mt-0">
                                     <div>
                                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Agency PNR</p>
-                                        <p className="text-sm font-black text-slate-800 underline decoration-slate-300 underline-offset-4">95LAHD</p>
+                                        <p className="text-sm font-black text-slate-800 underline decoration-slate-300 underline-offset-4">{pax.pnr || '—'}</p>
                                     </div>
                                     <div>
                                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Fare</p>
-                                        <p className="text-base font-black text-slate-800">Rs 120,000/</p>
+                                        <p className="text-base font-black text-slate-800">PKR {(Number(pax.fare) || 0).toLocaleString()}/</p>
                                     </div>
                                 </div>
 
@@ -179,7 +197,7 @@ export default function TicketPrintView() {
                 {/* Footer */}
                 <div className="text-right">
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                        Booking Date: <span className="font-black text-slate-800">18/01/25</span>
+                        Booking Date: <span className="font-black text-slate-800">{formatDate(booking?.created_at) || '—'}</span>
                     </p>
                 </div>
 

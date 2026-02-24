@@ -382,6 +382,10 @@ const AddPackageView = ({ onBack, initialData }) => {
                     id: selectedTransport._id || selectedTransport.id,
                     title: selectedTransport.vehicle_name || selectedTransport.title || 'Transport Service',
                     sector: selectedTransport.sector || '',
+                    // ── Sector routing — for invoice/order delivery route display ──
+                    big_sector_id: selectedTransport.big_sector || selectedTransport.big_sector_id || null,
+                    small_sector_ids: selectedTransport.small_sector_ids || [],
+                    small_sectors: selectedTransport.small_sectors || selectedTransport.small_sectors_details || [],
                     purchasing: transportPricing.purchasing,
                     selling: transportPricing.selling
                 } : null,
