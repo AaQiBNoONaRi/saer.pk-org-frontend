@@ -556,7 +556,10 @@ const AgenciesView = () => {
                                 </div>
                             )}
                             <div>
-                                <p className="text-xs font-medium text-slate-500 mb-1">Credit Limit: <span className="text-blue-600 font-bold">Rs. {selectedAgency.credit_limit_days || 1000}</span></p>
+                                <p className="text-xs font-medium text-slate-500 mb-1">Credit Limit (PKR): <span className="text-blue-600 font-bold">Rs. {selectedAgency.credit_limit?.toLocaleString() || 0}</span></p>
+                            </div>
+                            <div>
+                                <p className="text-xs font-medium text-slate-500 mb-1">Credit Limit (Days): <span className="text-blue-600 font-bold">{selectedAgency.credit_limit_days || 0} Days</span></p>
                             </div>
                         </div>
                     </div>
@@ -717,6 +720,11 @@ const AgenciesView = () => {
                         <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Address</label>
                         <textarea name="address" value={formData.address} onChange={handleInputChange} rows="2"
                             className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100 resize-none" placeholder="Full Address" />
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Credit Limit (Amount PKR)</label>
+                        <input type="number" name="credit_limit" value={formData.credit_limit} onChange={handleInputChange}
+                            className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100" placeholder="e.g. 500000" />
                     </div>
                     <div className="space-y-2">
                         <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Credit Limit (Days)</label>

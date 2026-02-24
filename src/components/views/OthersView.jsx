@@ -8,6 +8,7 @@ import {
     Loader2, ChevronDown
 } from 'lucide-react';
 import othersAPI from '../../services/othersAPI';
+import SearchableSelect from '../ui/SearchableSelect';
 
 const COLORS = {
     primary: '#3B82F6',

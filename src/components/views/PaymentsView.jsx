@@ -118,7 +118,7 @@ export default function PaymentsView({ onAddAccount, onEditAccount }) {
 
     const fetchPaymentHistory = async () => {
         try {
-            const res = await fetch(`${API}/api/payments/`, { headers: { 'Authorization': `Bearer ${token()}` } });
+            const res = await fetch(`${API}/api/payments/?exclude_credit=true`, { headers: { 'Authorization': `Bearer ${token()}` } });
             if (res.ok) setPaymentHistory(await res.json());
         } catch (e) { console.error(e); }
     };
@@ -510,7 +510,16 @@ export default function PaymentsView({ onAddAccount, onEditAccount }) {
                                                             <td className="px-4 py-4 text-xs font-medium text-slate-600 whitespace-nowrap">{p.payment_date || p.created_at?.split('T')[0]}</td>
                                                             <td className="px-4 py-4">
                                                                 <p className="text-sm font-bold text-slate-800">{p.agent_name || 'Unknown'}</p>
-                                                                <p className="text-[10px] font-medium text-slate-400">Booking: {(p.booking_id || '').slice(-8).toUpperCase()}</p>
+                                                                <div className="flex items-center gap-2">
+                                                                    <p className="text-[10px] font-medium text-slate-400">Booking: {(p.booking_id || '').slice(-8).toUpperCase()}</p>
+                                                                    <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${p.booking_type === 'ticket' ? 'bg-blue-50 text-blue-600 border border-blue-100' :
+                                                                        p.booking_type === 'umrah' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
+                                                                            p.booking_type === 'custom' ? 'bg-amber-50 text-amber-600 border border-amber-100' :
+                                                                                'bg-slate-50 text-slate-500 border border-slate-100'
+                                                                        }`}>
+                                                                        {p.booking_type === 'custom' ? 'Custom Umrah' : p.booking_type || 'Manual'}
+                                                                    </span>
+                                                                </div>
                                                             </td>
                                                             <td className="px-4 py-4"><span className="text-[10px] font-black uppercase bg-blue-50 text-blue-700 px-2 py-1 rounded">{p.payment_method}</span></td>
                                                             <td className="px-4 py-4 text-xs font-medium text-slate-600">{p.beneficiary_account || '—'}</td>
