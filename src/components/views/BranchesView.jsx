@@ -8,6 +8,8 @@ const BranchesView = () => {
     const [branches, setBranches] = useState([]);
     const [organizations, setOrganizations] = useState([]);
     const [agencies, setAgencies] = useState([]);
+    const [commissionGroups, setCommissionGroups] = useState([]);
+    const [serviceChargeGroups, setServiceChargeGroups] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedBranch, setSelectedBranch] = useState(null);
     const [viewMode, setViewMode] = useState('list'); // 'list', 'detail', 'add', 'edit'
@@ -27,6 +29,8 @@ const BranchesView = () => {
         address: '',
         city: '',
         country: '',
+        commission_group_id: '',
+        service_charge_group_id: '',
         is_active: true
     });
 
@@ -34,6 +38,8 @@ const BranchesView = () => {
         fetchBranches();
         fetchOrganizations();
         fetchAgencies();
+        fetchCommissionGroups();
+        fetchServiceChargeGroups();
     }, []);
 
     const fetchBranches = async () => {
@@ -86,6 +92,36 @@ const BranchesView = () => {
         }
     };
 
+    const fetchCommissionGroups = async () => {
+        try {
+            const token = localStorage.getItem('access_token');
+            const response = await fetch('http://localhost:8000/api/commissions/', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                setCommissionGroups(data);
+            }
+        } catch (error) {
+            console.error('Error fetching commission groups:', error);
+        }
+    };
+
+    const fetchServiceChargeGroups = async () => {
+        try {
+            const token = localStorage.getItem('access_token');
+            const response = await fetch('http://localhost:8000/api/service-charges/', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                setServiceChargeGroups(data);
+            }
+        } catch (error) {
+            console.error('Error fetching service charge groups:', error);
+        }
+    };
+
     const handleDelete = async (branch) => {
         if (!window.confirm(`Are you sure you want to delete "${branch.name}"?`)) return;
         try {
@@ -130,6 +166,8 @@ const BranchesView = () => {
             address: '',
             city: '',
             country: '',
+            commission_group_id: '',
+            service_charge_group_id: '',
             is_active: true
         });
         setError('');
@@ -147,6 +185,8 @@ const BranchesView = () => {
             address: branch.address || '',
             city: branch.city || '',
             country: branch.country || '',
+            commission_group_id: branch.commission_group_id || '',
+            service_charge_group_id: branch.service_charge_group_id || '',
             is_active: branch.is_active ?? true
         });
         setSelectedBranch(branch);
@@ -405,6 +445,18 @@ const BranchesView = () => {
                                 <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Phone</p>
                                 <p className="font-medium text-slate-900">{selectedBranch.phone || 'N/A'}</p>
                             </div>
+                            {selectedBranch.commission_group && (
+                                <div>
+                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Commission Group</p>
+                                    <p className="font-medium text-slate-900">{selectedBranch.commission_group.name || 'N/A'}</p>
+                                </div>
+                            )}
+                            {selectedBranch.service_charge_group && (
+                                <div>
+                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Service Charge Group</p>
+                                    <p className="font-medium text-slate-900">{selectedBranch.service_charge_group.name || 'N/A'}</p>
+                                </div>
+                            )}
                             <div className="md:col-span-2">
                                 <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Address</p>
                                 <p className="font-medium text-slate-900">{selectedBranch.address || 'N/A'}</p>
@@ -548,6 +600,30 @@ const BranchesView = () => {
                         <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Country</label>
                         <input type="text" name="country" value={formData.country} onChange={handleInputChange}
                             className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100" placeholder="Country Name" />
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Commission Group</label>
+                        <select name="commission_group_id" value={formData.commission_group_id} onChange={handleInputChange}
+                            className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100">
+                            <option value="">Select Commission Group</option>
+                            {commissionGroups.map(group => (
+                                <option key={group._id || group.id} value={group._id || group.id}>
+                                    {group.name}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Service Charge Group</label>
+                        <select name="service_charge_group_id" value={formData.service_charge_group_id} onChange={handleInputChange}
+                            className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100">
+                            <option value="">Select Service Charge Group</option>
+                            {serviceChargeGroups.map(group => (
+                                <option key={group._id || group.id} value={group._id || group.id}>
+                                    {group.name}
+                                </option>
+                            ))}
+                        </select>
                     </div>
                     <div className="md:col-span-2 space-y-2">
                         <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Address</label>

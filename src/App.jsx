@@ -26,6 +26,7 @@ import OrderDeliveryView from './components/views/OrderDeliveryView';
 import OrderDeliveryDetailView from './components/views/OrderDeliveryDetailView';
 import OrderConfirmationView from './components/views/OrderConfirmationView';
 import OrderTicketDetailView from './components/views/OrderTicketDetailView';
+import PaxMovementView from './components/views/PaxMovementView';
 import PaymentsView from './components/views/PaymentsView';
 import AddBankAccountView from './components/views/AddBankAccountView';
 import DiscountsView from './components/views/DiscountsView';
@@ -385,8 +386,9 @@ const App = () => {
         );
       case 'Share Inventory':
         return <ShareInventoryView />;
-      case 'Order Delivery':
       case 'Pax Movement':
+        return <PaxMovementView />;
+      case 'Order Delivery':
         if (viewingOrder) {
           const orderId = viewingOrder.id || (typeof viewingOrder === 'string' ? viewingOrder : null);
           const orderType = viewingOrder.type || (orderId?.startsWith('ORD-T') ? 'Group Tickets' : 'Umrah Packages');
