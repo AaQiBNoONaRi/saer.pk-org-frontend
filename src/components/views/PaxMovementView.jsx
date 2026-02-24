@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Users, MapPin, Plane, RefreshCw,
     CheckCircle2, Clock, Search, Filter, ChevronDown
 } from 'lucide-react';
+
+const API_BASE = 'http://localhost:8000/api';
 
 // --- Custom Stat Card ---
 const StatCard = ({ label, value, icon: Icon, colorTheme }) => {
@@ -33,11 +35,75 @@ export default function PaxMovementView() {
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
     const [cityFilter, setCityFilter] = useState('all');
+    const [stats, setStats] = useState({
+        total_passengers: 0,
+        in_pakistan: 0,
+        in_flight: 0,
+        in_makkah: 0,
+        in_madina: 0,
+        exit_pending: 0,
+        exited_ksa: 0
+    });
+    const [passengers, setPassengers] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
+
+    const fetchStats = async () => {
+        try {
+            const token = localStorage.getItem('access_token');
+            const response = await fetch(`${API_BASE}/pax-movement/stats`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            
+            if (!response.ok) throw new Error('Failed to fetch stats');
+            
+            const data = await response.json();
+            setStats(data);
+        } catch (err) {
+            console.error('Error fetching stats:', err);
+            setError('Failed to load statistics');
+        }
+    };
+
+    const fetchPassengers = async () => {
+        setLoading(true);
+        setError('');
+        try {
+            const token = localStorage.getItem('access_token');
+            const params = new URLSearchParams();
+            if (statusFilter !== 'all') params.append('status', statusFilter);
+            if (cityFilter !== 'all') params.append('city', cityFilter);
+            if (searchQuery) params.append('search', searchQuery);
+            
+            const response = await fetch(`${API_BASE}/pax-movement/passengers?${params}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            
+            if (!response.ok) throw new Error('Failed to fetch passengers');
+            
+            const data = await response.json();
+            setPassengers(data.passengers || []);
+        } catch (err) {
+            console.error('Error fetching passengers:', err);
+            setError('Failed to load passenger data');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const handleRefresh = () => {
-        // This will call API to refresh data
-        console.log('Refreshing data...');
+        fetchStats();
+        fetchPassengers();
     };
+
+    useEffect(() => {
+        fetchStats();
+        fetchPassengers();
+    }, []);
+
+    useEffect(() => {
+        fetchPassengers();
+    }, [statusFilter, cityFilter, searchQuery]);
 
     return (
         <div className="space-y-6">
@@ -62,13 +128,13 @@ export default function PaxMovementView() {
 
             {/* Stats Grid */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
-              <StatCard label="Total Passengers" value="0" icon={Users} colorTheme="blue" />
-              <StatCard label="In Pakistan 🇵🇰" value="0" icon={MapPin} colorTheme="slate" />
-              <StatCard label="In Flight ✈️" value="0" icon={Plane} colorTheme="cyan" />
-              <StatCard label="In Makkah 🕋" value="0" icon={MapPin} colorTheme="emerald" />
-              <StatCard label="In Madina 🕌" value="0" icon={MapPin} colorTheme="emerald" />
-              <StatCard label="Exit Pending ⏳" value="0" icon={Clock} colorTheme="amber" />
-              <StatCard label="Exited KSA ✅" value="0" icon={CheckCircle2} colorTheme="emerald" />
+              <StatCard label="Total Passengers" value={stats.total_passengers} icon={Users} colorTheme="blue" />
+              <StatCard label="In Pakistan 🇵🇰" value={stats.in_pakistan} icon={MapPin} colorTheme="slate" />
+              <StatCard label="In Flight ✈️" value={stats.in_flight} icon={Plane} colorTheme="cyan" />
+              <StatCard label="In Makkah 🕋" value={stats.in_makkah} icon={MapPin} colorTheme="emerald" />
+              <StatCard label="In Madina 🕌" value={stats.in_madina} icon={MapPin} colorTheme="emerald" />
+              <StatCard label="Exit Pending ⏳" value={stats.exit_pending} icon={Clock} colorTheme="amber" />
+              <StatCard label="Exited KSA ✅" value={stats.exited_ksa} icon={CheckCircle2} colorTheme="emerald" />
             </div>
 
             {/* Filter and List Card */}
@@ -129,35 +195,93 @@ export default function PaxMovementView() {
 
               {/* Data Table / Empty State */}
               <div className="flex-1 bg-slate-50/30">
-                <div className="overflow-x-auto h-full">
-                  <table className="w-full text-left">
-                     <thead>
-                        <tr className="border-b border-slate-100 bg-white">
-                           {['Pax ID', 'Name & Passport', 'Agent', 'Current Location', 'Status', 'Last Updated', 'Actions'].map((header, i) => (
-                              <th key={i} className={`px-6 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap ${i === 6 ? 'text-right' : ''}`}>
-                                 {header}
-                              </th>
-                           ))}
-                        </tr>
-                     </thead>
-                     <tbody>
-                        {/* Empty State UI */}
-                        <tr>
-                           <td colSpan={7} className="px-6 py-32 text-center">
-                              <div className="flex flex-col items-center justify-center max-w-sm mx-auto">
-                                 <div className="w-20 h-20 bg-white border border-slate-100 shadow-sm rounded-full flex items-center justify-center mb-5">
-                                    <Users size={32} className="text-slate-400" />
-                                 </div>
-                                 <h3 className="text-lg font-black text-slate-800 mb-2">No passengers found</h3>
-                                 <p className="text-sm font-medium text-slate-500 leading-relaxed">
-                                    We couldn't find any passenger records matching your search or filter criteria. Try adjusting your filters.
-                                 </p>
-                              </div>
-                           </td>
-                        </tr>
-                     </tbody>
-                  </table>
-                </div>
+                {error && (
+                  <div className="p-6">
+                    <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-600 font-semibold">
+                      {error}
+                    </div>
+                  </div>
+                )}
+                
+                {loading ? (
+                  <div className="flex items-center justify-center py-32">
+                    <div className="flex flex-col items-center gap-4">
+                      <RefreshCw className="animate-spin text-blue-500" size={32} />
+                      <p className="text-slate-500 font-semibold">Loading passenger data...</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto h-full">
+                    <table className="w-full text-left">
+                       <thead>
+                          <tr className="border-b border-slate-100 bg-white">
+                             {['Pax ID', 'Name & Passport', 'Agent', 'Current Location', 'Status', 'Last Updated', 'Actions'].map((header, i) => (
+                                <th key={i} className={`px-6 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap ${i === 6 ? 'text-right' : ''}`}>
+                                   {header}
+                                </th>
+                             ))}
+                          </tr>
+                       </thead>
+                       <tbody>
+                          {passengers.length === 0 ? (
+                            <tr>
+                               <td colSpan={7} className="px-6 py-32 text-center">
+                                  <div className="flex flex-col items-center justify-center max-w-sm mx-auto">
+                                     <div className="w-20 h-20 bg-white border border-slate-100 shadow-sm rounded-full flex items-center justify-center mb-5">
+                                        <Users size={32} className="text-slate-400" />
+                                     </div>
+                                     <h3 className="text-lg font-black text-slate-800 mb-2">No passengers found</h3>
+                                     <p className="text-sm font-medium text-slate-500 leading-relaxed">
+                                        We couldn't find any passenger records matching your search or filter criteria. Try adjusting your filters.
+                                     </p>
+                                  </div>
+                               </td>
+                            </tr>
+                          ) : (
+                            passengers.map((passenger, idx) => (
+                              <tr key={idx} className="border-b border-slate-100 hover:bg-blue-50/30 transition-colors">
+                                <td className="px-6 py-4">
+                                  <span className="text-sm font-bold text-slate-700">{passenger.pax_id}</span>
+                                </td>
+                                <td className="px-6 py-4">
+                                  <div>
+                                    <p className="text-sm font-bold text-slate-800">{passenger.name}</p>
+                                    <p className="text-xs text-slate-500 font-medium">{passenger.passport}</p>
+                                  </div>
+                                </td>
+                                <td className="px-6 py-4">
+                                  <span className="text-sm font-semibold text-slate-600">{passenger.agent_name}</span>
+                                </td>
+                                <td className="px-6 py-4">
+                                  <span className="text-sm font-semibold text-slate-700">{passenger.current_location}</span>
+                                </td>
+                                <td className="px-6 py-4">
+                                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold ${
+                                    passenger.status === 'In Pakistan' ? 'bg-slate-100 text-slate-600' :
+                                    passenger.status === 'In Flight' ? 'bg-cyan-100 text-cyan-700' :
+                                    passenger.status === 'In Makkah' ? 'bg-emerald-100 text-emerald-700' :
+                                    passenger.status === 'In Madina' ? 'bg-emerald-100 text-emerald-700' :
+                                    passenger.status === 'Exit Pending' ? 'bg-amber-100 text-amber-700' :
+                                    'bg-green-100 text-green-700'
+                                  }`}>
+                                    {passenger.status}
+                                  </span>
+                                </td>
+                                <td className="px-6 py-4">
+                                  <span className="text-sm font-medium text-slate-500">{passenger.last_updated}</span>
+                                </td>
+                                <td className="px-6 py-4 text-right">
+                                  <button className="px-4 py-2 text-xs font-bold text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                                    View Details
+                                  </button>
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                       </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
 
             </div>

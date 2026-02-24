@@ -27,6 +27,7 @@ import OrderDeliveryDetailView from './components/views/OrderDeliveryDetailView'
 import OrderConfirmationView from './components/views/OrderConfirmationView';
 import OrderTicketDetailView from './components/views/OrderTicketDetailView';
 import PaxMovementView from './components/views/PaxMovementView';
+import DailyOperationsView from './components/views/DailyOperationsView';
 import PaymentsView from './components/views/PaymentsView';
 import AddBankAccountView from './components/views/AddBankAccountView';
 import DiscountsView from './components/views/DiscountsView';
@@ -59,6 +60,7 @@ const ROUTES = {
   '/forms': 'Forms',
   '/order-delivery': 'Order Delivery',
   '/pax-movement': 'Pax Movement',
+  '/daily-operations': 'Daily Operations',
   '/payments': 'Payments',
   '/payments/add': 'Add Bank Account',
   '/discounts': 'Discounts',
@@ -94,6 +96,7 @@ const getTabForPath = (path) => {
   if (path.startsWith('/service-charges/')) return 'Service Charges';
   if (path.startsWith('/order-delivery/')) return 'Order Delivery';
   if (path.startsWith('/pax-movement/')) return 'Pax Movement';
+  if (path.startsWith('/daily-operations/')) return 'Daily Operations';
 
 
 
@@ -154,7 +157,7 @@ const App = () => {
       const currentPath = window.location.pathname;
 
       // Handle sub-paths for IDs
-      if (activeTab === 'Order Delivery' || activeTab === 'Pax Movement') {
+      if (activeTab === 'Order Delivery' || activeTab === 'Pax Movement' || activeTab === 'Daily Operations') {
         if (viewingOrder) {
           const orderId = viewingOrder.id || viewingOrder;
           path = `${getPathForTab(activeTab)}/${orderId}`;
@@ -388,6 +391,8 @@ const App = () => {
         return <ShareInventoryView />;
       case 'Pax Movement':
         return <PaxMovementView />;
+      case 'Daily Operations':
+        return <DailyOperationsView />;
       case 'Order Delivery':
         if (viewingOrder) {
           // viewingOrder can be a string ID or the full object
