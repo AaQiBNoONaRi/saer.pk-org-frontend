@@ -350,33 +350,36 @@ const App = () => {
       case 'Order Delivery':
       case 'Pax Movement':
         if (viewingOrder) {
-          const orderId = viewingOrder.id || (typeof viewingOrder === 'string' ? viewingOrder : null);
-          const orderType = viewingOrder.type || (orderId?.startsWith('ORD-T') ? 'Group Tickets' : 'Umrah Packages');
+          // viewingOrder can be a string ID or the full object
+          const order = (typeof viewingOrder === 'object') ? viewingOrder : null;
+          const status = (order?.booking_status || order?.status || order?.orderStatus || '').toLowerCase();
+          const isTicket = order?.booking_type === 'ticket' || order?.type === 'Group Tickets';
 
-          if (orderType === 'Group Tickets') {
+          if (isTicket) {
             return (
               <OrderTicketDetailView
-                order={typeof viewingOrder === 'object' ? viewingOrder : { id: orderId }}
+                order={viewingOrder}
                 onBack={() => setViewingOrder(null)}
               />
             );
           }
-          if (isOrderConfirmed) {
+
+          // If approved, show the Visa/Confirmation management page
+          if (status === 'approved') {
             return (
               <OrderConfirmationView
-                orderId={orderId}
-                onBack={() => {
-                  setIsOrderConfirmed(false);
-                  setViewingOrder(null);
-                }}
+                booking={order?._raw || order}
+                orderId={viewingOrder.id || viewingOrder.booking_reference || viewingOrder}
+                onBack={() => setViewingOrder(null)}
               />
             );
           }
+
           return (
             <OrderDeliveryDetailView
-              orderId={orderId}
+              booking={viewingOrder}
               onBack={() => setViewingOrder(null)}
-              onConfirm={() => setIsOrderConfirmed(true)}
+              onConfirm={(updated) => setViewingOrder(updated)}
             />
           );
         }
