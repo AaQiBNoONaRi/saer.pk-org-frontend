@@ -9,6 +9,7 @@ const EmployeesView = () => {
     const [organizations, setOrganizations] = useState([]);
     const [branches, setBranches] = useState([]);
     const [agencies, setAgencies] = useState([]);
+    const [groups, setGroups] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedEmployee, setSelectedEmployee] = useState(null);
     const [viewMode, setViewMode] = useState('list'); // 'list', 'detail', 'add', 'edit'
@@ -37,7 +38,8 @@ const EmployeesView = () => {
         portal_access_enabled: true,
         username: '',
         password: '',
-        permissions: ['crm']
+        permissions: ['crm'],
+        group_id: ''
     });
 
     useEffect(() => {
@@ -45,7 +47,21 @@ const EmployeesView = () => {
         fetchOrganizations();
         fetchBranches();
         fetchAgencies();
+        fetchGroups();
     }, []);
+
+    const fetchGroups = async () => {
+        try {
+            const token = localStorage.getItem('access_token');
+            const orgId = localStorage.getItem('organization_id') || '';
+            const res = await fetch(`http://localhost:8000/api/role-groups/?organization_id=${orgId}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (res.ok) setGroups(await res.json());
+        } catch (e) {
+            console.error('Failed to fetch groups', e);
+        }
+    };
 
     const fetchEmployees = async () => {
         try {
@@ -188,7 +204,8 @@ const EmployeesView = () => {
             portal_access_enabled: true,
             username: '',
             password: '',
-            permissions: ['crm']
+            permissions: ['crm'],
+            group_id: ''
         });
         setError('');
         setViewMode('add');
@@ -211,7 +228,8 @@ const EmployeesView = () => {
             portal_access_enabled: employee.portal_access_enabled ?? true,
             username: employee.username || '',
             password: '',
-            permissions: employee.permissions || ['crm']
+            permissions: employee.permissions || ['crm'],
+            group_id: employee.group_id || ''
         });
         setSelectedEmployee(employee);
         setError('');
@@ -621,33 +639,33 @@ const EmployeesView = () => {
                     {formData.portal_access_enabled && (
                         <div className="pt-2 border-t border-slate-200 animate-in fade-in duration-300">
                             <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Portal Permissions</p>
-                            <div className="flex flex-wrap gap-4">
-                                <label className="flex items-center gap-2 cursor-pointer group">
-                                    <input
-                                        type="checkbox"
-                                        name="permission_crm"
-                                        checked={(formData.permissions || []).includes('crm')}
-                                        onChange={handleInputChange}
-                                        className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
-                                    />
-                                    <div>
-                                        <p className="text-xs font-black text-slate-700 group-hover:text-blue-600 transition-colors">CRM Access</p>
-                                        <p className="text-[9px] text-slate-400">Customers, Leads, Passport Leads</p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Assign Group</label>
+                                    <select name="group_id" value={formData.group_id || ''} onChange={handleInputChange}
+                                        className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100">
+                                        <option value="">-- No group (custom permissions) --</option>
+                                        {groups.map(g => (
+                                            <option key={g._id || g.id} value={g._id || g.id}>{g.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Custom Permissions</p>
+                                    <p className="text-xs text-slate-400">Use when you need ad-hoc simple permissions. Prefer assigning a group.</p>
+                                    <div className="mt-2">
+                                        <label className="flex items-center gap-2 cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                name="permission_crm"
+                                                checked={(formData.permissions || []).includes('crm')}
+                                                onChange={handleInputChange}
+                                                className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                                            />
+                                            <span className="text-xs font-bold text-slate-700">CRM Access</span>
+                                        </label>
                                     </div>
-                                </label>
-                                <label className="flex items-center gap-2 cursor-pointer group">
-                                    <input
-                                        type="checkbox"
-                                        name="permission_employees"
-                                        checked={(formData.permissions || []).includes('employees')}
-                                        onChange={handleInputChange}
-                                        className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
-                                    />
-                                    <div>
-                                        <p className="text-xs font-black text-slate-700 group-hover:text-blue-600 transition-colors">Employee Management</p>
-                                        <p className="text-[9px] text-slate-400">View and manage employees (HR)</p>
-                                    </div>
-                                </label>
+                                </div>
                             </div>
                         </div>
                     )}

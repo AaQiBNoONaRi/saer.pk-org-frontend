@@ -4,7 +4,7 @@ import {
     ChevronUp, Menu, X, Briefcase
 } from 'lucide-react';
 
-export default function EmployeeSidebar({ activeTab, setActiveTab, isSidebarOpen, setSidebarOpen }) {
+export default function EmployeeSidebar({ activeTab, setActiveTab, isSidebarOpen, setSidebarOpen, onLogoClick }) {
     const [isUserMenuOpen, setUserMenuOpen] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
     const [employeeData, setEmployeeData] = useState(null);
@@ -64,8 +64,12 @@ export default function EmployeeSidebar({ activeTab, setActiveTab, isSidebarOpen
                 <div className="p-6 flex items-center justify-between shrink-0 h-20">
                     <div className="flex items-center gap-3 overflow-hidden min-w-0">
                         {isSidebarOpen ? (
-                            <div className="flex flex-col animate-in fade-in zoom-in-95 duration-300">
-                                <img src="/logo.png" alt="Saer.Pk" className="h-12 w-auto object-contain" />
+                            <div
+                                className="flex flex-col animate-in fade-in zoom-in-95 duration-300 cursor-pointer"
+                                onClick={onLogoClick}
+                                title="My Profile"
+                            >
+                                <img src="/logo.png" alt="Saer.Pk" className="h-12 w-auto object-contain hover:opacity-80 transition-opacity" />
                             </div>
                         ) : (
                             <div className="flex items-center justify-center w-full">
@@ -117,13 +121,6 @@ export default function EmployeeSidebar({ activeTab, setActiveTab, isSidebarOpen
                                 label="Customers"
                                 active={activeTab === 'Customers'}
                                 onClick={() => handleNavClick('Customers')}
-                                isOpen={isSidebarOpen}
-                            />
-                            <NavItem
-                                icon={<ScanLine size={20} />}
-                                label="Leads"
-                                active={activeTab === 'Leads'}
-                                onClick={() => handleNavClick('Leads')}
                                 isOpen={isSidebarOpen}
                             />
                         </>
