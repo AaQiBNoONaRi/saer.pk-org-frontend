@@ -216,6 +216,12 @@ export default function OrderDeliveryDetailView({ onBack, booking: initialBookin
                             <button onClick={() => window.print()} className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold shadow-lg shadow-blue-600/20 hover:bg-blue-700 transition-all"><Printer size={16} /> Print</button>
                             <button className="flex items-center gap-2 px-6 py-2 bg-white border-2 border-blue-600 text-blue-600 rounded-lg text-sm font-bold hover:bg-blue-50 transition-all"><Download size={16} /> Download</button>
                         </div>
+                        {booking.sar_to_pkr_rate && (
+                            <div className="mt-4 p-3 bg-blue-50/50 rounded-xl border border-blue-100/50 inline-block">
+                                <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest block mb-1">Currency Snapshot</span>
+                                <span className="text-sm font-black text-blue-600">1 SAR = {booking.sar_to_pkr_rate} PKR</span>
+                            </div>
+                        )}
                     </div>
 
                     <div className="space-y-1">
@@ -320,7 +326,12 @@ export default function OrderDeliveryDetailView({ onBack, booking: initialBookin
                                     <td colSpan={2} />
                                     <td className="py-6">{rooms.reduce((acc, r) => acc + (Number(r.nights) || 0), 0)}</td>
                                     <td colSpan={3} />
-                                    <td className="py-6">{PKR(hotelTotal)}</td>
+                                    <td className="py-6">
+                                        <div className="flex flex-col items-end">
+                                            <span>{PKR(hotelTotal)}</span>
+                                            {booking.hotel_cost_sar && <span className="text-[10px] text-slate-400 font-bold">{SAR(booking.hotel_cost_sar)} (Audit)</span>}
+                                        </div>
+                                    </td>
                                 </tr>
                             </tbody>
                         </table>
@@ -352,7 +363,12 @@ export default function OrderDeliveryDetailView({ onBack, booking: initialBookin
                                 <tr className="text-xs font-black text-slate-800">
                                     <td className="py-6 uppercase">Total Transportation</td>
                                     <td colSpan={3} />
-                                    <td className="py-6">{PKR(transport?.selling || 0)}</td>
+                                    <td className="py-6">
+                                        <div className="flex flex-col items-end">
+                                            <span>{PKR(transport?.selling || 0)}</span>
+                                            {booking.transport_cost_sar && <span className="text-[10px] text-slate-400 font-bold">{SAR(booking.transport_cost_sar)} (Audit)</span>}
+                                        </div>
+                                    </td>
                                 </tr>
                             </tbody>
                         </table>
@@ -383,7 +399,12 @@ export default function OrderDeliveryDetailView({ onBack, booking: initialBookin
                                 <tr className="text-xs font-black text-slate-800">
                                     <td className="py-6 uppercase">Total Food Services</td>
                                     <td colSpan={2} />
-                                    <td className="py-6">{PKR(foodTotal)}</td>
+                                    <td className="py-6">
+                                        <div className="flex flex-col items-end">
+                                            <span>{PKR(foodTotal)}</span>
+                                            {booking.food_cost_sar && <span className="text-[10px] text-slate-400 font-bold">{SAR(booking.food_cost_sar)} (Audit)</span>}
+                                        </div>
+                                    </td>
                                 </tr>
                             </tbody>
                         </table>
@@ -456,8 +477,26 @@ export default function OrderDeliveryDetailView({ onBack, booking: initialBookin
                                     <div className="flex justify-between p-4 text-slate-400"><span>Ziyarat:</span><span className="text-slate-900">{PKR(ziyaratTotal)}</span></div>
                                 </div>
                                 <div className="p-4 bg-blue-600 text-white flex justify-between rounded-b-xl text-sm font-black tracking-wide">
-                                    <span>NET PKR:</span>
-                                    <span>{PKR(booking.total_amount)}</span>
+                                    <div className="flex flex-col">
+                                        <span>NET PKR:</span>
+                                        {booking.sar_to_pkr_rate && (
+                                            <span className="text-[10px] opacity-70 font-bold">TOTAL SAR (AUDIT)</span>
+                                        )}
+                                    </div>
+                                    <div className="flex flex-col items-end text-right">
+                                        <span>{PKR(booking.total_amount)}</span>
+                                        {booking.sar_to_pkr_rate && (
+                                            <span className="text-[10px] opacity-70 font-bold">
+                                                {SAR(
+                                                    (booking.visa_cost_sar || (booking.visa_cost_pkr / booking.sar_to_pkr_rate)) +
+                                                    (booking.hotel_cost_sar || (booking.hotel_cost_pkr / booking.sar_to_pkr_rate)) +
+                                                    (booking.transport_cost_sar || (booking.transport_cost_pkr / booking.sar_to_pkr_rate)) +
+                                                    (booking.food_cost_sar || (booking.food_cost_pkr / booking.sar_to_pkr_rate)) +
+                                                    (booking.ziyarat_cost_sar || (booking.ziyarat_cost_pkr / booking.sar_to_pkr_rate))
+                                                )}
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         </div>

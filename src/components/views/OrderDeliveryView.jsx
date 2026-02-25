@@ -83,13 +83,13 @@ function normalizeBooking(b) {
     else if (b.booking_type === 'ticket') type = 'Group Tickets';
 
     const paxCount = b.total_passengers || (b.passengers?.length) || 0;
-    const orderStatus = b.booking_status || 'underprocess';
+    const orderStatus = b.order_status || b.booking_status || 'underprocess';
     const paymentStatus = b.payment_status || 'unpaid';
-    const deliveryStatus = b.voucher_status || 'Draft';
+    const deliveryStatus = b.voucher_status || b.delivery_status || 'Draft';
 
     return {
         _raw: b,                        // keep full original for detail view
-        id: b.id || b._id,
+        id: b._id || b.id,
         booking_type: b.booking_type,
         booking_reference: b.booking_reference,
         type,
@@ -105,7 +105,7 @@ function normalizeBooking(b) {
 
 // --- Main View ---
 export default function OrderDeliveryView({ onOrderClick }) {
-    const [mainTab, setMainTab] = useState('Un-Confirmed Orders');
+    const [mainTab, setMainTab] = useState('Confirmed Orders');
     const [sourceFilter, setSourceFilter] = useState('Agent Orders');
     const [packageFilter, setPackageFilter] = useState('Umrah Packages');
     const [statusFilter, setStatusFilter] = useState('All');
@@ -126,17 +126,26 @@ export default function OrderDeliveryView({ onOrderClick }) {
                 const token = localStorage.getItem('access_token');
                 const headers = { 'Authorization': `Bearer ${token}` };
 
-                const [umrahRes, customRes] = await Promise.all([
+                const [umrahRes, customRes, ticketRes] = await Promise.all([
                     fetch(`${API}/api/umrah-bookings/?limit=200`, { headers }),
                     fetch(`${API}/api/custom-bookings/?limit=200`, { headers }),
+                    fetch(`${API}/api/ticket-bookings/?limit=200`, { headers }),
                 ]);
 
                 const umrahData = umrahRes.ok ? await umrahRes.json() : [];
                 const customData = customRes.ok ? await customRes.json() : [];
+                const ticketData = ticketRes.ok ? await ticketRes.json() : [];
+
+                console.log("DEBUG: Fetched bookings:", {
+                    umrah: umrahData.length,
+                    custom: customData.length,
+                    ticket: ticketData.length
+                });
 
                 const merged = [
                     ...umrahData.map(normalizeBooking),
                     ...customData.map(normalizeBooking),
+                    ...ticketData.map(normalizeBooking),
                 ];
                 // Sort newest first (by id/created_at if available)
                 merged.sort((a, b) => (b._raw.created_at || '').localeCompare(a._raw.created_at || ''));
