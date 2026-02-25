@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-    Save, X, Plus, Trash2, Upload, Calendar, MapPin,
+    Save, X, Plus, Trash2, Calendar, MapPin,
     Link as LinkIcon, Phone, User, Image as ImageIcon,
     ArrowRight, ArrowLeft, CheckCircle2, Circle
 } from 'lucide-react';
@@ -51,7 +51,6 @@ const HotelForm = ({ hotel = null, onSave, onCancel }) => {
 
     // File uploads
     const [photoFiles, setPhotoFiles] = useState([]);
-    const [videoFile, setVideoFile] = useState(null);
 
     // Fetch Master Data
     useEffect(() => {
@@ -249,11 +248,6 @@ const HotelForm = ({ hotel = null, onSave, onCancel }) => {
         setPhotoFiles(prev => prev.filter((_, i) => i !== idx));
     };
 
-    const handleVideoUpload = (e) => {
-        const file = e.target.files[0];
-        if (file) setVideoFile(file);
-    };
-
     // --- Contact Logic ---
     const addContact = () => {
         if (contactInput.contact_person && contactInput.contact_number) {
@@ -292,16 +286,35 @@ const HotelForm = ({ hotel = null, onSave, onCancel }) => {
     const handleSubmit = async () => {
         setLoading(true);
         try {
-            // Transform period-based prices (period {date_from,date_to, bed_prices: [...]})
-            // into backend-expected flat list of HotelPrice items
+            const token = localStorage.getItem('access_token');
+            const headers = { 'Authorization': `Bearer ${token}` };
 
-            // If sentinel 'room_default' exists in any period and no real Room bed type
-            // is present in `bedTypes`, create one automatically.
+            // 1. Upload Photos if any
+            let uploadedPhotoUrls = [];
+            if (photoFiles.length > 0) {
+                const uploadFormData = new FormData();
+                photoFiles.forEach(file => uploadFormData.append('files', file));
+
+                const uploadRes = await fetch(`http://localhost:8000/api/hotels/upload-images?hotel_name=${encodeURIComponent(formData.name)}`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` },
+                    body: uploadFormData
+                });
+
+                if (uploadRes.ok) {
+                    const uploadData = await uploadRes.json();
+                    uploadedPhotoUrls = uploadData.urls;
+                } else {
+                    const err = await uploadRes.json().catch(() => ({}));
+                    throw new Error('Failed to upload photos: ' + (err.detail || uploadRes.statusText));
+                }
+            }
+
+            // 2. Transfrom period-based prices...
             const sentinelPresent = formData.prices.some(period => (period.bed_prices || []).some(bp => bp.bed_type_id === 'room_default'));
             let realRoom = bedTypes.find(bt => bt.name && bt.name.toLowerCase().includes('room'));
             if (sentinelPresent && !realRoom) {
                 try {
-                    const token = localStorage.getItem('access_token');
                     const res = await fetch('http://localhost:8000/api/bed-types/', {
                         method: 'POST',
                         headers: {
@@ -313,13 +326,10 @@ const HotelForm = ({ hotel = null, onSave, onCancel }) => {
 
                     if (res.ok) {
                         const created = await res.json();
-                        // update local bedTypes list
                         setBedTypes(prev => [created, ...prev]);
                         realRoom = created;
                     } else if (res.status === 400) {
-                        // Possibly another request created it concurrently; refetch bed types
-                        const token2 = localStorage.getItem('access_token');
-                        const btRes = await fetch('http://localhost:8000/api/bed-types/', { headers: { 'Authorization': `Bearer ${token2}` } });
+                        const btRes = await fetch('http://localhost:8000/api/bed-types/', { headers });
                         if (btRes.ok) {
                             const all = await btRes.json();
                             setBedTypes(all.filter(bt => bt.is_active));
@@ -347,7 +357,6 @@ const HotelForm = ({ hotel = null, onSave, onCancel }) => {
                         if (realRoom) bedTypeId = realRoom._id;
                     }
 
-                    // Ensure required fields exist
                     if (!bedTypeId) {
                         alert('A bed type id is missing in one of the price entries.');
                         setLoading(false);
@@ -360,8 +369,8 @@ const HotelForm = ({ hotel = null, onSave, onCancel }) => {
                     }
 
                     flatPrices.push({
-                        date_from: period.date_from,
-                        date_to: period.date_to,
+                        date_from: period.date_from || null,
+                        date_to: period.date_to || null,
                         bed_type_id: bedTypeId,
                         selling_price: parseFloat(bp.selling_price),
                         purchase_price: bp.purchase_price ? parseFloat(bp.purchase_price) : 0,
@@ -370,14 +379,15 @@ const HotelForm = ({ hotel = null, onSave, onCancel }) => {
                 }
             }
 
+            // 3. Final Payload
             const payload = {
                 ...formData,
                 distance_meters: parseFloat(formData.distance_meters || 0),
                 walking_time_minutes: parseInt(formData.walking_time_minutes || 0),
                 walking_distance_meters: parseFloat(formData.walking_distance_meters || 0),
-                photos: formData.photos.filter(p => typeof p === 'string'),
+                // Prepend new uploads to existing photos
+                photos: [...uploadedPhotoUrls, ...formData.photos],
                 prices: flatPrices,
-                // Convert empty strings to null for Optional date fields — Pydantic rejects ""
                 available_from: formData.available_from || null,
                 available_until: formData.available_until || null,
                 address: formData.address || null,
@@ -385,7 +395,7 @@ const HotelForm = ({ hotel = null, onSave, onCancel }) => {
                 google_location_link: formData.google_location_link || null,
                 category_id: formData.category_id || null,
             };
-            // Remove any keys that are null to keep the payload clean (backend has defaults)
+
             Object.keys(payload).forEach(key => {
                 if (payload[key] === null) delete payload[key];
             });
@@ -818,22 +828,6 @@ const HotelForm = ({ hotel = null, onSave, onCancel }) => {
                                     ))}
                                 </div>
                             )}
-                        </div>
-
-                        {/* Video */}
-                        <div>
-                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 pl-2">Hotel Video</label>
-                            <label className="block border-2 border-dashed border-slate-200 rounded-2xl p-8 text-center hover:bg-slate-50 transition-colors cursor-pointer">
-                                <Upload className="mx-auto text-slate-300 mb-2" size={32} />
-                                <p className="text-sm font-bold text-slate-500">Click to upload video</p>
-                                <input
-                                    type="file"
-                                    accept="video/*"
-                                    className="hidden"
-                                    onChange={handleVideoUpload}
-                                />
-                                <p className="text-xs text-slate-400 mt-2">{videoFile ? videoFile.name : 'No file chosen'}</p>
-                            </label>
                         </div>
 
                         {/* Settings */}

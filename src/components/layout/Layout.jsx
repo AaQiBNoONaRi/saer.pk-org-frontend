@@ -35,7 +35,7 @@ const Layout = ({
                 />
 
                 {/* Scrollable Page Content */}
-                <div className="flex-1 overflow-y-auto p-4 lg:p-8 space-y-8 scroll-smooth">
+                <div className={`flex-1 ${activeTab === 'Finance Hub' ? 'overflow-hidden flex flex-col p-4 lg:p-8 bg-[#F8FAFC]' : 'overflow-y-auto p-4 lg:p-8 space-y-8'} scroll-smooth`}>
                     {children}
                 </div>
             </main>

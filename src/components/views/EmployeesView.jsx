@@ -9,6 +9,7 @@ const EmployeesView = () => {
     const [organizations, setOrganizations] = useState([]);
     const [branches, setBranches] = useState([]);
     const [agencies, setAgencies] = useState([]);
+    const [groups, setGroups] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedEmployee, setSelectedEmployee] = useState(null);
     const [viewMode, setViewMode] = useState('list'); // 'list', 'detail', 'add', 'edit'
@@ -20,18 +21,25 @@ const EmployeesView = () => {
     const [error, setError] = useState('');
     const [showPassword, setShowPassword] = useState(false);
 
+    const orgId = localStorage.getItem('organization_id') || '';
+
     const [formData, setFormData] = useState({
+        emp_id: '',
         name: '',
         email: '',
         phone: '',
         role: 'ORGANIZATION_EMPLOYEE',
-        organization_id: '',
+        entity_type: 'organization',
+        entity_id: orgId,
+        organization_id: orgId,
         branch_id: '',
         agency_id: '',
         is_active: true,
         portal_access_enabled: true,
         username: '',
-        password: ''
+        password: '',
+        permissions: ['crm'],
+        group_id: ''
     });
 
     useEffect(() => {
@@ -39,7 +47,21 @@ const EmployeesView = () => {
         fetchOrganizations();
         fetchBranches();
         fetchAgencies();
+        fetchGroups();
     }, []);
+
+    const fetchGroups = async () => {
+        try {
+            const token = localStorage.getItem('access_token');
+            const orgId = localStorage.getItem('organization_id') || '';
+            const res = await fetch(`http://localhost:8000/api/role-groups/?organization_id=${orgId}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (res.ok) setGroups(await res.json());
+        } catch (e) {
+            console.error('Failed to fetch groups', e);
+        }
+    };
 
     const fetchEmployees = async () => {
         try {
@@ -133,10 +155,29 @@ const EmployeesView = () => {
     const handleInputChange = (e) => {
         const { name, value, type, checked } = e.target;
         if (name === 'email') {
+            // Auto-generate emp_id from email prefix + timestamp suffix
+            const prefix = value.split('@')[0].replace(/[^a-zA-Z0-9]/g, '').toUpperCase().substring(0, 6);
+            const suffix = Date.now().toString().slice(-4);
+            const autoEmpId = `ORG-${prefix}-${suffix}`;
             setFormData(prev => ({
                 ...prev,
                 email: value,
-                username: value
+                username: value,
+                emp_id: prev.emp_id || autoEmpId
+            }));
+        } else if (name === 'permission_crm') {
+            setFormData(prev => ({
+                ...prev,
+                permissions: checked
+                    ? [...(prev.permissions || []).filter(p => p !== 'crm'), 'crm']
+                    : (prev.permissions || []).filter(p => p !== 'crm')
+            }));
+        } else if (name === 'permission_employees') {
+            setFormData(prev => ({
+                ...prev,
+                permissions: checked
+                    ? [...(prev.permissions || []).filter(p => p !== 'employees'), 'employees']
+                    : (prev.permissions || []).filter(p => p !== 'employees')
             }));
         } else {
             setFormData(prev => ({
@@ -147,36 +188,48 @@ const EmployeesView = () => {
     };
 
     const openAddForm = () => {
+        const orgId = localStorage.getItem('organization_id') || '';
         setFormData({
+            emp_id: '',
             name: '',
             email: '',
             phone: '',
             role: 'ORGANIZATION_EMPLOYEE',
-            organization_id: '',
+            entity_type: 'organization',
+            entity_id: orgId,
+            organization_id: orgId,
             branch_id: '',
             agency_id: '',
             is_active: true,
             portal_access_enabled: true,
             username: '',
-            password: ''
+            password: '',
+            permissions: ['crm'],
+            group_id: ''
         });
         setError('');
         setViewMode('add');
     };
 
     const openEditForm = (employee) => {
+        const orgId = localStorage.getItem('organization_id') || '';
         setFormData({
+            emp_id: employee.emp_id || '',
             name: employee.name || '',
             email: employee.email || '',
             phone: employee.phone || '',
             role: employee.role || 'ORGANIZATION_EMPLOYEE',
-            organization_id: String(employee.organization_id || employee.organization?._id || ''),
-            branch_id: String(employee.branch_id || employee.branch?._id || ''),
-            agency_id: String(employee.agency_id || employee.agency?._id || ''),
+            entity_type: 'organization',
+            entity_id: orgId,
+            organization_id: orgId,
+            branch_id: '',
+            agency_id: '',
             is_active: employee.is_active ?? true,
             portal_access_enabled: employee.portal_access_enabled ?? true,
             username: employee.username || '',
-            password: ''
+            password: '',
+            permissions: employee.permissions || ['crm'],
+            group_id: employee.group_id || ''
         });
         setSelectedEmployee(employee);
         setError('');
@@ -432,15 +485,7 @@ const EmployeesView = () => {
                             </div>
                             <div>
                                 <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Organization</p>
-                                <p className="font-medium text-slate-900">{getEntityName(organizations, selectedEmployee.organization_id || selectedEmployee.organization?._id)}</p>
-                            </div>
-                            <div>
-                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Branch</p>
-                                <p className="font-medium text-slate-900">{getEntityName(branches, selectedEmployee.branch_id || selectedEmployee.branch?._id)}</p>
-                            </div>
-                            <div>
-                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Agency</p>
-                                <p className="font-medium text-slate-900">{getEntityName(agencies, selectedEmployee.agency_id || selectedEmployee.agency?._id)}</p>
+                                <p className="font-medium text-slate-900">{getEntityName(organizations, selectedEmployee.entity_id || selectedEmployee.organization_id || selectedEmployee.organization?._id)}</p>
                             </div>
                         </div>
                     </div>
@@ -521,48 +566,21 @@ const EmployeesView = () => {
                             className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100">
                             <option value="ORGANIZATION_ADMIN">Organization Admin</option>
                             <option value="ORGANIZATION_EMPLOYEE">Organization Employee</option>
-                            <option value="BRANCH_ADMIN">Branch Admin</option>
-                            <option value="BRANCH_EMPLOYEE">Branch Employee</option>
-                            <option value="AGENCY_ADMIN">Agency Admin</option>
-                            <option value="AGENCY_EMPLOYEE">Agency Employee</option>
                         </select>
                     </div>
-                    <div className="space-y-2">
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Organization</label>
-                        <select name="organization_id" value={formData.organization_id} onChange={handleInputChange}
-                            className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100">
-                            <option value="">Select Organization</option>
-                            {organizations.map(org => (
-                                <option key={org.id || org._id} value={org.id || org._id}>
-                                    {org.name}
-                                </option>
-                            ))}
-                        </select>
+
+                    {/* Entity locked to this Organization */}
+                    <div className="md:col-span-2 flex items-center gap-3 px-4 py-3 bg-blue-50 border border-blue-100 rounded-2xl">
+                        <div className="w-8 h-8 bg-blue-600 rounded-xl flex items-center justify-center shrink-0">
+                            <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20"><path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" /></svg>
+                        </div>
+                        <div className="min-w-0">
+                            <p className="text-[9px] font-black text-blue-400 uppercase tracking-widest">Assigned Entity</p>
+                            <p className="text-xs font-black text-blue-700">Your Organization</p>
+                            <p className="text-[9px] text-blue-400">This employee will belong to your organization</p>
+                        </div>
                     </div>
-                    <div className="space-y-2">
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Branch</label>
-                        <select name="branch_id" value={formData.branch_id} onChange={handleInputChange}
-                            className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100">
-                            <option value="">Select Branch</option>
-                            {branches.map(branch => (
-                                <option key={branch.id || branch._id} value={branch.id || branch._id}>
-                                    {branch.name}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-                    <div className="space-y-2">
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Agency</label>
-                        <select name="agency_id" value={formData.agency_id} onChange={handleInputChange}
-                            className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100">
-                            <option value="">Select Agency</option>
-                            {agencies.map(agency => (
-                                <option key={agency.id || agency._id} value={agency.id || agency._id}>
-                                    {agency.name}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
+
                 </div>
 
                 {/* Portal Access Section */}
@@ -612,6 +630,41 @@ const EmployeesView = () => {
                                         className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
                                         {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                                     </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Permissions */}
+                    {formData.portal_access_enabled && (
+                        <div className="pt-2 border-t border-slate-200 animate-in fade-in duration-300">
+                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Portal Permissions</p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Assign Group</label>
+                                    <select name="group_id" value={formData.group_id || ''} onChange={handleInputChange}
+                                        className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100">
+                                        <option value="">-- No group (custom permissions) --</option>
+                                        {groups.map(g => (
+                                            <option key={g._id || g.id} value={g._id || g.id}>{g.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Custom Permissions</p>
+                                    <p className="text-xs text-slate-400">Use when you need ad-hoc simple permissions. Prefer assigning a group.</p>
+                                    <div className="mt-2">
+                                        <label className="flex items-center gap-2 cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                name="permission_crm"
+                                                checked={(formData.permissions || []).includes('crm')}
+                                                onChange={handleInputChange}
+                                                className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                                            />
+                                            <span className="text-xs font-bold text-slate-700">CRM Access</span>
+                                        </label>
+                                    </div>
                                 </div>
                             </div>
                         </div>

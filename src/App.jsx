@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 
-// Components
 import LoginPage from './components/auth/LoginPage';
+import EmployeeApp from './components/employee/EmployeeApp';
+import EmployeeDashboard from './components/employee/EmployeeDashboard';
+import EmployeeHRView from './components/employee/EmployeeHRView';
 import Layout from './components/layout/Layout';
 import DashboardView from './components/views/DashboardView';
 import TicketsView from './components/views/TicketsView';
 import PackagesView from './components/views/PackagesView';
 import HotelsView from './components/views/HotelsView';
-import FinanceView from './components/views/FinanceView';
+import FinanceHub from './components/views/finance/FinanceHub';
 import VisaServicesView from './components/views/VisaServicesView';
 import PlaceholderView from './components/views/PlaceholderView';
 import GenericView from './components/views/GenericView';
@@ -19,6 +21,8 @@ import EmployeesView from './components/views/EmployeesView';
 import OrganizationView from './components/views/OrganizationView';
 import BranchesView from './components/views/BranchesView';
 import AgenciesView from './components/views/AgenciesView';
+import ShareInventoryView from './components/views/ShareInventoryView';
+import RolesPermissionsPage from './components/views/RolesPermissionsPage';
 
 import BlogsView from './components/views/BlogsView';
 import FormsView from './components/views/FormsView';
@@ -26,7 +30,10 @@ import OrderDeliveryView from './components/views/OrderDeliveryView';
 import OrderDeliveryDetailView from './components/views/OrderDeliveryDetailView';
 import OrderConfirmationView from './components/views/OrderConfirmationView';
 import OrderTicketDetailView from './components/views/OrderTicketDetailView';
+import PaxMovementView from './components/views/PaxMovementView';
+import DailyOperationsView from './components/views/DailyOperationsView';
 import PaymentsView from './components/views/PaymentsView';
+import LeadDetailView from './components/views/LeadDetailView';
 import AddBankAccountView from './components/views/AddBankAccountView';
 import DiscountsView from './components/views/DiscountsView';
 
@@ -35,7 +42,6 @@ import CommissionsView from './components/views/CommissionsView';
 import AddCommissionView from './components/views/AddCommissionView';
 import ServiceChargesView from './components/views/ServiceChargesView';
 import AddServiceChargeView from './components/views/AddServiceChargeView';
-import ShareInventoryView from './components/views/ShareInventoryView';
 
 
 // Route mapping: URL path <-> Tab name
@@ -54,10 +60,12 @@ const ROUTES = {
   '/branch': 'Branch',
   '/agencies': 'Agencies',
   '/employees': 'Employees',
+  '/hr-employees': 'HR Employees',
   '/blogs': 'Blogs',
   '/forms': 'Forms',
   '/order-delivery': 'Order Delivery',
   '/pax-movement': 'Pax Movement',
+  '/daily-operations': 'Daily Operations',
   '/payments': 'Payments',
   '/payments/add': 'Add Bank Account',
   '/discounts': 'Discounts',
@@ -67,6 +75,9 @@ const ROUTES = {
   '/service-charges': 'Service Charges',
   '/service-charges/add': 'Add Service Charge',
   '/share-inventory': 'Share Inventory',
+  '/customers': 'Customer Database',
+  '/leads': 'Lead Management',
+  '/role-groups': 'Roles & Permissions',
 };
 
 // Helper: Get URL path for a tab name
@@ -93,6 +104,7 @@ const getTabForPath = (path) => {
   if (path.startsWith('/service-charges/')) return 'Service Charges';
   if (path.startsWith('/order-delivery/')) return 'Order Delivery';
   if (path.startsWith('/pax-movement/')) return 'Pax Movement';
+  if (path.startsWith('/daily-operations/')) return 'Daily Operations';
 
 
 
@@ -112,7 +124,17 @@ const getIdFromPath = (path, basePath) => {
 const App = () => {
   // Initialize activeTab from URL
   const initialTab = getTabForPath(window.location.pathname);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  // --- Employee session detection ---
+  // If employee_data is in localStorage, skip admin portal entirely
+  const isEmployeeSession = !!localStorage.getItem('employee_data') && !!localStorage.getItem('access_token');
+  if (isEmployeeSession) {
+    return <EmployeeApp />;
+  }
+
+  // --- Admin session detection ---
+  const hasAdminToken = !!localStorage.getItem('access_token');
+  const [isLoggedIn, setIsLoggedIn] = useState(hasAdminToken);
   const [activeTab, setActiveTab] = useState(initialTab);
   const [isSidebarOpen, setSidebarOpen] = useState(true);
   const [isUserMenuOpen, setUserMenuOpen] = useState(false);
@@ -120,14 +142,19 @@ const App = () => {
   const [editingTicket, setEditingTicket] = useState(null);
   const [editingPackage, setEditingPackage] = useState(null);
   const [viewingPackage, setViewingPackage] = useState(null);
+  const [editingDiscount, setEditingDiscount] = useState(null);
+  const [editingCommission, setEditingCommission] = useState(null);
+  const [editingServiceCharge, setEditingServiceCharge] = useState(null);
 
   // Parse initial IDs from URL
   const path = window.location.pathname;
   const initialOrderId = getIdFromPath(path, '/order-delivery') || getIdFromPath(path, '/pax-movement');
+  const initialLeadId = getIdFromPath(path, '/leads');
   const initialPackageId = getIdFromPath(path, '/packages');
   const initialTicketId = getIdFromPath(path, '/tickets/edit');
 
   const [viewingOrder, setViewingOrder] = useState(initialOrderId);
+  const [viewingLead, setViewingLead] = useState(initialLeadId);
   const [editingAccount, setEditingAccount] = useState(null);
   const [isOrderConfirmed, setIsOrderConfirmed] = useState(false);
 
@@ -150,12 +177,17 @@ const App = () => {
       const currentPath = window.location.pathname;
 
       // Handle sub-paths for IDs
-      if (activeTab === 'Order Delivery' || activeTab === 'Pax Movement') {
+      if (activeTab === 'Order Delivery' || activeTab === 'Pax Movement' || activeTab === 'Daily Operations') {
         if (viewingOrder) {
           const orderId = viewingOrder?.booking_reference || viewingOrder?._id || viewingOrder?.id || viewingOrder;
           if (typeof orderId === 'string' || typeof orderId === 'number') {
             path = `${getPathForTab(activeTab)}/${orderId}`;
           }
+        }
+      } else if (activeTab === 'Lead Management') {
+        if (viewingLead) {
+          const id = viewingLead.id || viewingLead;
+          path = `/leads/${id}`;
         }
       } else if (activeTab === 'PackageDetails' && viewingPackage) {
         const pkgId = viewingPackage?.id || viewingPackage?._id || viewingPackage;
@@ -310,7 +342,7 @@ const App = () => {
       case 'Other':
         return <OthersView onBack={() => setActiveTab('Dashboard')} />;
       case 'Finance Hub':
-        return <FinanceView />;
+        return <FinanceHub />;
       case 'Visa Services':
         return <VisaServicesView />;
       case 'Organization':
@@ -319,6 +351,10 @@ const App = () => {
         return <BranchesView />;
       case 'Agencies':
         return <AgenciesView />;
+      case 'Customer Database':
+        return <EmployeeDashboard initialTab="Customers" />;
+      case 'HR Employees':
+        return <EmployeeHRView />;
       case 'Employees':
         return <EmployeesView />;
 
@@ -329,41 +365,79 @@ const App = () => {
       case 'Discounts':
         return (
           <DiscountsView
-            onAdd={() => setActiveTab('Add Discount')}
-            onEdit={(discount) => {
-              // You might need state for editingDiscount
+            onAddDiscount={() => {
+              setEditingDiscount(null);
+              setActiveTab('Add Discount');
+            }}
+            onEditDiscount={(discount) => {
+              setEditingDiscount(discount);
               setActiveTab('Add Discount');
             }}
           />
         );
       case 'Add Discount':
-        return <AddDiscountView onBack={() => setActiveTab('Discounts')} />;
+        return (
+          <AddDiscountView
+            onBack={() => {
+              setEditingDiscount(null);
+              setActiveTab('Discounts');
+            }}
+            initialData={editingDiscount}
+          />
+        );
       case 'Commissions':
         return (
           <CommissionsView
-            onAdd={() => setActiveTab('Add Commission')}
-            onEdit={(commission) => {
+            onAddCommission={() => {
+              setEditingCommission(null);
+              setActiveTab('Add Commission');
+            }}
+            onEditCommission={(commission) => {
+              setEditingCommission(commission);
               setActiveTab('Add Commission');
             }}
           />
         );
       case 'Add Commission':
-        return <AddCommissionView onBack={() => setActiveTab('Commissions')} />;
+        return (
+          <AddCommissionView
+            onBack={() => {
+              setEditingCommission(null);
+              setActiveTab('Commissions');
+            }}
+            initialData={editingCommission}
+          />
+        );
       case 'Service Charges':
         return (
           <ServiceChargesView
-            onAdd={() => setActiveTab('Add Service Charge')}
-            onEdit={(charge) => {
+            onAddServiceCharge={() => {
+              setEditingServiceCharge(null);
+              setActiveTab('Add Service Charge');
+            }}
+            onEditServiceCharge={(charge) => {
+              setEditingServiceCharge(charge);
               setActiveTab('Add Service Charge');
             }}
           />
         );
       case 'Add Service Charge':
-        return <AddServiceChargeView onBack={() => setActiveTab('Service Charges')} />;
+        return (
+          <AddServiceChargeView
+            onBack={() => {
+              setEditingServiceCharge(null);
+              setActiveTab('Service Charges');
+            }}
+            initialData={editingServiceCharge}
+          />
+        );
       case 'Share Inventory':
         return <ShareInventoryView />;
-      case 'Order Delivery':
       case 'Pax Movement':
+        return <PaxMovementView />;
+      case 'Daily Operations':
+        return <DailyOperationsView />;
+      case 'Order Delivery':
         if (viewingOrder) {
           // viewingOrder can be a string ID or the full object
           const order = (typeof viewingOrder === 'object') ? viewingOrder : null;
@@ -399,6 +473,21 @@ const App = () => {
           );
         }
         return <OrderDeliveryView onOrderClick={(order) => setViewingOrder(order)} />;
+      case 'Lead Management':
+        if (viewingLead) {
+          const id = viewingLead.id || viewingLead;
+          return (
+            <LeadDetailView
+              leadId={id}
+              onBack={() => setViewingLead(null)}
+            />
+          );
+        }
+        return (
+          <EmployeeDashboard initialTab="Leads" onViewLead={(l) => { setViewingLead(l._id || l.id || l); setActiveTab('Lead Management'); }} />
+        );
+      case 'Roles & Permissions':
+        return <RolesPermissionsPage />;
       case 'Payments':
         return (
           <PaymentsView

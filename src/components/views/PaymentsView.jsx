@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import {
     Plus, Filter, Copy, Building2, User,
     Edit3, Trash2, Search, Eye, CheckCircle, XCircle,
-    Upload, FileText, Clock, ChevronLeft, ChevronRight
+    Upload, FileText, Clock, ChevronLeft, ChevronRight,
+    CreditCard, Check, X, Bell, Receipt, Download, DollarSign
 } from 'lucide-react';
 
 const API = 'http://localhost:8000';
@@ -51,6 +52,22 @@ export default function PaymentsView({ onAddAccount, onEditAccount }) {
     const [branches, setBranches] = useState([]);
     const [loading, setLoading] = useState(false);
 
+    // Voucher states
+    const [vouchers, setVouchers] = useState([]);
+    const [voucherForm, setVoucherForm] = useState({
+        userName: '',
+        userEmail: '',
+        contactNumber: '',
+        reason: '',
+        amount: '',
+        expiryDate: '',
+        currency: 'PKR',
+        paymentMethod: 'wallet'
+    });
+    const [isGeneratingVoucher, setIsGeneratingVoucher] = useState(false);
+    const [selectedVoucher, setSelectedVoucher] = useState(null);
+    const [currentUser, setCurrentUser] = useState(null);
+
     // Add Payment Tab State
     const [agencySearch, setAgencySearch] = useState('');
     const [selectedAgency, setSelectedAgency] = useState(null);
@@ -75,14 +92,82 @@ export default function PaymentsView({ onAddAccount, onEditAccount }) {
     const token = () => localStorage.getItem('access_token');
 
     useEffect(() => {
-        fetchAgencies();
-        fetchBranches();
-        if (activeTab === 'Bank Accounts') fetchAccounts();
-        if (activeTab === 'Add Payment' || activeTab === 'Pending Payments') {
+        if (activeTab === 'Bank Accounts') {
+            fetchAccounts();
+            fetchAgencies();
+            fetchBranches();
+        } else if (activeTab === 'Vouchers') {
+            fetchVouchers();
+        } else if (activeTab === 'Add Payment' || activeTab === 'Pending Payments') {
             fetchPaymentHistory();
             fetchOrgBankAccounts();
+            fetchAgencies();
+            fetchBranches();
+        } else {
+            fetchAgencies();
+            fetchBranches();
         }
     }, [activeTab]);
+
+    // Load current user data and auto-fill form
+    useEffect(() => {
+        const loadCurrentUser = async () => {
+            try {
+                const token = localStorage.getItem('access_token');
+                if (!token) return;
+
+                // Decode JWT token to get user info
+                const payload = JSON.parse(atob(token.split('.')[1]));
+
+                // Try to get additional user data from localStorage
+                const userData = JSON.parse(localStorage.getItem('user_data') || '{}');
+
+                // Determine if this is an organization login or user linked to org
+                const orgId = payload.organization_id || (payload.user_type === 'organization' ? payload.sub : null) || (payload.entity_type === 'organization' ? payload.entity_id : null);
+
+                if (orgId) {
+                    // Fetch organization details from backend
+                    try {
+                        const resp = await fetch(`http://localhost:8000/api/organizations/${orgId}`, {
+                            headers: { 'Authorization': `Bearer ${token}` }
+                        });
+                        if (resp.ok) {
+                            const org = await resp.json();
+                            setCurrentUser(org);
+                            setVoucherForm(prev => ({
+                                ...prev,
+                                userName: org.name || userData.name || payload.name || '',
+                                userEmail: org.email || userData.email || payload.email || payload.sub || '',
+                                contactNumber: org.phone || userData.phone || payload.phone || ''
+                            }));
+                            return;
+                        }
+                    } catch (err) {
+                        console.error('Failed to fetch organization details:', err);
+                    }
+                }
+
+                // Fallback to individual user info
+                const user = {
+                    name: userData.name || payload.name || '',
+                    email: userData.email || payload.email || payload.sub || '',
+                    phone: userData.phone || payload.phone || '',
+                    id: payload.sub || userData._id
+                };
+                setCurrentUser(user);
+                setVoucherForm(prev => ({
+                    ...prev,
+                    userName: user.name,
+                    userEmail: user.email,
+                    contactNumber: user.phone
+                }));
+            } catch (error) {
+                console.error('Error loading user data:', error);
+            }
+        };
+
+        loadCurrentUser();
+    }, []);
 
     const fetchAgencies = async () => {
         try {
@@ -233,6 +318,141 @@ export default function PaymentsView({ onAddAccount, onEditAccount }) {
 
     const pendingPayments = paymentHistory.filter(p => p.status === 'pending');
 
+    // Voucher Functions
+    const fetchVouchers = async () => {
+        setLoading(true);
+        try {
+            const token = localStorage.getItem('access_token');
+            const response = await fetch('http://localhost:8000/api/payments/vouchers/', {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                setVouchers(data);
+            }
+        } catch (error) {
+            console.error('Error fetching vouchers:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleVoucherInputChange = (e) => {
+        const { name, value } = e.target;
+        setVoucherForm(prev => ({ ...prev, [name]: value }));
+    };
+
+    const generateVoucher = async (e) => {
+        e.preventDefault();
+        setIsGeneratingVoucher(true);
+        try {
+            const token = localStorage.getItem('access_token');
+            const response = await fetch('http://localhost:8000/api/payments/vouchers/', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    user_name: voucherForm.userName,
+                    user_email: voucherForm.userEmail,
+                    contact_number: voucherForm.contactNumber,
+                    reason: voucherForm.reason,
+                    amount: parseFloat(voucherForm.amount),
+                    expiry_date: voucherForm.expiryDate,
+                    currency: voucherForm.currency,
+                    payment_method: voucherForm.paymentMethod
+                })
+            });
+
+            if (response.ok) {
+                const newVoucher = await response.json();
+                setVouchers(prev => [newVoucher, ...prev]);
+                // Reset only the fields that should be cleared (not user info)
+                setVoucherForm(prev => ({
+                    ...prev,
+                    reason: '',
+                    amount: '',
+                    expiryDate: '',
+                    currency: 'PKR',
+                    paymentMethod: 'wallet'
+                }));
+                alert('Voucher generated successfully!');
+            } else {
+                const error = await response.json();
+                alert(error.detail || 'Failed to generate voucher');
+            }
+        } catch (error) {
+            console.error('Error generating voucher:', error);
+            alert('Error generating voucher');
+        } finally {
+            setIsGeneratingVoucher(false);
+        }
+    };
+
+    const initiatePayment = async (voucher) => {
+        try {
+            const token = localStorage.getItem('access_token');
+            const response = await fetch('http://localhost:8000/api/payments/topup/', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    wallet_id: voucher.wallet_id,
+                    amount: voucher.amount,
+                    currency: voucher.currency,
+                    provider: 'local_gateway',
+                    return_url: window.location.origin + '/payments/complete',
+                    metadata: { voucher_id: voucher._id }
+                })
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                if (data.provider_session?.checkout_url) {
+                    window.open(data.provider_session.checkout_url, '_blank');
+                } else {
+                    alert('Payment session created. Transaction ID: ' + data.transaction_id);
+                }
+                fetchVouchers(); // Refresh list
+            } else {
+                const error = await response.json();
+                alert(error.detail || 'Failed to initiate payment');
+            }
+        } catch (error) {
+            console.error('Error initiating payment:', error);
+            alert('Error initiating payment');
+        }
+    };
+
+    const getVoucherStatusBadge = (status) => {
+        const styles = {
+            pending: 'bg-yellow-50 text-yellow-700 border-yellow-100',
+            paid: 'bg-green-50 text-green-700 border-green-100',
+            failed: 'bg-red-50 text-red-700 border-red-100',
+            cancelled: 'bg-slate-50 text-slate-500 border-slate-100',
+            expired: 'bg-orange-50 text-orange-700 border-orange-100',
+        };
+        const icons = {
+            pending: Clock,
+            paid: CheckCircle,
+            failed: XCircle,
+            cancelled: X,
+            expired: XCircle
+        };
+        const Icon = icons[status] || Clock;
+        return (
+            <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide border ${styles[status] || styles.pending}`}>
+                <Icon size={12} />
+                {status}
+            </span>
+        );
+    };
+
     return (
         <div className="flex flex-col h-full bg-[#F8F9FD]">
             <div className="flex-1 space-y-6">
@@ -240,8 +460,13 @@ export default function PaymentsView({ onAddAccount, onEditAccount }) {
 
                     {/* Tabs */}
                     <div className="px-8 pt-8 border-b border-slate-100 flex gap-6 overflow-x-auto no-scrollbar">
-                        {['Add Payment', 'Pending Payments', 'Bank Accounts', 'Ledger', 'Booking History'].map((tab) => (
-                            <TabButton key={tab} label={tab === 'Pending Payments' ? `Pending Payments ${pendingPayments.length > 0 ? `(${pendingPayments.length})` : ''}` : tab} active={activeTab === tab} onClick={() => setActiveTab(tab)} />
+                        {['Add Payment', 'Pending Payments', 'Vouchers', 'Bank Accounts', 'Ledger', 'Booking History'].map((tab) => (
+                            <TabButton
+                                key={tab}
+                                label={tab === 'Pending Payments' ? `Pending Payments ${pendingPayments.length > 0 ? `(${pendingPayments.length})` : ''}` : tab}
+                                active={activeTab === tab}  
+                                onClick={() => setActiveTab(tab)}
+                            />
                         ))}
                     </div>
 
@@ -556,7 +781,237 @@ export default function PaymentsView({ onAddAccount, onEditAccount }) {
                             </div>
                         )}
 
-                        {/* ── BANK ACCOUNTS TAB ────────────────────────────── */}
+                        {/* VOUCHERS TAB */}
+                        {activeTab === 'Vouchers' && (
+                            <>
+                                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                    {/* Voucher Generation Form */}
+                                    <div className="lg:col-span-1 bg-gradient-to-br from-blue-50 to-white border border-blue-100 rounded-2xl p-6 shadow-sm">
+                                        <div className="flex items-center gap-3 mb-6">
+                                            <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center">
+                                                <Receipt size={20} />
+                                            </div>
+                                            <div>
+                                                <h3 className="text-sm font-bold text-slate-900">Generate Voucher</h3>
+                                                <p className="text-xs text-slate-500">Create payment voucher</p>
+                                            </div>
+                                        </div>
+
+                                        <form onSubmit={generateVoucher} className="space-y-4">
+                                            <div>
+                                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide ml-1 block mb-1.5">Name</label>
+                                                <input
+                                                    type="text"
+                                                    name="userName"
+                                                    value={voucherForm.userName}
+                                                    onChange={handleVoucherInputChange}
+                                                    placeholder="User name"
+                                                    readOnly
+                                                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-600 cursor-not-allowed"
+                                                />
+                                            </div>
+
+                                            <div>
+                                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide ml-1 block mb-1.5">Email Address</label>
+                                                <input
+                                                    type="email"
+                                                    name="userEmail"
+                                                    value={voucherForm.userEmail}
+                                                    onChange={handleVoucherInputChange}
+                                                    placeholder="user@example.com"
+                                                    readOnly
+                                                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-600 cursor-not-allowed"
+                                                />
+                                            </div>
+
+                                            <div>
+                                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide ml-1 block mb-1.5">Contact Number *</label>
+                                                <input
+                                                    type="tel"
+                                                    name="contactNumber"
+                                                    value={voucherForm.contactNumber}
+                                                    onChange={handleVoucherInputChange}
+                                                    placeholder="03000000000"
+                                                    readOnly
+                                                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-600 cursor-not-allowed"
+                                                />
+                                                <p className="text-[9px] text-slate-400 mt-1 ml-1">Enter the contact number for this bill</p>
+                                            </div>
+
+                                            <div>
+                                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide ml-1 block mb-1.5">Reason *</label>
+                                                <textarea
+                                                    name="reason"
+                                                    value={voucherForm.reason}
+                                                    onChange={handleVoucherInputChange}
+                                                    placeholder="Enter reason for bill"
+                                                    rows="3"
+                                                    required
+                                                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:bg-white focus:border-blue-500 transition-all resize-none"
+                                                />
+                                            </div>
+
+                                            <div>
+                                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide ml-1 block mb-1.5">Amount *</label>
+                                                <input
+                                                    type="number"
+                                                    name="amount"
+                                                    value={voucherForm.amount}
+                                                    onChange={handleVoucherInputChange}
+                                                    placeholder="Enter amount"
+                                                    step="0.01"
+                                                    required
+                                                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:bg-white focus:border-blue-500 transition-all"
+                                                />
+                                            </div>
+
+                                            <div>
+                                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide ml-1 block mb-1.5">Expiry Date *</label>
+                                                <input
+                                                    type="date"
+                                                    name="expiryDate"
+                                                    value={voucherForm.expiryDate}
+                                                    onChange={handleVoucherInputChange}
+                                                    required
+                                                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:bg-white focus:border-blue-500 transition-all"
+                                                />
+                                                <p className="text-[9px] text-slate-400 mt-1 ml-1">Bill will be blocked when expiry date passes</p>
+                                            </div>
+
+                                            <div>
+                                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide ml-1 block mb-1.5">Currency</label>
+                                                <select
+                                                    name="currency"
+                                                    value={voucherForm.currency}
+                                                    onChange={handleVoucherInputChange}
+                                                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:bg-white focus:border-blue-500 transition-all"
+                                                >
+                                                    <option value="PKR">PKR</option>
+                                                    <option value="USD">USD</option>
+                                                    <option value="SAR">SAR</option>
+                                                </select>
+                                            </div>
+
+                                            <div>
+                                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide ml-1 block mb-1.5">Payment Method</label>
+                                                <select
+                                                    name="paymentMethod"
+                                                    value={voucherForm.paymentMethod}
+                                                    onChange={handleVoucherInputChange}
+                                                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:bg-white focus:border-blue-500 transition-all"
+                                                >
+                                                    <option value="wallet">Wallet</option>
+                                                    <option value="bank_transfer">Bank Transfer</option>
+                                                    <option value="card">Card</option>
+                                                </select>
+                                            </div>
+
+                                            <button
+                                                type="submit"
+                                                disabled={isGeneratingVoucher}
+                                                className="w-full px-6 py-3 bg-blue-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-blue-600/20 hover:bg-blue-700 transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                                            >
+                                                {isGeneratingVoucher ? (
+                                                    <>
+                                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                                        Generating...
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Receipt size={18} />
+                                                        Generate Voucher
+                                                    </>
+                                                )}
+                                            </button>
+                                        </form>
+                                    </div>
+
+                                    {/* Voucher List */}
+                                    <div className="lg:col-span-2">
+                                        <div className="flex items-center justify-between mb-4">
+                                            <h3 className="text-sm font-bold text-slate-900">Recent Vouchers</h3>
+                                            <div className="flex items-center gap-2">
+                                                <button className="px-3 py-1.5 bg-slate-50 hover:bg-slate-100 rounded-lg text-xs font-bold text-slate-600 transition-all">
+                                                    <Filter size={14} className="inline mr-1" />
+                                                    Filter
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {loading ? (
+                                            <div className="flex justify-center items-center h-64 bg-white rounded-2xl border border-slate-200">
+                                                <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                                            </div>
+                                        ) : vouchers.length === 0 ? (
+                                            <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
+                                                <Receipt size={48} className="mx-auto text-slate-300 mb-3" />
+                                                <p className="text-sm font-bold text-slate-400">No vouchers yet</p>
+                                                <p className="text-xs text-slate-400 mt-1">Generate your first voucher to get started</p>
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-3">
+                                                {vouchers.map((voucher) => (
+                                                    <div
+                                                        key={voucher._id || voucher.id}
+                                                        className="bg-white border border-slate-200 rounded-2xl p-5 hover:shadow-lg transition-all group"
+                                                    >
+                                                        <div className="flex items-start justify-between mb-3">
+                                                            <div className="flex items-start gap-3">
+                                                                <div className="w-12 h-12 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-lg">
+                                                                    <Receipt size={24} />
+                                                                </div>
+                                                                <div>
+                                                                    <h4 className="text-sm font-bold text-slate-800">{voucher.user_name || voucher.recipient}</h4>
+                                                                    <p className="text-xs text-slate-500 mt-0.5">{voucher.user_email}</p>
+                                                                    <p className="text-xs text-slate-600 mt-1 font-medium">{voucher.reason || voucher.description || 'No reason'}</p>
+                                                                    <p className="text-xs text-slate-400 mt-1 font-mono">Voucher #{voucher.consumer_number || voucher.voucher_number || voucher._id?.slice(-8) || voucher.id?.slice(-8)}</p>
+                                                                </div>
+                                                            </div>
+                                                            <div className="text-right">
+                                                                <p className="text-lg font-bold text-slate-900">{voucher.currency} {parseFloat(voucher.amount).toLocaleString()}</p>
+                                                                {getVoucherStatusBadge(voucher.status || 'pending')}
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+                                                            <div className="flex items-center gap-4 text-xs text-slate-500">
+                                                                <span>Contact: <strong className="text-slate-700">{voucher.contact_number || 'N/A'}</strong></span>
+                                                                <span>Expiry: <strong className="text-slate-700">{
+                                                                    voucher.expiry_date ? (
+                                                                        voucher.expiry_date.length === 8
+                                                                            ? `${voucher.expiry_date.substring(0, 4)}-${voucher.expiry_date.substring(4, 6)}-${voucher.expiry_date.substring(6, 8)}`
+                                                                            : new Date(voucher.expiry_date).toLocaleDateString()
+                                                                    ) : 'N/A'
+                                                                }</strong></span>
+                                                                <span>Created: <strong className="text-slate-700">{new Date(voucher.created_at || Date.now()).toLocaleDateString()}</strong></span>
+                                                            </div>
+                                                            <div className="flex items-center gap-2">
+                                                                {voucher.status === 'pending' && (
+                                                                    <button
+                                                                        onClick={() => initiatePayment(voucher)}
+                                                                        className="px-4 py-2 bg-green-600 text-white rounded-lg text-xs font-bold hover:bg-green-700 transition-all flex items-center gap-1.5"
+                                                                    >
+                                                                        <DollarSign size={14} />
+                                                                        Pay Now
+                                                                    </button>
+                                                                )}
+                                                                <button className="p-2 bg-slate-50 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors">
+                                                                    <Eye size={16} />
+                                                                </button>
+                                                                <button className="p-2 bg-slate-50 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors">
+                                                                    <Download size={16} />
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </>
+                        )}
+
                         {activeTab === 'Bank Accounts' && (
                             <>
                                 <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">

@@ -3,7 +3,7 @@ import {
     LayoutDashboard, Box, Users, UsersRound, ScanLine,
     ShieldCheck, Truck, ClipboardList, LogOut, UserCircle,
     ChevronUp, ChevronDown, CreditCard, Landmark, Menu, X,
-    FileText, FileEdit, DollarSign, Percent, BadgePercent
+    FileText, FileEdit, DollarSign, Percent, BadgePercent, TrendingUp
 } from 'lucide-react';
 
 
@@ -119,7 +119,7 @@ export default function Sidebar({ activeTab, setActiveTab, getPathForTab, isSide
                         <NavItem icon={<CreditCard size={20} />} label="Payments" active={activeTab === 'Payments'} onClick={() => handleNavClick('Payments')} isOpen={isSidebarOpen} href={getPathForTab ? getPathForTab('Payments') : '#'} />
                     </NavGroup>
 
-                    <NavGroup title="CRM & Partners" isOpen={isSidebarOpen}>
+                    <NavGroup title="CRM" isOpen={isSidebarOpen}>
                         <NavItem
                             icon={<Users size={20} />}
                             label="Customers"
@@ -129,25 +129,39 @@ export default function Sidebar({ activeTab, setActiveTab, getPathForTab, isSide
                             href={getPathForTab ? getPathForTab('Customer Database') : '#'}
                         />
                         <NavItem
-                            icon={<ScanLine size={20} />}
+                            icon={<TrendingUp size={20} />}
                             label="Leads"
                             active={activeTab === 'Lead Management'}
                             onClick={() => handleNavClick('Lead Management')}
                             isOpen={isSidebarOpen}
                             href={getPathForTab ? getPathForTab('Lead Management') : '#'}
                         />
+                    </NavGroup>
 
+                    <NavGroup title="HR" isOpen={isSidebarOpen}>
+                        <NavItem
+                            icon={<UserCircle size={20} />}
+                            label="Employees"
+                            active={activeTab === 'HR Employees'}
+                            onClick={() => handleNavClick('HR Employees')}
+                            isOpen={isSidebarOpen}
+                            href={getPathForTab ? getPathForTab('HR Employees') : '#'}
+                        />
+                    </NavGroup>
+
+                    <NavGroup title="Entities" isOpen={isSidebarOpen}>
                         <NavDropdown
                             icon={<UsersRound size={20} />}
                             label="Entities"
                             isOpen={isSidebarOpen}
                             isExpanded={isPartnersOpen}
                             onClick={() => setPartnersOpen(!isPartnersOpen)}
-                            active={['Organization', 'Branch', 'Agencies', 'Employees'].includes(activeTab)}
+                            active={['Organization', 'Branch', 'Agencies', 'Employees', 'Roles & Permissions'].includes(activeTab)}
                         >
                             <DropdownItem label="Organization" active={activeTab === 'Organization'} onClick={() => handleNavClick('Organization')} href={getPathForTab ? getPathForTab('Organization') : '#'} />
                             <DropdownItem label="Branch" active={activeTab === 'Branch'} onClick={() => handleNavClick('Branch')} href={getPathForTab ? getPathForTab('Branch') : '#'} />
                             <DropdownItem label="Agencies" active={activeTab === 'Agencies'} onClick={() => handleNavClick('Agencies')} href={getPathForTab ? getPathForTab('Agencies') : '#'} />
+                            <DropdownItem label="Roles & Permissions" active={activeTab === 'Roles & Permissions'} onClick={() => handleNavClick('Roles & Permissions')} href={getPathForTab ? getPathForTab('Roles & Permissions') : '#'} />
                             <DropdownItem label="Employees" active={activeTab === 'Employees'} onClick={() => handleNavClick('Employees')} href={getPathForTab ? getPathForTab('Employees') : '#'} />
                         </NavDropdown>
                     </NavGroup>
@@ -160,6 +174,7 @@ export default function Sidebar({ activeTab, setActiveTab, getPathForTab, isSide
                     <NavGroup title="Operations" isOpen={isSidebarOpen}>
                         <NavItem icon={<ShieldCheck size={20} />} label="Visa Services" active={activeTab === 'Visa Services'} onClick={() => handleNavClick('Visa Services')} isOpen={isSidebarOpen} href={getPathForTab ? getPathForTab('Visa Services') : '#'} />
                         <NavItem icon={<Truck size={20} />} label="Pax Movement" active={activeTab === 'Pax Movement'} onClick={() => handleNavClick('Pax Movement')} isOpen={isSidebarOpen} href={getPathForTab ? getPathForTab('Pax Movement') : '#'} />
+                        <NavItem icon={<ClipboardList size={20} />} label="Daily Operations" active={activeTab === 'Daily Operations'} onClick={() => handleNavClick('Daily Operations')} isOpen={isSidebarOpen} href={getPathForTab ? getPathForTab('Daily Operations') : '#'} />
                         <NavItem icon={<ClipboardList size={20} />} label="Order Delivery" active={activeTab === 'Order Delivery'} onClick={() => handleNavClick('Order Delivery')} isOpen={isSidebarOpen} href={getPathForTab ? getPathForTab('Order Delivery') : '#'} />
                     </NavGroup>
                 </nav>

@@ -267,12 +267,8 @@ const OthersView = ({ onBack }) => {
                     setShirkas(shirkasRes.data || []);
                     break;
                 case "Small Sectors":
-                    const [sectorsRes, citiesForSectors] = await Promise.all([
-                        othersAPI.smallSector.getAll(true),
-                        othersAPI.cityIATA.getAll(true)
-                    ]);
+                    const sectorsRes = await othersAPI.smallSector.getAll(true);
                     setSmallSectors(sectorsRes.data || []);
-                    setCityIATAs(citiesForSectors.data || []);
                     break;
                 case "Big Sectors":
                     const [bigRes, smallRes] = await Promise.all([
@@ -1325,25 +1321,28 @@ const ShirkaSection = ({ shirkas, name, setName }) => (
 );
 
 const SmallSectorsSection = ({ form, setForm, sectors = [], cities = [], onEdit, onDelete, isEditing }) => {
-    const cityNames = cities.map(c => c.city_name).filter(Boolean);
+    // Filter cities for departure (exclude arrival city)
+    const departureCities = cities.filter(c => c.city_name !== form.arrival_city);
+    // Filter cities for arrival (exclude departure city)
+    const arrivalCities = cities.filter(c => c.city_name !== form.departure_city);
 
     return (
         <div className="space-y-10">
             <SectionHeading title={isEditing ? "Edit Short-Haul Sector" : "Short-Haul Sectors"} subtitle="Define logistics segments for transport mapping." />
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                <SearchableSelect
+                <SelectGroup
                     label="Departure City"
-                    options={cityNames}
+                    options={departureCities.map(c => c.city_name)}
                     value={form.departure_city}
-                    onChange={(val) => setForm({ ...form, departure_city: val })}
-                    placeholder="Search departure city..."
+                    onChange={(e) => setForm({ ...form, departure_city: e.target.value })}
+                    placeholder="Select departure city..."
                 />
-                <SearchableSelect
+                <SelectGroup
                     label="Arrival City"
-                    options={cityNames}
+                    options={arrivalCities.map(c => c.city_name)}
                     value={form.arrival_city}
-                    onChange={(val) => setForm({ ...form, arrival_city: val })}
-                    placeholder="Search arrival city..."
+                    onChange={(e) => setForm({ ...form, arrival_city: e.target.value })}
+                    placeholder="Select arrival city..."
                 />
                 <SelectGroup
                     label="Sector Type"
@@ -2221,7 +2220,7 @@ const CityIATASection = ({ cities = [], cityName = '', setCityName, cityCode = '
                 <h4 className="text-xs font-black text-slate-400 uppercase tracking-[3px]">Existing Cities</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {cities.map((city) => (
-                        <div key={city.id} className="flex items-center justify-between p-5 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-blue-200 transition-all">
+                        <div key={city.id || city._id || city.iata_code} className="flex items-center justify-between p-5 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-blue-200 transition-all">
                             <div className="flex-1">
                                 <div className="font-black text-sm text-slate-700">{city.city_name}</div>
                                 <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">
@@ -2435,6 +2434,5 @@ const ExpiryRow = ({ label, h, m, onChangeH, onChangeM }) => (
         </div>
     </div>
 );
-
 
 export default OthersView;
