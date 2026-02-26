@@ -25,6 +25,7 @@ const AddDiscountView = ({ onBack, initialData }) => {
         }
     ]);
     const [isActive, setIsActive] = useState(true);
+    const [hotelSearches, setHotelSearches] = useState(hotelDiscounts.map(() => ''));
 
     // Fetch Hotels
     useEffect(() => {
@@ -65,9 +66,20 @@ const AddDiscountView = ({ onBack, initialData }) => {
                     valid_from: hd.valid_from || '',
                     valid_until: hd.valid_until || ''
                 })));
+                setHotelSearches(initialData.hotel_discounts.map(() => ''));
             }
         }
     }, [initialData]);
+
+    // Keep hotelSearches in sync with hotelDiscounts length
+    useEffect(() => {
+        setHotelSearches(prev => {
+            const next = [...prev];
+            while (next.length < hotelDiscounts.length) next.push('');
+            while (next.length > hotelDiscounts.length) next.pop();
+            return next;
+        });
+    }, [hotelDiscounts.length]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -144,12 +156,21 @@ const AddDiscountView = ({ onBack, initialData }) => {
             valid_from: '',
             valid_until: ''
         }]);
+        setHotelSearches(prev => [...prev, '']);
     };
 
     const removeHotelDiscountPeriod = (index) => {
         if (hotelDiscounts.length > 1) {
             setHotelDiscounts(hotelDiscounts.filter((_, i) => i !== index));
+            setHotelSearches(prev => prev.filter((_, i) => i !== index));
         }
+    };
+
+    const toggleHotelSelection = (periodIndex, hotelId) => {
+        const current = hotelDiscounts[periodIndex].hotels || [];
+        const exists = current.includes(hotelId);
+        const updated = exists ? current.filter(h => h !== hotelId) : [...current, hotelId];
+        updateHotelDiscount(periodIndex, 'hotels', updated);
     };
 
     const handleReset = () => {
@@ -379,25 +400,39 @@ const AddDiscountView = ({ onBack, initialData }) => {
                         {/* Hotel Selection */}
                         <div>
                             <label className="block text-sm font-medium text-slate-600 mb-2">
-                                Discounted Hotels
+                                Discounted Hotels (search by name or city)
                             </label>
-                            <select
-                                multiple
-                                value={discount.hotels}
-                                onChange={(e) => {
-                                    const selected = Array.from(e.target.selectedOptions, option => option.value);
-                                    updateHotelDiscount(index, 'hotels', selected);
-                                }}
-                                className="w-full px-4 py-3 rounded-lg border border-slate-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-100 outline-none font-medium text-sm"
-                                size="5"
-                            >
-                                {hotels.map(hotel => (
-                                    <option key={hotel._id} value={hotel._id}>
-                                        {hotel.hotel_name} - {hotel.city}
-                                    </option>
+                            <input
+                                type="text"
+                                value={hotelSearches[index]}
+                                onChange={(e) => setHotelSearches(prev => { const n = [...prev]; n[index] = e.target.value; return n; })}
+                                placeholder="Search hotels by city or name"
+                                className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-100 outline-none font-medium text-sm mb-2"
+                            />
+                            <div className="max-h-40 overflow-auto border border-slate-100 rounded-lg p-2">
+                                {(hotels || []).filter(h => {
+                                    const q = (hotelSearches[index] || '').toLowerCase().trim();
+                                    if (!q) return true;
+                                    const name = (h.name || h.hotel_name || '').toLowerCase();
+                                    const city = (h.city || '').toLowerCase();
+                                    return name.includes(q) || city.includes(q);
+                                }).slice(0, 50).map(h => (
+                                    <label key={h._id} className="flex items-center gap-2 py-1 px-2 hover:bg-slate-50 rounded">
+                                        <input type="checkbox" checked={(discount.hotels || []).includes(h._id)} onChange={() => toggleHotelSelection(index, h._id)} />
+                                        <span className="text-sm">{(h.name || h.hotel_name)} — <span className="text-xs text-slate-400">{h.city}</span></span>
+                                    </label>
                                 ))}
-                            </select>
-                            <p className="text-xs text-slate-500 mt-1">Hold Ctrl/Cmd to select multiple hotels</p>
+                                {hotels.length === 0 && <div className="text-xs text-slate-400">No hotels available</div>}
+                            </div>
+                            <div className="mt-2 flex flex-wrap gap-2">
+                                {(discount.hotels || []).map(hid => {
+                                    const h = hotels.find(x => x._id === hid) || {};
+                                    return (<div key={hid} className="px-3 py-1 bg-purple-50 text-purple-700 rounded-full text-xs font-medium flex items-center gap-2">
+                                        <span>{(h.name || h.hotel_name) || hid}</span>
+                                        <button type="button" onClick={() => toggleHotelSelection(index, hid)} className="text-purple-600">×</button>
+                                    </div>)
+                                })}
+                            </div>
                         </div>
 
                         {/* Validity Period */}

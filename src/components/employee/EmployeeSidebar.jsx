@@ -1,51 +1,119 @@
 import React, { useState, useEffect } from 'react';
 import {
     LayoutDashboard, Users, ScanLine, LogOut, UserCircle,
-    ChevronUp, Menu, X, Briefcase
+    ChevronUp, Menu, X, Briefcase, Package, Hotel, Plane, Ticket,
+    Box, DollarSign, Receipt, TrendingUp, FileText, Building2,
+    ClipboardList
 } from 'lucide-react';
+import { getModulePermissions } from '../../utils/permissions';
 
 export default function EmployeeSidebar({ activeTab, setActiveTab, isSidebarOpen, setSidebarOpen, onLogoClick }) {
     const [isUserMenuOpen, setUserMenuOpen] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
+    const [isInventoryOpen, setInventoryOpen] = useState(true);
     const [employeeData, setEmployeeData] = useState(null);
 
     useEffect(() => {
         const data = localStorage.getItem('employee_data');
         if (data) {
-            try { setEmployeeData(JSON.parse(data)); } catch { }
+            try {
+                const parsed = JSON.parse(data);
+                setEmployeeData(parsed);
+                console.log('🔐 Employee Permissions:', parsed?.permissions);
+            } catch (err) {
+                console.error('Failed to parse employee_data', err);
+            }
         }
+
+        const handleResize = () => setIsMobile(window.innerWidth < 1024);
+        handleResize();
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
     }, []);
 
-    useEffect(() => {
-        const checkMobile = () => {
-            const mobile = window.innerWidth < 1024;
-            setIsMobile(mobile);
-            if (!mobile) setSidebarOpen(true);
-            else setSidebarOpen(false);
-        };
-        checkMobile();
-        window.addEventListener('resize', checkMobile);
-        return () => window.removeEventListener('resize', checkMobile);
-    }, [setSidebarOpen]);
+    // Permission-derived flags
+    const hasFlag = (permObj) => Object.values(permObj || {}).some(Boolean);
 
-    const handleNavClick = (tab) => {
-        setActiveTab(tab);
-        if (isMobile) setSidebarOpen(false);
+    const pkgPerms = getModulePermissions('inventory.packages');
+    const hotelsPerms = getModulePermissions('inventory.hotels');
+    const ticketsPerms = getModulePermissions('inventory.tickets');
+    const flightsPerms = getModulePermissions('inventory.flights');
+    const othersPerms = getModulePermissions('inventory.others');
+    const sharePerms = getModulePermissions('inventory.share');
+
+    const hasInventoryPackages = hasFlag(pkgPerms);
+    const hasInventoryHotels = hasFlag(hotelsPerms);
+    const hasInventoryTickets = hasFlag(ticketsPerms);
+    const hasInventoryFlights = hasFlag(flightsPerms);
+    const hasInventoryOthers = hasFlag(othersPerms);
+    const hasInventoryShare = hasFlag(sharePerms);
+
+    const hasAnyInventory = hasInventoryPackages || hasInventoryHotels || hasInventoryTickets || hasInventoryFlights || hasInventoryOthers || hasInventoryShare;
+
+    // Pricing
+    const discountsPerms = getModulePermissions('pricing.discounts');
+    const commissionsPerms = getModulePermissions('pricing.commissions');
+    const serviceChargesPerms = getModulePermissions('pricing.service_charges');
+    const hasPricingDiscounts = hasFlag(discountsPerms);
+    const hasPricingCommissions = hasFlag(commissionsPerms);
+    const hasPricingServiceCharges = hasFlag(serviceChargesPerms);
+    const hasAnyPricing = hasPricingDiscounts || hasPricingCommissions || hasPricingServiceCharges;
+
+    // Finance / Payments
+    const financePerms = getModulePermissions('finance');
+    const paymentsPerms = getModulePermissions('payments');
+    const hasFinance = hasFlag(financePerms);
+    const hasPayments = hasFlag(paymentsPerms);
+
+    // CRM / Customers
+    const customersPerms = getModulePermissions('customers');
+    const hasCRM = hasFlag(customersPerms);
+    const hasCustomers = hasCRM;
+
+    // HR / Employees
+    const employeesPerms = getModulePermissions('hr.employees');
+    const attendancePerms = getModulePermissions('hr.attendance');
+    const movementsPerms = getModulePermissions('hr.movements');
+    const hrCommissionsPerms = getModulePermissions('hr.commissions');
+    const punctualityPerms = getModulePermissions('hr.punctuality');
+    const approvalsPerms = getModulePermissions('hr.approvals');
+
+    const hasEmployees = hasFlag(employeesPerms);
+    const hasAttendance = hasFlag(attendancePerms);
+    const hasMovements = hasFlag(movementsPerms);
+    const hasHRCommissions = hasFlag(hrCommissionsPerms);
+    const hasPunctuality = hasFlag(punctualityPerms);
+    const hasApprovals = hasFlag(approvalsPerms);
+
+    // Show HR section if user has any HR-related permission
+    const hasHR = hasEmployees || hasAttendance || hasMovements || hasHRCommissions || hasPunctuality || hasApprovals;
+
+    // Entities & Content
+    const entitiesPerms = getModulePermissions('entities');
+    const contentPerms = getModulePermissions('content');
+    const hasEntities = hasFlag(entitiesPerms);
+    const hasContent = hasFlag(contentPerms);
+
+    // UI helpers
+    const initials = employeeData?.name ? employeeData.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'EM';
+
+    const handleNavClick = (label) => {
+        if (setActiveTab) setActiveTab(label);
+        if (isMobile && setSidebarOpen) setSidebarOpen(false);
     };
 
     const handleLogout = () => {
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('employee_data');
-        window.location.reload();
+        try {
+            // Clear employee session and tokens
+            localStorage.removeItem('employee_data');
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('refresh_token');
+            // Redirect to login page and open Employee tab
+            window.location.href = '/login?mode=employee';
+        } catch (err) {
+            console.error('Logout failed', err);
+        }
     };
-
-    const permissions = employeeData?.permissions || [];
-    const hasCRM = permissions.includes('crm');
-    const hasEmployees = permissions.includes('employees');
-
-    const initials = employeeData?.name
-        ? employeeData.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
-        : 'EM';
 
     return (
         <>
@@ -107,8 +175,169 @@ export default function EmployeeSidebar({ activeTab, setActiveTab, isSidebarOpen
                         isOpen={isSidebarOpen}
                     />
 
-                    {/* CRM Section */}
-                    {hasCRM && (
+                    {/* Inventory Section */}
+                    {hasAnyInventory && (
+                        <>
+                            {isSidebarOpen && (
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[2px] mb-1 pl-2 pt-4">
+                                    Inventory
+                                </p>
+                            )}
+                            {!isSidebarOpen && <div className="h-4" />}
+                            
+                            {hasInventoryPackages && (
+                                <NavItem
+                                    icon={<Package size={20} />}
+                                    label="Packages"
+                                    active={activeTab === 'Packages'}
+                                    onClick={() => handleNavClick('Packages')}
+                                    isOpen={isSidebarOpen}
+                                />
+                            )}
+                            
+                            {hasInventoryHotels && (
+                                <NavItem
+                                    icon={<Hotel size={20} />}
+                                    label="Hotels"
+                                    active={activeTab === 'Hotels'}
+                                    onClick={() => handleNavClick('Hotels')}
+                                    isOpen={isSidebarOpen}
+                                />
+                            )}
+
+                            {hasInventoryHotels && (
+                                <NavItem
+                                    icon={<Hotel size={20} />}
+                                    label="Discounted Hotels"
+                                    active={activeTab === 'Discounted Hotels'}
+                                    onClick={() => handleNavClick('Discounted Hotels')}
+                                    isOpen={isSidebarOpen}
+                                />
+                            )}
+                            
+                            {hasInventoryTickets && (
+                                <NavItem
+                                    icon={<Ticket size={20} />}
+                                    label="Tickets"
+                                    active={activeTab === 'Tickets'}
+                                    onClick={() => handleNavClick('Tickets')}
+                                    isOpen={isSidebarOpen}
+                                />
+                            )}
+                            
+                            {hasInventoryFlights && (
+                                <NavItem
+                                    icon={<Plane size={20} />}
+                                    label="Flights"
+                                    active={activeTab === 'Flights'}
+                                    onClick={() => handleNavClick('Flights')}
+                                    isOpen={isSidebarOpen}
+                                />
+                            )}
+                            
+                            {hasInventoryOthers && (
+                                <NavItem
+                                    icon={<Box size={20} />}
+                                    label="Others"
+                                    active={activeTab === 'Others'}
+                                    onClick={() => handleNavClick('Others')}
+                                    isOpen={isSidebarOpen}
+                                />
+                            )}
+                            {hasInventoryShare && (
+                                <NavItem
+                                    icon={<Briefcase size={20} />}
+                                    label="Share Inventory"
+                                    active={activeTab === 'Share Inventory'}
+                                    onClick={() => handleNavClick('Share Inventory')}
+                                    isOpen={isSidebarOpen}
+                                />
+                            )}
+                        </>
+                    )}
+
+                    {/* Pricing Section */}
+                    {hasAnyPricing && (
+                        <>
+                            {isSidebarOpen && (
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[2px] mb-1 pl-2 pt-4">
+                                    Pricing
+                                </p>
+                            )}
+                            {!isSidebarOpen && <div className="h-4" />}
+                            
+                            {hasPricingDiscounts && (
+                                <NavItem
+                                    icon={<DollarSign size={20} />}
+                                    label="Discounts"
+                                    active={activeTab === 'Discounts'}
+                                    onClick={() => handleNavClick('Discounts')}
+                                    isOpen={isSidebarOpen}
+                                />
+                            )}
+                            
+                            {hasPricingCommissions && (
+                                <NavItem
+                                    icon={<TrendingUp size={20} />}
+                                    label="Commissions"
+                                    active={activeTab === 'Commissions'}
+                                    onClick={() => handleNavClick('Commissions')}
+                                    isOpen={isSidebarOpen}
+                                />
+                            )}
+                            
+                            {hasPricingServiceCharges && (
+                                <NavItem
+                                    icon={<Receipt size={20} />}
+                                    label="Service Charges"
+                                    active={activeTab === 'Service Charges'}
+                                    onClick={() => handleNavClick('Service Charges')}
+                                    isOpen={isSidebarOpen}
+                                />
+                            )}
+                        </>
+                    )}
+
+                    {/* Finance Section */}
+                    {hasFinance && (
+                        <>
+                            {isSidebarOpen && (
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[2px] mb-1 pl-2 pt-4">
+                                    Finance
+                                </p>
+                            )}
+                            {!isSidebarOpen && <div className="h-4" />}
+                            <NavItem
+                                icon={<FileText size={20} />}
+                                label="Finance"
+                                active={activeTab === 'Finance'}
+                                onClick={() => handleNavClick('Finance')}
+                                isOpen={isSidebarOpen}
+                            />
+                        </>
+                    )}
+
+                    {/* Payments Section */}
+                    {hasPayments && (
+                        <>
+                            {isSidebarOpen && (
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[2px] mb-1 pl-2 pt-4">
+                                    Payments
+                                </p>
+                            )}
+                            {!isSidebarOpen && <div className="h-4" />}
+                            <NavItem
+                                icon={<Receipt size={20} />}
+                                label="Payments"
+                                active={activeTab === 'Payments'}
+                                onClick={() => handleNavClick('Payments')}
+                                isOpen={isSidebarOpen}
+                            />
+                        </>
+                    )}
+
+                    {/* CRM / Customers Section */}
+                    {(hasCRM || hasCustomers) && (
                         <>
                             {isSidebarOpen && (
                                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-[2px] mb-1 pl-2 pt-4">
@@ -126,8 +355,8 @@ export default function EmployeeSidebar({ activeTab, setActiveTab, isSidebarOpen
                         </>
                     )}
 
-                    {/* Employees Section */}
-                    {hasEmployees && (
+                    {/* HR / Employees Section */}
+                    {(hasEmployees || hasHR) && (
                         <>
                             {isSidebarOpen && (
                                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-[2px] mb-1 pl-2 pt-4">
@@ -140,6 +369,44 @@ export default function EmployeeSidebar({ activeTab, setActiveTab, isSidebarOpen
                                 label="Employees"
                                 active={activeTab === 'Employees'}
                                 onClick={() => handleNavClick('Employees')}
+                                isOpen={isSidebarOpen}
+                            />
+                        </>
+                    )}
+
+                    {/* Entities Section */}
+                    {hasEntities && (
+                        <>
+                            {isSidebarOpen && (
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[2px] mb-1 pl-2 pt-4">
+                                    Entities
+                                </p>
+                            )}
+                            {!isSidebarOpen && <div className="h-4" />}
+                            <NavItem
+                                icon={<Building2 size={20} />}
+                                label="Entities"
+                                active={activeTab === 'Entities'}
+                                onClick={() => handleNavClick('Entities')}
+                                isOpen={isSidebarOpen}
+                            />
+                        </>
+                    )}
+
+                    {/* Content & Operations Section */}
+                    {hasContent && (
+                        <>
+                            {isSidebarOpen && (
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[2px] mb-1 pl-2 pt-4">
+                                    Operations
+                                </p>
+                            )}
+                            {!isSidebarOpen && <div className="h-4" />}
+                            <NavItem
+                                icon={<ClipboardList size={20} />}
+                                label="Operations"
+                                active={activeTab === 'Operations'}
+                                onClick={() => handleNavClick('Operations')}
                                 isOpen={isSidebarOpen}
                             />
                         </>

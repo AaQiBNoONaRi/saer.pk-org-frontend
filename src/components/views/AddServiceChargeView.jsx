@@ -22,6 +22,7 @@ const AddServiceChargeView = ({ onBack, initialData }) => {
         valid_until: ''
     }]);
     const [isActive, setIsActive] = useState(true);
+    const [hotelSearches, setHotelSearches] = useState(hotelCharges.map(() => ''));
 
     useEffect(() => {
         const fetchHotels = async () => {
@@ -34,12 +35,12 @@ const AddServiceChargeView = ({ onBack, initialData }) => {
                     const data = await response.json();
                     setHotels(data);
                 }
-            } catch (error) {
-                console.error('Error fetching hotels:', error);
-            }
-        };
-        fetchHotels();
-    }, []);
+                } catch (error) {
+                    console.error('Error fetching hotels:', error);
+                }
+            };
+            fetchHotels();
+        }, []);
 
     useEffect(() => {
         if (initialData) {
@@ -61,9 +62,19 @@ const AddServiceChargeView = ({ onBack, initialData }) => {
                     valid_from: hc.valid_from || '',
                     valid_until: hc.valid_until || ''
                 })));
+                setHotelSearches(initialData.hotel_charges.map(() => ''));
             }
         }
     }, [initialData]);
+
+    useEffect(() => {
+        setHotelSearches(prev => {
+            const next = [...prev];
+            while (next.length < hotelCharges.length) next.push('');
+            while (next.length > hotelCharges.length) next.pop();
+            return next;
+        });
+    }, [hotelCharges.length]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -140,12 +151,21 @@ const AddServiceChargeView = ({ onBack, initialData }) => {
             valid_from: '',
             valid_until: ''
         }]);
+        setHotelSearches(prev => [...prev, '']);
     };
 
     const removeHotelChargePeriod = (index) => {
         if (hotelCharges.length > 1) {
             setHotelCharges(hotelCharges.filter((_, i) => i !== index));
+            setHotelSearches(prev => prev.filter((_, i) => i !== index));
         }
+    };
+
+    const toggleHotelSelection = (periodIndex, hotelId) => {
+        const current = hotelCharges[periodIndex].hotels || [];
+        const exists = current.includes(hotelId);
+        const updated = exists ? current.filter(h => h !== hotelId) : [...current, hotelId];
+        updateHotelCharge(periodIndex, 'hotels', updated);
     };
 
     const handleReset = () => {

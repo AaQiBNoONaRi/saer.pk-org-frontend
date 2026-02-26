@@ -5,6 +5,20 @@ import EmployeeDashboard from './EmployeeDashboard';
 import EmployeeHRView from './EmployeeHRView';
 import EmployeeProfilePage from './EmployeeProfilePage';
 import LeadDetailView from '../views/LeadDetailView';
+import PackagesView from '../views/PackagesView';
+import AddPackageView from '../views/AddPackageView';
+import HotelsView from '../views/HotelsView';
+import TicketsView from '../views/TicketsView';
+import OthersView from '../views/OthersView';
+import DiscountsView from '../views/DiscountsView';
+import CommissionsView from '../views/CommissionsView';
+import ServiceChargesView from '../views/ServiceChargesView';
+import DiscountedHotelsView from '../views/DiscountedHotelsView';
+import AddDiscountView from '../views/AddDiscountView';
+import AddCommissionView from '../views/AddCommissionView';
+import AddServiceChargeView from '../views/AddServiceChargeView';
+import PaymentsView from '../views/PaymentsView';
+import { getModulePermissions } from '../../utils/permissions';
 
 export default function EmployeeApp() {
     const employeeData = (() => {
@@ -12,8 +26,26 @@ export default function EmployeeApp() {
         catch { return {}; }
     })();
     const permissions = employeeData?.permissions || [];
-    const hasCRM = permissions.includes('crm');
-    const hasEmployees = permissions.includes('employees');
+    
+    // Helper function to check if user has any permission for a module
+    const hasPermission = (permissionPrefix) => {
+        if (!Array.isArray(permissions)) return false;
+        return permissions.some(p => p && typeof p === 'string' && p.startsWith(permissionPrefix));
+    };
+
+    // Check for module permissions
+    const hasInventory = hasPermission('inventory.');
+    const hasPricing = hasPermission('pricing.');
+    const hasFinance = hasPermission('finance.');
+    const hasPayments = hasPermission('payments.');
+    const hasCustomers = hasPermission('customers.');
+    const hasHR = hasPermission('hr.');
+    const hasEntities = hasPermission('entities.');
+    const hasContent = hasPermission('content.') || hasPermission('operations.');
+    
+    // Legacy permission checks for backward compatibility
+    const hasCRM = permissions.includes('crm') || hasCustomers;
+    const hasEmployees = permissions.includes('employees') || hasHR;
 
     const defaultView = hasEmployees ? 'Employees' : hasCRM ? 'Dashboard' : 'Dashboard';
 
@@ -23,24 +55,225 @@ export default function EmployeeApp() {
     const path = window.location.pathname;
     const initialLeadId = path.startsWith('/leads/') ? path.split('/').pop() : null;
     const [viewingLead, setViewingLead] = useState(initialLeadId);
+    const [editingPackage, setEditingPackage] = useState(null);
+    const [showAddPackage, setShowAddPackage] = useState(false);
+    const [editingDiscount, setEditingDiscount] = useState(null);
+    const [editingCommission, setEditingCommission] = useState(null);
+    const [editingServiceCharge, setEditingServiceCharge] = useState(null);
 
     const initials = (employeeData?.full_name || employeeData?.name || employeeData?.email || 'E')
         .split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
 
     const renderContent = () => {
         if (showProfile) return <EmployeeProfilePage onBack={() => setShowProfile(false)} />;
+        
+        // Get permissions for each module
+        const packagesPerms = getModulePermissions('inventory.packages');
+        const hotelsPerms = getModulePermissions('inventory.hotels');
+        const ticketsPerms = getModulePermissions('inventory.tickets');
+        const flightsPerms = getModulePermissions('inventory.flights');
+        const othersPerms = getModulePermissions('inventory.others');
+        const discountsPerms = getModulePermissions('pricing.discounts');
+        const commissionsPerms = getModulePermissions('pricing.commissions');
+        const serviceChargesPerms = getModulePermissions('pricing.service_charges');
+        const discountedHotelsPerms = getModulePermissions('hotels.discounted');
+        const paymentsPerms = getModulePermissions('payments');
+        
         switch (activeTab) {
-            case 'Employees':
-                if (hasEmployees) return <EmployeeHRView />;
+            // Inventory modules
+            case 'Packages':
+                if (hasPermission('inventory.packages')) {
+                    if (showAddPackage) {
+                        return (
+                            <AddPackageView
+                                onBack={() => {
+                                    setEditingPackage(null);
+                                    setShowAddPackage(false);
+                                }}
+                                initialData={editingPackage}
+                            />
+                        );
+                    }
+
+                    return <PackagesView
+                        onNavigate={(target) => {
+                            if (target === 'Add Package') {
+                                // Only allow create if permitted
+                                if (packagesPerms.add) setShowAddPackage(true);
+                                else alert('Package creation not available in employee portal yet');
+                            }
+                        }}
+                        onEdit={(pkg) => {
+                            // Treat update permission as edit permission
+                            if (packagesPerms.update) {
+                                setEditingPackage(pkg);
+                                setShowAddPackage(true);
+                            } else {
+                                alert('You do not have permission to edit packages.');
+                            }
+                        }}
+                        onView={(pkg) => {
+                            // fallback: open package detail in a new state if needed
+                            // For now reuse existing view behavior
+                            alert('Package view not implemented in employee portal yet');
+                        }}
+                        permissions={packagesPerms}
+                    />;
+                }
                 return <NoAccessView />;
+            case 'Hotels':
+                if (hasPermission('inventory.hotels')) {
+                    return <HotelsView 
+                        permissions={hotelsPerms}
+                    />;
+                }
+                return <NoAccessView />;
+            case 'Tickets':
+                if (hasPermission('inventory.tickets')) {
+                    return <TicketsView 
+                        onNavigate={() => alert('Ticket creation not available in employee portal yet')}
+                        onEdit={() => alert('Ticket editing not available in employee portal yet')}
+                        permissions={ticketsPerms}
+                    />;
+                }
+                return <NoAccessView />;
+            case 'Flights':
+                if (hasPermission('inventory.flights')) return <ComingSoonView module="Flights" />;
+                return <NoAccessView />;
+            case 'Others':
+                if (hasPermission('inventory.others')) {
+                    return <OthersView 
+                        permissions={othersPerms}
+                    />;
+                }
+                return <NoAccessView />;
+            
+            // Pricing modules
+            case 'Discounts':
+                if (hasPermission('pricing.discounts')) {
+                    return <DiscountsView 
+                        onAddDiscount={() => {
+                            if (discountsPerms.add) {
+                                setEditingDiscount(null);
+                                setActiveTab('Add Discount');
+                            } else alert('You do not have permission to add discounts.');
+                        }}
+                        onEditDiscount={(d) => {
+                            if (discountsPerms.update) {
+                                setEditingDiscount(d);
+                                setActiveTab('Add Discount');
+                            } else alert('You do not have permission to edit discounts.');
+                        }}
+                        permissions={discountsPerms}
+                    />;
+                }
+                return <NoAccessView />;
+            case 'Commissions':
+                if (hasPermission('pricing.commissions')) {
+                    return <CommissionsView 
+                        onAddCommission={() => {
+                            if (commissionsPerms.add) {
+                                setEditingCommission(null);
+                                setActiveTab('Add Commission');
+                            } else alert('You do not have permission to add commissions.');
+                        }}
+                        onEditCommission={(c) => {
+                            if (commissionsPerms.update) {
+                                setEditingCommission(c);
+                                setActiveTab('Add Commission');
+                            } else alert('You do not have permission to edit commissions.');
+                        }}
+                        permissions={commissionsPerms}
+                    />;
+                }
+                return <NoAccessView />;
+            case 'Add Discount':
+                // Render employee add discount view if permitted or editing
+                if (discountsPerms.add || editingDiscount) {
+                    return (
+                        <AddDiscountView
+                            onBack={() => { setEditingDiscount(null); setActiveTab('Discounts'); }}
+                            initialData={editingDiscount}
+                        />
+                    );
+                }
+                return <NoAccessView />;
+            case 'Add Commission':
+                if (commissionsPerms.add || editingCommission) {
+                    return (
+                        <AddCommissionView
+                            onBack={() => { setEditingCommission(null); setActiveTab('Commissions'); }}
+                            initialData={editingCommission}
+                        />
+                    );
+                }
+                return <NoAccessView />;
+            case 'Add Service Charge':
+                if (serviceChargesPerms.add || editingServiceCharge) {
+                    return (
+                        <AddServiceChargeView
+                            onBack={() => { setEditingServiceCharge(null); setActiveTab('Service Charges'); }}
+                            initialData={editingServiceCharge}
+                        />
+                    );
+                }
+                return <NoAccessView />;
+            case 'Service Charges':
+                if (hasPermission('pricing.service_charges')) {
+                    return <ServiceChargesView 
+                        onAddServiceCharge={() => {
+                            if (serviceChargesPerms.add) {
+                                setEditingServiceCharge(null);
+                                setActiveTab('Add Service Charge');
+                            } else alert('You do not have permission to add service charges.');
+                        }}
+                        onEditServiceCharge={(s) => {
+                            if (serviceChargesPerms.update) {
+                                setEditingServiceCharge(s);
+                                setActiveTab('Add Service Charge');
+                            } else alert('You do not have permission to edit service charges.');
+                        }}
+                        permissions={serviceChargesPerms}
+                    />;
+                }
+                return <NoAccessView />;
+            case 'Discounted Hotels':
+                if (hasPermission('hotels.discounted')) {
+                    return <DiscountedHotelsView permissions={discountedHotelsPerms} />;
+                }
+                return <NoAccessView />;
+            
+            // Finance, Payments, etc.
+            case 'Finance':
+                if (hasFinance) return <ComingSoonView module="Finance" />;
+                return <NoAccessView />;
+            case 'Payments':
+                if (hasPayments) {
+                    return <PaymentsView permissions={paymentsPerms} />;
+                }
+                return <NoAccessView />;
+            case 'Entities':
+                if (hasEntities) return <ComingSoonView module="Entities" />;
+                return <NoAccessView />;
+            case 'Operations':
+                if (hasContent) return <ComingSoonView module="Operations" />;
+                return <NoAccessView />;
+            
+            // HR/Employees
+            case 'Employees':
+                if (hasEmployees || hasHR) return <EmployeeHRView />;
+                return <NoAccessView />;
+            
+            // CRM/Customers
             case 'Dashboard':
             case 'Customers':
             case 'Leads':
-                if (hasCRM) return <EmployeeDashboard initialTab={activeTab === 'Dashboard' ? 'Customers' : activeTab} onViewLead={(l) => { const id = l._id || l.id || l; window.history.pushState(null, '', `/leads/${id}`); setViewingLead(id); }} />;
+                if (hasCRM || hasCustomers) return <EmployeeDashboard initialTab={activeTab === 'Dashboard' ? 'Customers' : activeTab} onViewLead={(l) => { const id = l._id || l.id || l; window.history.pushState(null, '', `/leads/${id}`); setViewingLead(id); }} />;
                 return <NoAccessView />;
+            
             default:
-                if (hasEmployees) return <EmployeeHRView />;
-                if (hasCRM) return <EmployeeDashboard />;
+                if (hasEmployees || hasHR) return <EmployeeHRView />;
+                if (hasCRM || hasCustomers) return <EmployeeDashboard />;
                 return <NoAccessView />;
         }
     };
@@ -122,6 +355,19 @@ function NoAccessView() {
             </div>
             <p className="text-sm font-black uppercase tracking-widest text-slate-500">Access Restricted</p>
             <p className="text-xs mt-1 text-slate-400">You don't have permission to view this section.</p>
+        </div>
+    );
+}
+
+function ComingSoonView({ module }) {
+    return (
+        <div className="flex flex-col items-center justify-center h-64 text-slate-400">
+            <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center mb-4">
+                <span className="text-2xl">🚀</span>
+            </div>
+            <p className="text-sm font-black uppercase tracking-widest text-slate-700">{module}</p>
+            <p className="text-xs mt-1 text-slate-400">This module is coming soon!</p>
+            <p className="text-xs text-slate-400">Your permissions are configured correctly.</p>
         </div>
     );
 }
