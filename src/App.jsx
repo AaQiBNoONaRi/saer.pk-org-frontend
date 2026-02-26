@@ -69,6 +69,7 @@ const ROUTES = {
   '/payments': 'Payments',
   '/payments/add': 'Add Bank Account',
   '/discounts': 'Discounts',
+  '/discounted-hotels': 'Discounted Hotels',
   '/discounts/add': 'Add Discount',
   '/commissions': 'Commissions',
   '/commissions/add': 'Add Commission',
@@ -98,6 +99,7 @@ const getTabForPath = (path) => {
   if (path.startsWith('/hotels/')) return 'Hotels';
 
   if (path.startsWith('/share-inventory')) return 'Share Inventory';
+  if (path.startsWith('/discounted-hotels')) return 'Discounted Hotels';
 
   if (path.startsWith('/discounts/')) return 'Discounts';
   if (path.startsWith('/commissions/')) return 'Commissions';

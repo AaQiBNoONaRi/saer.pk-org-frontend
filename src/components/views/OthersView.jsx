@@ -18,7 +18,12 @@ const COLORS = {
     text: '#1F2937'
 };
 
-const OthersView = ({ onBack }) => {
+const OthersView = ({ onBack, permissions = null }) => {
+    // If permissions prop is not provided, assume full access (for org admin)
+    const canAdd = permissions ? permissions.add : true;
+    const canUpdate = permissions ? permissions.update : true;
+    const canDelete = permissions ? permissions.delete : true;
+    
     const tabs = [
         "Set Riyal Rate",
         "Manage Shirka Name",

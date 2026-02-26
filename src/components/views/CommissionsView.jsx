@@ -1,9 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Search, Edit2, Trash2, TrendingUp, CheckCircle } from 'lucide-react';
+import { getModulePermissions } from '../../utils/permissions';
 
-const CommissionsView = ({ onAddCommission, onEditCommission }) => {
+const CommissionsView = ({ onAddCommission, onEditCommission, permissions = null }) => {
     const [commissions, setCommissions] = useState([]);
     const [loading, setLoading] = useState(true);
+    
+    // If permissions prop is not provided or empty, fallback to module permissions
+    const fallbackPerms = getModulePermissions('pricing.commissions');
+    const effectivePerms = permissions && Object.values(permissions).some(Boolean) ? permissions : fallbackPerms;
+    const canAdd = effectivePerms.add;
+    const canUpdate = effectivePerms.update;
+    const canDelete = effectivePerms.delete;
     const [searchTerm, setSearchTerm] = useState('');
 
     useEffect(() => {
@@ -67,12 +75,14 @@ const CommissionsView = ({ onAddCommission, onEditCommission }) => {
                     <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tight">Commissions</h2>
                     <p className="text-slate-500 font-medium">Manage commission groups for tickets, packages, and hotels</p>
                 </div>
-                <button
-                    onClick={onAddCommission}
-                    className="w-full sm:w-auto px-6 py-3 bg-blue-600 text-white rounded-xl text-xs font-bold transition-all hover:scale-105 shadow-lg shadow-blue-100 flex items-center justify-center gap-2"
-                >
-                    <Plus size={16} /> Add Commission Group
-                </button>
+                {canAdd && (
+                    <button
+                        onClick={onAddCommission}
+                        className="w-full sm:w-auto px-6 py-3 bg-blue-600 text-white rounded-xl text-xs font-bold transition-all hover:scale-105 shadow-lg shadow-blue-100 flex items-center justify-center gap-2"
+                    >
+                        <Plus size={16} /> Add Commission Group
+                    </button>
+                )}
             </div>
 
             <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
@@ -142,18 +152,22 @@ const CommissionsView = ({ onAddCommission, onEditCommission }) => {
                             </div>
 
                             <div className="flex gap-2">
-                                <button
-                                    onClick={() => onEditCommission(commission)}
-                                    className="flex-1 py-2 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition-all flex items-center justify-center gap-1"
-                                >
-                                    <Edit2 size={14} /> Edit
-                                </button>
-                                <button
-                                    onClick={() => handleDelete(commission._id)}
-                                    className="flex-1 py-2 bg-red-50 text-red-600 rounded-lg text-xs font-bold hover:bg-red-100 transition-all flex items-center justify-center gap-1"
-                                >
-                                    <Trash2 size={14} /> Delete
-                                </button>
+                                {canUpdate && (
+                                    <button
+                                        onClick={() => onEditCommission(commission)}
+                                        className="flex-1 py-2 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition-all flex items-center justify-center gap-1"
+                                    >
+                                        <Edit2 size={14} /> Edit
+                                    </button>
+                                )}
+                                {canDelete && (
+                                    <button
+                                        onClick={() => handleDelete(commission._id)}
+                                        className="flex-1 py-2 bg-red-50 text-red-600 rounded-lg text-xs font-bold hover:bg-red-100 transition-all flex items-center justify-center gap-1"
+                                    >
+                                        <Trash2 size={14} /> Delete
+                                    </button>
+                                )}
                             </div>
                         </div>
                     ))
