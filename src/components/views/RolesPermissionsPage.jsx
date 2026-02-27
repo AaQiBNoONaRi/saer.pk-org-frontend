@@ -50,8 +50,22 @@ const buildPermCode = (category, subLabel, action) => {
     
     // Special mappings for specific modules (category:module -> code)
     const specialMap = {
+        // Finance modules with non-standard naming
+        'Finance:Dashboard': 'finance.dashboard',
         'Finance:Chart of Accounts': 'finance.coa',
         'Finance:Journal Entries': 'finance.journals',
+        'Finance:Manual Posting': 'finance.manual_posting',
+        'Finance:Profit & Loss': 'finance.profit_loss',
+        'Finance:Balance Sheet': 'finance.balance_sheet',
+        'Finance:Trial Balance': 'finance.trial_balance',
+        'Finance:Ledger': 'finance.ledger',
+        'Finance:Audit Trail': 'finance.audit_trail',
+        // Payments modules with non-standard naming
+        'Payments:Add Payment': 'payments.add_payment',
+        'Payments:Pending Payments': 'payments.pending',
+        'Payments:Vouchers': 'payments.vouchers',
+        'Payments:Bank Accounts': 'payments.bank_accounts',
+        // Operations modules  
         'Content & Operations:Pax Movement': 'operations.pax_movement',
         'Content & Operations:Daily Operations': 'operations.daily',
         'Content & Operations:Order Delivery': 'operations.order_delivery',

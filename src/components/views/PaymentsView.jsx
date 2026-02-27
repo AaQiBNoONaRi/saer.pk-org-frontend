@@ -5,6 +5,7 @@ import {
     Upload, FileText, Clock, ChevronLeft, ChevronRight,
     CreditCard, Check, X, Bell, Receipt, Download, DollarSign
 } from 'lucide-react';
+import { getModulePermissions } from '../../utils/permissions';
 
 const API = 'http://localhost:8000';
 
@@ -46,12 +47,28 @@ const StatusBadge = ({ status }) => {
 };
 
 export default function PaymentsView({ onAddAccount, onEditAccount, permissions = null }) {
-    const [activeTab, setActiveTab] = useState('Add Payment');
+    // Calculate permissions for each payment tab
+    const addPaymentPerms = getModulePermissions('payments.add_payment');
+    const pendingPaymentsPerms = getModulePermissions('payments.pending');
+    const vouchersPerms = getModulePermissions('payments.vouchers');
+    const bankAccountsPerms = getModulePermissions('payments.bank_accounts');
+
+    // Build allowed tabs based on view permissions
+    const allTabs = [
+        { key: 'Add Payment', perms: addPaymentPerms },
+        { key: 'Pending Payments', perms: pendingPaymentsPerms },
+        { key: 'Vouchers', perms: vouchersPerms },
+        { key: 'Bank Accounts', perms: bankAccountsPerms },
+    ];
+    
+    const allowedTabs = allTabs.filter(tab => tab.perms.view).map(tab => tab.key);
+    
+    const [activeTab, setActiveTab] = useState(allowedTabs[0] || 'Add Payment');
     const [accounts, setAccounts] = useState([]);
     const [agencies, setAgencies] = useState([]);
     const [branches, setBranches] = useState([]);
     const [loading, setLoading] = useState(false);
-    
+
     // If permissions prop is not provided, assume full access (for org admin)
     const canAdd = permissions ? permissions.add : true;
     const canUpdate = permissions ? permissions.update : true;
@@ -88,6 +105,7 @@ export default function PaymentsView({ onAddAccount, onEditAccount, permissions 
         slipFile: null,
     });
     const [paymentHistory, setPaymentHistory] = useState([]);
+    const [receivables, setReceivables] = useState([]);
     const [historySearch, setHistorySearch] = useState('');
     const [historyStatus, setHistoryStatus] = useState('all');
     const [historyPage, setHistoryPage] = useState(1);
@@ -96,6 +114,20 @@ export default function PaymentsView({ onAddAccount, onEditAccount, permissions 
 
     const token = () => localStorage.getItem('access_token');
 
+    const fetchReceivables = async () => {
+        try {
+            const res = await fetch(`${API}/api/finance/reports/all-agency-statements`, {
+                headers: { 'Authorization': `Bearer ${token()}` }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setReceivables(data);
+            }
+        } catch (e) {
+            console.error('Failed to fetch receivables:', e);
+        }
+    };
+
     useEffect(() => {
         if (activeTab === 'Bank Accounts') {
             fetchAccounts();
@@ -103,11 +135,14 @@ export default function PaymentsView({ onAddAccount, onEditAccount, permissions 
             fetchBranches();
         } else if (activeTab === 'Vouchers') {
             fetchVouchers();
-        } else if (activeTab === 'Add Payment' || activeTab === 'Pending Payments') {
+        } else if (activeTab === 'Add Payment') {
             fetchPaymentHistory();
             fetchOrgBankAccounts();
             fetchAgencies();
             fetchBranches();
+        } else if (activeTab === 'Pending Payments') {
+            fetchPaymentHistory();
+            fetchReceivables();
         } else {
             fetchAgencies();
             fetchBranches();
@@ -465,11 +500,11 @@ export default function PaymentsView({ onAddAccount, onEditAccount, permissions 
 
                     {/* Tabs */}
                     <div className="px-8 pt-8 border-b border-slate-100 flex gap-6 overflow-x-auto no-scrollbar">
-                        {['Add Payment', 'Pending Payments', 'Vouchers', 'Bank Accounts', 'Ledger', 'Booking History'].map((tab) => (
+                        {allowedTabs.map((tab) => (
                             <TabButton
                                 key={tab}
                                 label={tab === 'Pending Payments' ? `Pending Payments ${pendingPayments.length > 0 ? `(${pendingPayments.length})` : ''}` : tab}
-                                active={activeTab === tab}  
+                                active={activeTab === tab}
                                 onClick={() => setActiveTab(tab)}
                             />
                         ))}
@@ -598,11 +633,13 @@ export default function PaymentsView({ onAddAccount, onEditAccount, permissions 
                                             <input type="text" placeholder="Type Note" value={paymentForm.notes} onChange={e => setPaymentForm(f => ({ ...f, notes: e.target.value }))}
                                                 className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:bg-white focus:border-blue-500 focus:outline-none transition-all" />
                                         </div>
-                                        <button onClick={handleAddDeposit} disabled={isSubmitting}
-                                            className="w-full py-2.5 px-6 bg-slate-800 hover:bg-blue-600 text-white rounded-xl font-black text-sm transition-all disabled:opacity-50 flex items-center justify-center gap-2">
-                                            {isSubmitting ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Plus size={16} />}
-                                            Add Deposit
-                                        </button>
+                                        {addPaymentPerms.add && (
+                                            <button onClick={handleAddDeposit} disabled={isSubmitting}
+                                                className="w-full py-2.5 px-6 bg-slate-800 hover:bg-blue-600 text-white rounded-xl font-black text-sm transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+                                                {isSubmitting ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Plus size={16} />}
+                                                Add Deposit
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
 
@@ -661,7 +698,7 @@ export default function PaymentsView({ onAddAccount, onEditAccount, permissions 
                                                                         ) : <span className="text-slate-300 text-xs">—</span>}
                                                                     </td>
                                                                     <td className="px-4 py-3">
-                                                                        {p.status === 'pending' && (
+                                                                        {p.status === 'pending' && pendingPaymentsPerms.add && (
                                                                             <div className="flex items-center gap-1.5">
                                                                                 <button onClick={() => handleApprove(p._id)}
                                                                                     className="p-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg transition-colors" title="Approve">
@@ -673,7 +710,7 @@ export default function PaymentsView({ onAddAccount, onEditAccount, permissions 
                                                                                 </button>
                                                                             </div>
                                                                         )}
-                                                                        {p.status !== 'pending' && <span className="text-slate-300 text-xs">—</span>}
+                                                                        {(p.status !== 'pending' || !pendingPaymentsPerms.add) && <span className="text-slate-300 text-xs">—</span>}
                                                                     </td>
                                                                 </tr>
                                                             );
@@ -705,82 +742,135 @@ export default function PaymentsView({ onAddAccount, onEditAccount, permissions 
                             </>
                         )}
 
-                        {/* ── PENDING PAYMENTS TAB ──────────────────────────── */}
+                        {/* ── PENDING PAYMENTS & RECEIVABLES TAB ──────────────────────────── */}
                         {activeTab === 'Pending Payments' && (
-                            <div className="space-y-4">
-                                <div className="flex items-center gap-3">
-                                    <Clock size={18} className="text-amber-500" />
-                                    <h3 className="text-base font-black text-slate-900">Pending Payment Requests</h3>
-                                    {pendingPayments.length > 0 && (
-                                        <span className="px-2.5 py-1 bg-amber-50 border border-amber-200 text-amber-700 text-xs font-black rounded-full">{pendingPayments.length} pending</span>
-                                    )}
+                            <div className="space-y-8">
+
+                                {/* ── RECEIVABLES SECTION ── */}
+                                <div className="space-y-4">
+                                    <div className="flex items-center gap-3">
+                                        <DollarSign size={18} className="text-emerald-500" />
+                                        <h3 className="text-base font-black text-slate-900">Outstanding Receivables</h3>
+                                        {receivables.length > 0 && (
+                                            <span className="px-2.5 py-1 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-black rounded-full">{receivables.length} accounts</span>
+                                        )}
+                                    </div>
+                                    <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full">
+                                                <thead>
+                                                    <tr className="bg-emerald-50/60 border-b border-slate-200">
+                                                        {['Agency Name', 'Contact Email', 'Contact Phone', 'Total Billed', 'Total Received', 'Current Balance'].map((h, i) => (
+                                                            <th key={i} className={`px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-wider ${i >= 3 ? 'text-right' : 'text-left'} whitespace-nowrap`}>{h}</th>
+                                                        ))}
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-slate-100">
+                                                    {receivables.length === 0 ? (
+                                                        <tr><td colSpan={6} className="px-6 py-12 text-center">
+                                                            <div className="flex flex-col items-center gap-3">
+                                                                <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center"><CheckCircle size={24} className="text-slate-400" /></div>
+                                                                <p className="text-sm font-bold text-slate-500">No outstanding receivables</p>
+                                                                <p className="text-xs text-slate-400">All agency accounts are settled.</p>
+                                                            </div>
+                                                        </td></tr>
+                                                    ) : (
+                                                        receivables.map(r => (
+                                                            <tr key={r.agency_id} className="hover:bg-emerald-50/30 transition-colors">
+                                                                <td className="px-4 py-4 text-sm font-bold text-slate-800 whitespace-nowrap">{r.agency_name}</td>
+                                                                <td className="px-4 py-4 text-xs font-medium text-slate-600 whitespace-nowrap">{r.email || '-'}</td>
+                                                                <td className="px-4 py-4 text-xs font-medium text-slate-600 whitespace-nowrap">{r.phone || '-'}</td>
+                                                                <td className="px-4 py-4 text-sm font-mono font-bold text-amber-600 text-right">PKR {Number(r.total_owed || 0).toLocaleString()}</td>
+                                                                <td className="px-4 py-4 text-sm font-mono font-bold text-emerald-600 text-right">PKR {Number(r.total_paid || 0).toLocaleString()}</td>
+                                                                <td className="px-4 py-4 text-sm font-mono font-black text-rose-600 text-right">PKR {Math.abs(Number(r.current_balance || 0)).toLocaleString()}</td>
+                                                            </tr>
+                                                        ))
+                                                    )}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div className="border border-slate-200 rounded-2xl overflow-hidden">
-                                    <div className="overflow-x-auto">
-                                        <table className="w-full">
-                                            <thead>
-                                                <tr className="bg-amber-50/60 border-b border-slate-200">
-                                                    {['Date', 'Agent / Agency', 'Trans Type', 'Beneficiary Account', 'Agent Account', 'Amount', 'Note', 'Slip', 'Actions'].map((h, i) => (
-                                                        <th key={i} className="px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-wider text-left whitespace-nowrap">{h}</th>
-                                                    ))}
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-slate-100">
-                                                {pendingPayments.length === 0 ? (
-                                                    <tr><td colSpan={9} className="px-6 py-12 text-center">
-                                                        <div className="flex flex-col items-center gap-3">
-                                                            <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center"><CheckCircle size={24} className="text-emerald-500" /></div>
-                                                            <p className="text-sm font-bold text-slate-500">No pending payments</p>
-                                                            <p className="text-xs text-slate-400">All payments have been processed.</p>
-                                                        </div>
-                                                    </td></tr>
-                                                ) : (
-                                                    pendingPayments.map(p => (
-                                                        <tr key={p._id} className="hover:bg-amber-50/30 transition-colors">
-                                                            <td className="px-4 py-4 text-xs font-medium text-slate-600 whitespace-nowrap">{p.payment_date || p.created_at?.split('T')[0]}</td>
-                                                            <td className="px-4 py-4">
-                                                                <p className="text-sm font-bold text-slate-800">{p.agent_name || 'Unknown'}</p>
-                                                                <div className="flex items-center gap-2">
-                                                                    <p className="text-[10px] font-medium text-slate-400">Booking: {(p.booking_id || '').slice(-8).toUpperCase()}</p>
-                                                                    <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${p.booking_type === 'ticket' ? 'bg-blue-50 text-blue-600 border border-blue-100' :
-                                                                        p.booking_type === 'umrah' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
-                                                                            p.booking_type === 'custom' ? 'bg-amber-50 text-amber-600 border border-amber-100' :
-                                                                                'bg-slate-50 text-slate-500 border border-slate-100'
-                                                                        }`}>
-                                                                        {p.booking_type === 'custom' ? 'Custom Umrah' : p.booking_type || 'Manual'}
-                                                                    </span>
-                                                                </div>
-                                                            </td>
-                                                            <td className="px-4 py-4"><span className="text-[10px] font-black uppercase bg-blue-50 text-blue-700 px-2 py-1 rounded">{p.payment_method}</span></td>
-                                                            <td className="px-4 py-4 text-xs font-medium text-slate-600">{p.beneficiary_account || '—'}</td>
-                                                            <td className="px-4 py-4 text-xs font-medium text-slate-600">{p.agent_account || '—'}</td>
-                                                            <td className="px-4 py-4 text-sm font-black text-slate-900">PKR {Number(p.amount || 0).toLocaleString()}</td>
-                                                            <td className="px-4 py-4 text-xs text-slate-500 max-w-[150px] truncate">{p.note || '—'}</td>
-                                                            <td className="px-4 py-4">
-                                                                {p.slip_url ? (
-                                                                    <a href={`${API}${p.slip_url}`} target="_blank" rel="noreferrer"
-                                                                        className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:underline bg-blue-50 px-2 py-1 rounded-lg">
-                                                                        <FileText size={12} /> View Slip
-                                                                    </a>
-                                                                ) : <span className="text-slate-300 text-xs">No slip</span>}
-                                                            </td>
-                                                            <td className="px-4 py-4">
-                                                                <div className="flex items-center gap-2">
-                                                                    <button onClick={() => handleApprove(p._id)}
-                                                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-black transition-all">
-                                                                        <CheckCircle size={12} /> Accept
-                                                                    </button>
-                                                                    <button onClick={() => handleReject(p._id)}
-                                                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-lg text-xs font-black transition-all">
-                                                                        <XCircle size={12} /> Reject
-                                                                    </button>
-                                                                </div>
-                                                            </td>
-                                                        </tr>
-                                                    ))
-                                                )}
-                                            </tbody>
-                                        </table>
+
+                                {/* ── PENDING PAYMENTS SECTION ── */}
+                                <div className="space-y-4">
+                                    <div className="flex items-center gap-3">
+                                        <Clock size={18} className="text-amber-500" />
+                                        <h3 className="text-base font-black text-slate-900">Pending Payment Requests</h3>
+                                        {pendingPayments.length > 0 && (
+                                            <span className="px-2.5 py-1 bg-amber-50 border border-amber-200 text-amber-700 text-xs font-black rounded-full">{pendingPayments.length} pending</span>
+                                        )}
+                                    </div>
+                                    <div className="border border-slate-200 rounded-2xl overflow-hidden">
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full">
+                                                <thead>
+                                                    <tr className="bg-amber-50/60 border-b border-slate-200">
+                                                        {['Date', 'Agent / Agency', 'Trans Type', 'Beneficiary Account', 'Agent Account', 'Amount', 'Note', 'Slip', 'Actions'].map((h, i) => (
+                                                            <th key={i} className="px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-wider text-left whitespace-nowrap">{h}</th>
+                                                        ))}
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-slate-100">
+                                                    {pendingPayments.length === 0 ? (
+                                                        <tr><td colSpan={9} className="px-6 py-12 text-center">
+                                                            <div className="flex flex-col items-center gap-3">
+                                                                <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center"><CheckCircle size={24} className="text-emerald-500" /></div>
+                                                                <p className="text-sm font-bold text-slate-500">No pending payments</p>
+                                                                <p className="text-xs text-slate-400">All payments have been processed.</p>
+                                                            </div>
+                                                        </td></tr>
+                                                    ) : (
+                                                        pendingPayments.map(p => (
+                                                            <tr key={p._id} className="hover:bg-amber-50/30 transition-colors">
+                                                                <td className="px-4 py-4 text-xs font-medium text-slate-600 whitespace-nowrap">{p.payment_date || p.created_at?.split('T')[0]}</td>
+                                                                <td className="px-4 py-4">
+                                                                    <p className="text-sm font-bold text-slate-800">{p.agent_name || 'Unknown'}</p>
+                                                                    <div className="flex items-center gap-2">
+                                                                        <p className="text-[10px] font-medium text-slate-400">Booking: {(p.booking_id || '').slice(-8).toUpperCase()}</p>
+                                                                        <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${p.booking_type === 'ticket' ? 'bg-blue-50 text-blue-600 border border-blue-100' :
+                                                                            p.booking_type === 'umrah' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
+                                                                                p.booking_type === 'custom' ? 'bg-amber-50 text-amber-600 border border-amber-100' :
+                                                                                    'bg-slate-50 text-slate-500 border border-slate-100'
+                                                                            }`}>
+                                                                            {p.booking_type === 'custom' ? 'Custom Umrah' : p.booking_type || 'Manual'}
+                                                                        </span>
+                                                                    </div>
+                                                                </td>
+                                                                <td className="px-4 py-4"><span className="text-[10px] font-black uppercase bg-blue-50 text-blue-700 px-2 py-1 rounded">{p.payment_method}</span></td>
+                                                                <td className="px-4 py-4 text-xs font-medium text-slate-600">{p.beneficiary_account || '—'}</td>
+                                                                <td className="px-4 py-4 text-xs font-medium text-slate-600">{p.agent_account || '—'}</td>
+                                                                <td className="px-4 py-4 text-sm font-black text-slate-900">PKR {Number(p.amount || 0).toLocaleString()}</td>
+                                                                <td className="px-4 py-4 text-xs text-slate-500 max-w-[150px] truncate">{p.note || '—'}</td>
+                                                                <td className="px-4 py-4">
+                                                                    {p.slip_url ? (
+                                                                        <a href={`${API}${p.slip_url}`} target="_blank" rel="noreferrer"
+                                                                            className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:underline bg-blue-50 px-2 py-1 rounded-lg">
+                                                                            <FileText size={12} /> View Slip
+                                                                        </a>
+                                                                    ) : <span className="text-slate-300 text-xs">No slip</span>}
+                                                                </td>
+                                                                <td className="px-4 py-4">
+                                                                    {pendingPaymentsPerms.add && (
+                                                                        <div className="flex items-center gap-2">
+                                                                            <button onClick={() => handleApprove(p._id)}
+                                                                                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-black transition-all">
+                                                                                <CheckCircle size={12} /> Accept
+                                                                            </button>
+                                                                            <button onClick={() => handleReject(p._id)}
+                                                                                className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-lg text-xs font-black transition-all">
+                                                                                <XCircle size={12} /> Reject
+                                                                            </button>
+                                                                        </div>
+                                                                    )}
+                                                                    {!pendingPaymentsPerms.add && <span className="text-slate-300 text-xs">—</span>}
+                                                                </td>
+                                                            </tr>
+                                                        ))
+                                                    )}
+                                                </tbody>
+                                            </table>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -911,23 +1001,30 @@ export default function PaymentsView({ onAddAccount, onEditAccount, permissions 
                                                 </select>
                                             </div>
 
-                                            <button
-                                                type="submit"
-                                                disabled={isGeneratingVoucher}
-                                                className="w-full px-6 py-3 bg-blue-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-blue-600/20 hover:bg-blue-700 transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-                                            >
-                                                {isGeneratingVoucher ? (
-                                                    <>
-                                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                                        Generating...
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <Receipt size={18} />
-                                                        Generate Voucher
-                                                    </>
-                                                )}
-                                            </button>
+                                            {vouchersPerms.add && (
+                                                <button
+                                                    type="submit"
+                                                    disabled={isGeneratingVoucher}
+                                                    className="w-full px-6 py-3 bg-blue-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-blue-600/20 hover:bg-blue-700 transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                >
+                                                    {isGeneratingVoucher ? (
+                                                        <>
+                                                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                                            Generating...
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <Receipt size={18} />
+                                                            Generate Voucher
+                                                        </>
+                                                    )}
+                                                </button>
+                                            )}
+                                            {!vouchersPerms.add && (
+                                                <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-center">
+                                                    <p className="text-xs font-bold text-slate-500">You do not have permission to generate vouchers</p>
+                                                </div>
+                                            )}
                                         </form>
                                     </div>
 
@@ -1031,10 +1128,12 @@ export default function PaymentsView({ onAddAccount, onEditAccount, permissions 
                                             </button>
                                         </div>
                                     </div>
-                                    <button onClick={onAddAccount}
-                                        className="w-full md:w-auto px-6 py-3 bg-blue-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-blue-600/20 hover:bg-blue-700 transition-all flex items-center justify-center gap-2 active:scale-95">
-                                        <Plus size={18} strokeWidth={2.5} /> Add Bank Account
-                                    </button>
+                                    {bankAccountsPerms.add && (
+                                        <button onClick={onAddAccount}
+                                            className="w-full md:w-auto px-6 py-3 bg-blue-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-blue-600/20 hover:bg-blue-700 transition-all flex items-center justify-center gap-2 active:scale-95">
+                                            <Plus size={18} strokeWidth={2.5} /> Add Bank Account
+                                        </button>
+                                    )}
                                 </div>
 
                                 <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
@@ -1068,9 +1167,9 @@ export default function PaymentsView({ onAddAccount, onEditAccount, permissions 
                                                                 </button>
                                                             </div>
                                                         </td>
-                                                        <td className="px-6 py-4 text-sm text-slate-500">
-                                                            {acc.account_type === 'Agency' ? getAgencyName(acc.agency_id) :
-                                                                (acc.account_type === 'Branch' ? getBranchName(acc.branch_id) : '-')}
+                                                        <td className="px-6 py-4 text-sm font-medium text-slate-800">
+                                                            {acc.owner_name || (acc.account_type === 'Agency' ? getAgencyName(acc.agency_id) :
+                                                                (acc.account_type === 'Branch' ? getBranchName(acc.branch_id) : '-'))}
                                                         </td>
                                                         <td className="px-6 py-4">
                                                             {acc.account_type === 'Organization' && (
@@ -1111,16 +1210,6 @@ export default function PaymentsView({ onAddAccount, onEditAccount, permissions 
                                     </div>
                                 </div>
                             </>
-                        )}
-
-                        {/* ── OTHER TABS (Ledger, Booking History) ─────────── */}
-                        {(activeTab === 'Ledger' || activeTab === 'Booking History') && (
-                            <div className="flex flex-col items-center justify-center py-20 gap-4">
-                                <div className="w-16 h-16 bg-slate-100 rounded-3xl flex items-center justify-center">
-                                    <FileText size={28} className="text-slate-400" />
-                                </div>
-                                <p className="text-sm font-bold text-slate-500">{activeTab} — Coming Soon</p>
-                            </div>
                         )}
 
                     </div>

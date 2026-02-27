@@ -14,8 +14,9 @@ export const getCurrentPermissions = () => {
         }
         
         // Check if admin (admins have all permissions)
-        const userData = localStorage.getItem('user_data');
-        if (userData) {
+        // org login stores under 'admin_data'; also fall back to 'user_data'
+        const adminData = localStorage.getItem('admin_data') || localStorage.getItem('user_data');
+        if (adminData) {
             return ['*']; // Wildcard - admins have all permissions
         }
         
@@ -158,8 +159,7 @@ export const getModulePermissions = (module) => {
 // Check if user is admin
 export const isAdmin = () => {
     try {
-        const userData = localStorage.getItem('user_data');
-        return !!userData;
+        return !!(localStorage.getItem('admin_data') || localStorage.getItem('user_data'));
     } catch {
         return false;
     }

@@ -6,7 +6,7 @@ const API = 'http://localhost:8000';
 const fmt = (n) => Number(n || 0).toLocaleString('en-PK', { minimumFractionDigits: 2 });
 
 export default function Ledger() {
-    const [tab, setTab] = useState('general');
+    const [tab, setTab] = useState('agency');
     const [data, setData] = useState(null);
     const [accounts, setAccounts] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -122,15 +122,7 @@ export default function Ledger() {
                 )}
             </div>
 
-            {/* Tabs */}
-            <div className="flex border-b border-slate-100 mb-5 gap-6">
-                {[['general', 'General Ledger'], ['agency', 'Agency Statement']].map(([key, label]) => (
-                    <button key={key} onClick={() => setTab(key)}
-                        className={`pb-3 text-xs font-black uppercase tracking-widest border-b-2 transition-colors ${tab === key ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}>
-                        {label}
-                    </button>
-                ))}
-            </div>
+
 
             {/* ── General Ledger ── */}
             {tab === 'general' && (
@@ -305,8 +297,8 @@ export default function Ledger() {
                                                     <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">{(row.date || '').slice(0, 10)}</td>
                                                     <td className="px-4 py-3">
                                                         <span className={`text-[10px] font-black uppercase px-2 py-1 rounded border ${row.reference_type === 'payment_received'
-                                                                ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
-                                                                : 'text-amber-700 bg-amber-50 border-amber-200'
+                                                            ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
+                                                            : 'text-amber-700 bg-amber-50 border-amber-200'
                                                             }`}>{row.reference_type?.replace(/_/g, ' ') || 'Entry'}</span>
                                                     </td>
                                                     <td className="px-4 py-3 text-xs font-mono text-slate-600">{row.reference_id || '—'}</td>

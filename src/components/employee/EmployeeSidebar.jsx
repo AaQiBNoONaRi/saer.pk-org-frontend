@@ -205,15 +205,6 @@ export default function EmployeeSidebar({ activeTab, setActiveTab, isSidebarOpen
                                 />
                             )}
 
-                            {hasInventoryHotels && (
-                                <NavItem
-                                    icon={<Hotel size={20} />}
-                                    label="Discounted Hotels"
-                                    active={activeTab === 'Discounted Hotels'}
-                                    onClick={() => handleNavClick('Discounted Hotels')}
-                                    isOpen={isSidebarOpen}
-                                />
-                            )}
                             
                             {hasInventoryTickets && (
                                 <NavItem
@@ -225,15 +216,7 @@ export default function EmployeeSidebar({ activeTab, setActiveTab, isSidebarOpen
                                 />
                             )}
                             
-                            {hasInventoryFlights && (
-                                <NavItem
-                                    icon={<Plane size={20} />}
-                                    label="Flights"
-                                    active={activeTab === 'Flights'}
-                                    onClick={() => handleNavClick('Flights')}
-                                    isOpen={isSidebarOpen}
-                                />
-                            )}
+                            {/* Flights and Discounted Hotels removed for Employee sidebar */}
                             
                             {hasInventoryOthers && (
                                 <NavItem

@@ -131,7 +131,6 @@ export default function FinanceDashboard({ onNavigate }) {
                             ['Profit & Loss', 'Finance/Reports/PL'],
                             ['Balance Sheet', 'Finance/Reports/BS'],
                             ['Trial Balance', 'Finance/Reports/TB'],
-                            ['General Ledger', 'Finance/Reports/Ledger'],
                             ['Manual Entry', 'Finance/ManualEntry'],
                             ['Audit Trail', 'Finance/AuditTrail'],
                         ].map(([label, tab]) => (

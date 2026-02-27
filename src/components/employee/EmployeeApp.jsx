@@ -18,6 +18,7 @@ import AddDiscountView from '../views/AddDiscountView';
 import AddCommissionView from '../views/AddCommissionView';
 import AddServiceChargeView from '../views/AddServiceChargeView';
 import PaymentsView from '../views/PaymentsView';
+import FinanceHub from '../views/finance/FinanceHub';
 import { getModulePermissions } from '../../utils/permissions';
 
 export default function EmployeeApp() {
@@ -245,7 +246,7 @@ export default function EmployeeApp() {
             
             // Finance, Payments, etc.
             case 'Finance':
-                if (hasFinance) return <ComingSoonView module="Finance" />;
+                if (hasFinance) return <FinanceHub />;
                 return <NoAccessView />;
             case 'Payments':
                 if (hasPayments) {
