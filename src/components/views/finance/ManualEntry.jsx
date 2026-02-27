@@ -275,20 +275,30 @@ export default function ManualEntry() {
                     {form.entry_type === 'vendor_bill' && (
                         <div>
                             <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Vendor Type *</label>
-                            <div className="flex flex-wrap gap-2">
-                                {VENDOR_TYPES.map(v => (
-                                    <button
-                                        key={v.value}
-                                        type="button"
-                                        onClick={() => setForm(f => ({ ...f, vendor_type: v.value, credit_account_id: '' }))}
-                                        className={`px-4 py-2 rounded-xl border text-sm font-bold transition ${form.vendor_type === v.value
-                                            ? 'border-blue-500 bg-blue-50 text-blue-700'
-                                            : 'border-slate-200 text-slate-500 hover:bg-slate-50'
-                                            }`}
-                                    >
-                                        {v.label}
-                                    </button>
-                                ))}
+                            <div className="grid grid-cols-2 gap-2">
+                                {VENDOR_TYPES.map(v => {
+                                    // Map vendor type to COA code to find balance
+                                    const codeMap = { ticket: '2001.1', package: '2001.2', hotel: '2001.3', other: '2001.4' };
+                                    const vendorCoa = accounts.find(a => a.code === codeMap[v.value]);
+                                    const payable = vendorCoa?.current_balance ?? 0;
+                                    const isSelected = form.vendor_type === v.value;
+                                    return (
+                                        <button
+                                            key={v.value}
+                                            type="button"
+                                            onClick={() => setForm(f => ({ ...f, vendor_type: v.value, credit_account_id: '' }))}
+                                            className={`px-4 py-3 rounded-xl border text-left transition ${isSelected
+                                                ? 'border-blue-500 bg-blue-50 text-blue-700'
+                                                : 'border-slate-200 text-slate-500 hover:bg-slate-50'
+                                                }`}
+                                        >
+                                            <div className="text-sm font-bold">{v.label}</div>
+                                            <div className={`text-xs mt-0.5 font-black ${payable > 0 ? 'text-rose-500' : 'text-slate-400'}`}>
+                                                Payable: PKR {payable.toLocaleString()}
+                                            </div>
+                                        </button>
+                                    );
+                                })}
                             </div>
                         </div>
                     )}
