@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { MapPin, Search, MoveRight, Plane, Calendar, Users, DollarSign } from 'lucide-react';
 
-const TicketsView = ({ onAddTicket, onEditTicket, onDeleteTicket }) => {
+const TicketsView = ({ onAddTicket, onEditTicket, onDeleteTicket, permissions = null }) => {
     const [tickets, setTickets] = useState([]);
     const [airlines, setAirlines] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -10,6 +10,11 @@ const TicketsView = ({ onAddTicket, onEditTicket, onDeleteTicket }) => {
         departureCity: '',
         arrivalCity: ''
     });
+    
+    // If permissions prop is not provided, assume full access (for org admin)
+    const canAdd = permissions ? permissions.add : true;
+    const canUpdate = permissions ? permissions.update : true;
+    const canDelete = permissions ? permissions.delete : true;
 
     // Fetch tickets and airlines from API
     useEffect(() => {
@@ -80,12 +85,14 @@ const TicketsView = ({ onAddTicket, onEditTicket, onDeleteTicket }) => {
                     <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tight">Flight Inventory</h2>
                     <p className="text-slate-500 font-medium text-lg">Manage real-time ticket availability for groups.</p>
                 </div>
-                <button
-                    onClick={onAddTicket}
-                    className="w-full sm:w-auto px-8 py-4 bg-blue-600 text-white rounded-2xl text-xs font-black uppercase tracking-widest shadow-2xl shadow-blue-100 hover:scale-105 transition-all"
-                >
-                    + Add Group Tickets
-                </button>
+                {canAdd && (
+                    <button
+                        onClick={onAddTicket}
+                        className="w-full sm:w-auto px-8 py-4 bg-blue-600 text-white rounded-2xl text-xs font-black uppercase tracking-widest shadow-2xl shadow-blue-100 hover:scale-105 transition-all"
+                    >
+                        + Add Group Tickets
+                    </button>
+                )}
             </div>
 
             {/* Search Bar */}
@@ -163,7 +170,7 @@ const TicketsView = ({ onAddTicket, onEditTicket, onDeleteTicket }) => {
                         </div>
                     ) : (
                         tickets.map((ticket) => (
-                            <TicketCard key={ticket._id} ticket={ticket} airlines={airlines} onEditTicket={onEditTicket} onDeleteTicket={onDeleteTicket} />
+                            <TicketCard key={ticket._id} ticket={ticket} airlines={airlines} onEditTicket={onEditTicket} onDeleteTicket={onDeleteTicket} canUpdate={canUpdate} canDelete={canDelete} />
                         ))
                     )}
                 </div>
@@ -173,7 +180,7 @@ const TicketsView = ({ onAddTicket, onEditTicket, onDeleteTicket }) => {
 };
 
 // Modern Ticket Card Component
-const TicketCard = ({ ticket, airlines, onEditTicket, onDeleteTicket }) => {
+const TicketCard = ({ ticket, airlines, onEditTicket, onDeleteTicket, canUpdate = true, canDelete = true }) => {
     const { departure_trip, return_trip, trip_type, total_seats, available_seats, adult_selling, adult_purchasing } = ticket;
 
     // Calculate margin
@@ -300,18 +307,22 @@ const TicketCard = ({ ticket, airlines, onEditTicket, onDeleteTicket }) => {
                         Manage PNR
                     </button>
                     <div className="grid grid-cols-2 gap-2">
-                        <button
-                            onClick={() => onEditTicket(ticket)}
-                            className="py-2 bg-white border border-slate-200 text-slate-600 rounded-lg font-bold uppercase text-[9px] tracking-widest hover:bg-slate-50 transition-all"
-                        >
-                            Edit
-                        </button>
-                        <button
-                            onClick={() => onDeleteTicket(ticket)}
-                            className="py-2 bg-white border border-slate-200 text-rose-500 rounded-lg font-bold uppercase text-[9px] tracking-widest hover:bg-rose-50 transition-all"
-                        >
-                            Delete
-                        </button>
+                        {canUpdate && (
+                            <button
+                                onClick={() => onEditTicket(ticket)}
+                                className="py-2 bg-white border border-slate-200 text-slate-600 rounded-lg font-bold uppercase text-[9px] tracking-widest hover:bg-slate-50 transition-all"
+                            >
+                                Edit
+                            </button>
+                        )}
+                        {canDelete && (
+                            <button
+                                onClick={() => onDeleteTicket(ticket)}
+                                className="py-2 bg-white border border-slate-200 text-rose-500 rounded-lg font-bold uppercase text-[9px] tracking-widest hover:bg-rose-50 transition-all"
+                            >
+                                Delete
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>

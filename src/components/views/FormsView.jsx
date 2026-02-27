@@ -16,7 +16,8 @@ import {
     FileEdit,
     Loader2,
     FileText,
-    X
+    X,
+    Database
 } from 'lucide-react';
 
 // Generate unique ID
@@ -95,19 +96,23 @@ const Button = ({ children, variant = "primary", className = "", icon: Icon, ...
 
 const FormsView = () => {
     // --- State ---
-    const [viewMode, setViewMode] = useState('list'); // 'list',  'builder'
+    const [viewMode, setViewMode] = useState('list'); // 'list',  'builder', 'submissions'
     const [forms, setForms] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedForm, setSelectedForm] = useState(null);
+    const [formSubmissions, setFormSubmissions] = useState([]);
+    const [isLoadingSubmissions, setIsLoadingSubmissions] = useState(false);
     const [error, setError] = useState('');
+    const [availableBlogs, setAvailableBlogs] = useState([]);
 
     // Builder state
     const [formConfig, setFormConfig] = useState({
         title: '',
         autoUrl: '/forms/untitled-form',
         linkBlog: false,
+        linked_blog_id: '',
         position: 'End of Blog (Below Content)',
     });
 
@@ -117,7 +122,23 @@ const FormsView = () => {
 
     useEffect(() => {
         fetchForms();
+        fetchBlogs();
     }, []);
+
+    const fetchBlogs = async () => {
+        try {
+            const token = localStorage.getItem('access_token');
+            const response = await fetch('http://localhost:8000/api/blogs/public/list', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                setAvailableBlogs(data);
+            }
+        } catch (err) {
+            console.error("Failed to fetch blogs", err);
+        }
+    };
 
     const fetchForms = async () => {
         try {
@@ -144,6 +165,7 @@ const FormsView = () => {
             title: '',
             autoUrl: '/forms/untitled-form',
             linkBlog: false,
+            linked_blog_id: '',
             position: 'End of Blog (Below Content)',
         });
         setFields([
@@ -166,6 +188,7 @@ const FormsView = () => {
             title: form.name,
             autoUrl: form.autoUrl || '/forms/' + form.name.toLowerCase().replace(/\s+/g, '-'),
             linkBlog: form.linkBlog || false,
+            linked_blog_id: form.linked_blog_id || '',
             position: form.position || 'End of Blog (Below Content)',
         });
         setFields(form.schema?.fields || []);
@@ -177,6 +200,11 @@ const FormsView = () => {
     const handleSave = async () => {
         if (!formConfig.title.trim()) {
             setError('Form title is required');
+            return;
+        }
+
+        if (formConfig.linkBlog && !formConfig.linked_blog_id) {
+            setError('Please select a blog to link this form to');
             return;
         }
 
@@ -194,6 +222,7 @@ const FormsView = () => {
                 status: 'active',
                 autoUrl: formConfig.autoUrl,
                 linkBlog: formConfig.linkBlog,
+                linked_blog_id: formConfig.linkBlog ? formConfig.linked_blog_id : null,
                 position: formConfig.position,
                 schema: {
                     fields,
@@ -210,7 +239,7 @@ const FormsView = () => {
             let method = 'POST';
 
             if (selectedForm) {
-                url = `http://localhost:8000/api/forms/${selectedForm.id}`;
+                url = `http://localhost:8000/api/forms/${selectedForm._id}`;
                 method = 'PUT';
             }
 
@@ -251,6 +280,27 @@ const FormsView = () => {
             }
         } catch (err) {
             console.error("Failed to delete form", err);
+        }
+    };
+
+    const handleViewSubmissions = async (form) => {
+        setSelectedForm(form);
+        setViewMode('submissions');
+        setIsLoadingSubmissions(true);
+        try {
+            const token = localStorage.getItem('access_token');
+            const response = await fetch(`http://localhost:8000/api/forms/${form._id}/submissions`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                setFormSubmissions(data);
+            }
+        } catch (err) {
+            console.error("Failed to fetch submissions", err);
+        } finally {
+            setIsLoadingSubmissions(false);
         }
     };
 
@@ -451,7 +501,7 @@ const FormsView = () => {
                         <div className="space-y-3">
                             {filteredForms.map(form => (
                                 <div
-                                    key={form.id}
+                                    key={form._id}
                                     className="p-5 border border-slate-200 rounded-2xl hover:border-blue-300 hover:shadow-sm transition-all group"
                                 >
                                     <div className="flex justify-between items-start">
@@ -486,6 +536,13 @@ const FormsView = () => {
                                         </div>
                                         <div className="flex gap-2">
                                             <button
+                                                onClick={() => handleViewSubmissions(form)}
+                                                className="p-2.5 text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors"
+                                                title="View Submissions"
+                                            >
+                                                <Database size={18} />
+                                            </button>
+                                            <button
                                                 onClick={() => handleEdit(form)}
                                                 className="p-2.5 text-blue-600 hover:bg-blue-50 rounded-xl transition-colors"
                                                 title="Edit"
@@ -493,7 +550,7 @@ const FormsView = () => {
                                                 <Edit2 size={18} />
                                             </button>
                                             <button
-                                                onClick={() => handleDelete(form.id)}
+                                                onClick={() => handleDelete(form._id)}
                                                 className="p-2.5 text-red-600 hover:bg-red-50 rounded-xl transition-colors"
                                                 title="Delete"
                                             >
@@ -503,6 +560,77 @@ const FormsView = () => {
                                     </div>
                                 </div>
                             ))}
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    }
+
+    // --- SUBMISSIONS VIEW ---
+    if (viewMode === 'submissions') {
+        const fields = selectedForm?.schema?.fields || [];
+
+        return (
+            <div className="space-y-6 animate-in fade-in duration-500">
+                {/* Back Button & Header */}
+                <div className="flex items-center justify-between border-b border-slate-200 pb-6">
+                    <div className="flex items-center gap-4">
+                        <button
+                            onClick={() => setViewMode('list')}
+                            className="p-2 hover:bg-slate-100 rounded-lg transition-all"
+                        >
+                            <ArrowLeft size={20} className="text-slate-600" />
+                        </button>
+                        <div>
+                            <h1 className="text-xl font-bold text-slate-900">{selectedForm?.name}</h1>
+                            <p className="text-sm text-slate-500">View and manage form submissions</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="bg-white rounded-[24px] shadow-sm border border-slate-100/50 p-6 overflow-hidden">
+                    {isLoadingSubmissions ? (
+                        <div className="flex justify-center py-20">
+                            <Loader2 className="animate-spin text-blue-600" size={40} />
+                        </div>
+                    ) : formSubmissions.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-20 text-center">
+                            <Database className="text-slate-300 w-16 h-16 mb-4" />
+                            <h3 className="text-lg font-bold text-slate-800">No Submissions Yet</h3>
+                            <p className="text-slate-500 max-w-sm mt-2">There are currently no responses for this form. Submissions will appear here once users fill out the form.</p>
+                        </div>
+                    ) : (
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse">
+                                <thead>
+                                    <tr>
+                                        <th className="py-4 px-6 bg-slate-50 font-bold text-slate-700 border-b border-slate-200 text-sm whitespace-nowrap">Submitted At</th>
+                                        {fields.map(f => (
+                                            <th key={f.id} className="py-4 px-6 bg-slate-50 font-bold text-slate-700 border-b border-slate-200 text-sm whitespace-nowrap">
+                                                {f.label}
+                                            </th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {formSubmissions.map((sub) => (
+                                        <tr key={sub._id} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
+                                            <td className="py-4 px-6 text-sm text-slate-600 font-medium whitespace-nowrap">
+                                                {new Date(sub.submitted_at).toLocaleString()}
+                                            </td>
+                                            {fields.map(f => {
+                                                const val = sub.submitted_data[f.name];
+                                                return (
+                                                    <td key={f.id} className="py-4 px-6 text-sm text-slate-900 max-w-xs truncate" title={String(val || '')}>
+                                                        {val || <span className="text-slate-300 italic">empty</span>}
+                                                    </td>
+                                                );
+                                            })}
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
                         </div>
                     )}
                 </div>
@@ -561,24 +689,41 @@ const FormsView = () => {
                                         className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500 cursor-pointer"
                                     />
                                 </div>
-                                <div className="text-sm">
-                                    <label htmlFor="linkBlog" className="font-medium text-slate-900 cursor-pointer select-none">Link with Blog Post</label>
-                                    <p className="text-slate-500 mt-1">If checked, this form will appear automatically below the selected blog post content.</p>
+                                <div className="text-sm w-full">
+                                    <label htmlFor="linkBlog" className="font-medium text-slate-900 cursor-pointer select-none">Link with a specific Blog Post</label>
+                                    <p className="text-slate-500 mt-1 mb-3">If checked, this form will appear automatically within the selected blog post.</p>
+
+                                    {formConfig.linkBlog && (
+                                        <div className="mt-3 bg-white p-3 rounded border border-slate-200">
+                                            <Label required>Select Blog</Label>
+                                            <Select
+                                                value={formConfig.linked_blog_id}
+                                                onChange={(e) => handleConfigChange('linked_blog_id', e.target.value)}
+                                            >
+                                                <option value="" disabled>-- Choose a published blog --</option>
+                                                {availableBlogs.map(blog => (
+                                                    <option key={blog._id} value={blog._id}>{blog.title}</option>
+                                                ))}
+                                            </Select>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
-                            <div>
-                                <Label>Display Position</Label>
-                                <Select
-                                    value={formConfig.position}
-                                    onChange={(e) => handleConfigChange('position', e.target.value)}
-                                >
-                                    <option>End of Blog (Below Content)</option>
-                                    <option>Sidebar (Top)</option>
-                                    <option>Sidebar (Sticky)</option>
-                                    <option>Popup / Modal</option>
-                                </Select>
-                            </div>
+                            {formConfig.linkBlog && (
+                                <div>
+                                    <Label>Display Position</Label>
+                                    <Select
+                                        value={formConfig.position}
+                                        onChange={(e) => handleConfigChange('position', e.target.value)}
+                                    >
+                                        <option>End of Blog (Below Content)</option>
+                                        <option>Sidebar (Top)</option>
+                                        <option>Sidebar (Sticky)</option>
+                                        <option>Popup / Modal</option>
+                                    </Select>
+                                </div>
+                            )}
                         </div>
                     </Card>
 

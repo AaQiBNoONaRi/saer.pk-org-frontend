@@ -83,13 +83,13 @@ function normalizeBooking(b) {
     else if (b.booking_type === 'ticket') type = 'Group Tickets';
 
     const paxCount = b.total_passengers || (b.passengers?.length) || 0;
-    const orderStatus = b.booking_status || 'underprocess';
+    const orderStatus = b.order_status || b.booking_status || 'underprocess';
     const paymentStatus = b.payment_status || 'unpaid';
-    const deliveryStatus = b.voucher_status || 'Draft';
+    const deliveryStatus = b.voucher_status || b.delivery_status || 'Draft';
 
     return {
         _raw: b,                        // keep full original for detail view
-        id: b.id || b._id,
+        id: b._id || b.id,
         booking_type: b.booking_type,
         booking_reference: b.booking_reference,
         type,
@@ -105,7 +105,7 @@ function normalizeBooking(b) {
 
 // --- Main View ---
 export default function OrderDeliveryView({ onOrderClick }) {
-    const [mainTab, setMainTab] = useState('Un-Confirmed Orders');
+    const [mainTab, setMainTab] = useState('Confirmed Orders');
     const [sourceFilter, setSourceFilter] = useState('Agent Orders');
     const [packageFilter, setPackageFilter] = useState('Umrah Packages');
     const [statusFilter, setStatusFilter] = useState('All');
@@ -126,17 +126,26 @@ export default function OrderDeliveryView({ onOrderClick }) {
                 const token = localStorage.getItem('access_token');
                 const headers = { 'Authorization': `Bearer ${token}` };
 
-                const [umrahRes, customRes] = await Promise.all([
+                const [umrahRes, customRes, ticketRes] = await Promise.all([
                     fetch(`${API}/api/umrah-bookings/?limit=200`, { headers }),
                     fetch(`${API}/api/custom-bookings/?limit=200`, { headers }),
+                    fetch(`${API}/api/ticket-bookings/?limit=200`, { headers }),
                 ]);
 
                 const umrahData = umrahRes.ok ? await umrahRes.json() : [];
                 const customData = customRes.ok ? await customRes.json() : [];
+                const ticketData = ticketRes.ok ? await ticketRes.json() : [];
+
+                console.log("DEBUG: Fetched bookings:", {
+                    umrah: umrahData.length,
+                    custom: customData.length,
+                    ticket: ticketData.length
+                });
 
                 const merged = [
                     ...umrahData.map(normalizeBooking),
                     ...customData.map(normalizeBooking),
+                    ...ticketData.map(normalizeBooking),
                 ];
                 // Sort newest first (by id/created_at if available)
                 merged.sort((a, b) => (b._raw.created_at || '').localeCompare(a._raw.created_at || ''));
@@ -172,10 +181,14 @@ export default function OrderDeliveryView({ onOrderClick }) {
     // ── Filter logic ──────────────────────────────────────────────────────
     const filteredOrders = useMemo(() => {
         return allBookings.filter(order => {
+            // Source Filter: if 'All Orders' show everything, else match specific source
             const matchSource =
                 sourceFilter === 'All Orders' ||
-                order.source === sourceFilter ||
-                (sourceFilter === 'Branch Orders' && order.source === 'Branch Orders' && (!selectedBranch || order.branch === selectedBranch));
+                order.source === sourceFilter;
+
+            // Branch Filter: if a branch is selected, enforce it across all matches
+            const matchBranch = !selectedBranch || order.branch === selectedBranch;
+
             const matchType = order.type === packageFilter;
             const matchStatus =
                 statusFilter === 'All' ||
@@ -183,12 +196,15 @@ export default function OrderDeliveryView({ onOrderClick }) {
                 (statusFilter === 'Delivered' && order.deliveryStatus?.toLowerCase() === 'delivered') ||
                 (statusFilter === 'Cancelled' && order.orderStatus?.toLowerCase() === 'cancelled') ||
                 (statusFilter === 'Un-Approved' && ['draft', 'underprocess', 'pending'].includes(order.deliveryStatus?.toLowerCase()));
+
             const matchTab =
                 mainTab === 'Confirmed Orders'
                     ? ['confirmed', 'approved'].includes(order.orderStatus?.toLowerCase())
                     : !['confirmed', 'approved'].includes(order.orderStatus?.toLowerCase());
+
             const matchSearch = !searchQuery || order.booking_reference?.toLowerCase().includes(searchQuery.toLowerCase());
-            return matchSource && matchType && matchStatus && matchTab && matchSearch;
+
+            return matchSource && matchBranch && matchType && matchStatus && matchTab && matchSearch;
         });
     }, [allBookings, sourceFilter, packageFilter, statusFilter, mainTab, selectedBranch, searchQuery]);
 
@@ -266,19 +282,59 @@ export default function OrderDeliveryView({ onOrderClick }) {
                             <FilterButton label="Agent Orders" icon={Briefcase} active={sourceFilter === 'Agent Orders'} onClick={() => setSourceFilter('Agent Orders')} />
                             <FilterButton label="Area Agent Orders" icon={MapPin} active={sourceFilter === 'Area Agent Orders'} onClick={() => setSourceFilter('Area Agent Orders')} />
                             <FilterButton label="Customer Orders" icon={User} active={sourceFilter === 'Customer Orders'} onClick={() => setSourceFilter('Customer Orders')} />
-                            <div className="relative">
-                                <FilterButton label="Branch Orders" icon={Building2} active={sourceFilter === 'Branch Orders'} onClick={() => { setSourceFilter('Branch Orders'); setShowBranchDropdown(!showBranchDropdown); }} />
-                                {sourceFilter === 'Branch Orders' && showBranchDropdown && (
-                                    <div className="absolute top-full left-0 mt-2 w-56 bg-white border border-slate-100 shadow-xl rounded-xl p-2 z-20">
-                                        <p className="text-[10px] font-bold text-slate-400 uppercase px-2 mb-2">Select Branch</p>
-                                        {uniqueBranches.length === 0 ? (
-                                            <p className="text-xs text-slate-400 px-3 py-2">No branches found</p>
-                                        ) : uniqueBranches.map(branch => (
-                                            <button key={branch} onClick={() => { setSelectedBranch(branch); setShowBranchDropdown(false); }}
-                                                className={`w-full text-left px-3 py-2 rounded-lg text-xs font-bold transition-colors ${selectedBranch === branch ? 'bg-blue-50 text-blue-600' : 'text-slate-600 hover:bg-slate-50'}`}>
-                                                {branch}
+                            <div className="relative group/branch">
+                                <FilterButton
+                                    label={selectedBranch ? `Branch: ${selectedBranch}` : "Branch Orders"}
+                                    icon={Building2}
+                                    active={sourceFilter === 'Branch Orders' || !!selectedBranch}
+                                    onClick={() => {
+                                        setSourceFilter('Branch Orders');
+                                        setShowBranchDropdown(!showBranchDropdown);
+                                    }}
+                                />
+                                {showBranchDropdown && (
+                                    <div className="absolute top-full left-0 mt-2 w-64 bg-white border border-slate-100 shadow-2xl rounded-2xl p-2 z-30 animate-in fade-in zoom-in-95 duration-200">
+                                        <div className="flex items-center justify-between px-2 mb-2 border-b border-slate-50 pb-2">
+                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Select Branch</p>
+                                            {selectedBranch && (
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setSelectedBranch('');
+                                                        setShowBranchDropdown(false);
+                                                    }}
+                                                    className="text-[10px] font-bold text-rose-500 hover:text-rose-600 uppercase"
+                                                >
+                                                    Clear
+                                                </button>
+                                            )}
+                                        </div>
+                                        <div className="max-h-64 overflow-y-auto scrollbar-hide py-1">
+                                            <button
+                                                onClick={() => {
+                                                    setSelectedBranch('');
+                                                    setShowBranchDropdown(false);
+                                                }}
+                                                className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold transition-all mb-1 ${!selectedBranch ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}`}
+                                            >
+                                                All Branches
                                             </button>
-                                        ))}
+                                            {uniqueBranches.length === 0 ? (
+                                                <p className="text-[10px] text-slate-400 px-3 py-4 text-center font-bold uppercase italic tracking-tighter">No branches found</p>
+                                            ) : uniqueBranches.map(branch => (
+                                                <button
+                                                    key={branch}
+                                                    onClick={() => {
+                                                        setSelectedBranch(branch);
+                                                        setShowBranchDropdown(false);
+                                                        setSourceFilter('Branch Orders'); // Auto-switch source when branch is picked
+                                                    }}
+                                                    className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold transition-all mb-1 ${selectedBranch === branch ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}`}
+                                                >
+                                                    {branch}
+                                                </button>
+                                            ))}
+                                        </div>
                                     </div>
                                 )}
                             </div>

@@ -69,6 +69,7 @@ const ROUTES = {
   '/payments': 'Payments',
   '/payments/add': 'Add Bank Account',
   '/discounts': 'Discounts',
+  '/discounted-hotels': 'Discounted Hotels',
   '/discounts/add': 'Add Discount',
   '/commissions': 'Commissions',
   '/commissions/add': 'Add Commission',
@@ -98,6 +99,7 @@ const getTabForPath = (path) => {
   if (path.startsWith('/hotels/')) return 'Hotels';
 
   if (path.startsWith('/share-inventory')) return 'Share Inventory';
+  if (path.startsWith('/discounted-hotels')) return 'Discounted Hotels';
 
   if (path.startsWith('/discounts/')) return 'Discounts';
   if (path.startsWith('/commissions/')) return 'Commissions';
@@ -179,8 +181,10 @@ const App = () => {
       // Handle sub-paths for IDs
       if (activeTab === 'Order Delivery' || activeTab === 'Pax Movement' || activeTab === 'Daily Operations') {
         if (viewingOrder) {
-          const orderId = viewingOrder.id || viewingOrder;
-          path = `${getPathForTab(activeTab)}/${orderId}`;
+          const orderId = viewingOrder?.booking_reference || viewingOrder?._id || viewingOrder?.id || viewingOrder;
+          if (typeof orderId === 'string' || typeof orderId === 'number') {
+            path = `${getPathForTab(activeTab)}/${orderId}`;
+          }
         }
       } else if (activeTab === 'Lead Management') {
         if (viewingLead) {
@@ -188,13 +192,21 @@ const App = () => {
           path = `/leads/${id}`;
         }
       } else if (activeTab === 'PackageDetails' && viewingPackage) {
-        path = `/packages/${viewingPackage.id || viewingPackage}`;
+        const pkgId = viewingPackage?.id || viewingPackage?._id || viewingPackage;
+        if (typeof pkgId === 'string' || typeof pkgId === 'number') {
+          path = `/packages/${pkgId}`;
+        }
       } else if (activeTab === 'Add Ticket' && editingTicket) {
-        path = `/tickets/edit/${editingTicket.id || editingTicket._id}`;
+        const ticketId = editingTicket?.id || editingTicket?._id || editingTicket;
+        if (typeof ticketId === 'string' || typeof ticketId === 'number') {
+          path = `/tickets/edit/${ticketId}`;
+        }
       }
 
       const isSubPath = currentPath.startsWith(path + '/');
 
+      // If we are navigating to a base path (like /order-delivery) but current path has a sub-path,
+      // it means the user clicked the sidebar to reset the view.
       if (currentPath !== path && !isSubPath) {
         window.history.pushState(null, '', path);
       }
@@ -210,8 +222,13 @@ const App = () => {
 
       // Restore IDs from URL on back/forward
       const orderId = getIdFromPath(path, '/order-delivery') || getIdFromPath(path, '/pax-movement');
+      const pkgId = getIdFromPath(path, '/packages');
+
       if (orderId) setViewingOrder(orderId);
-      else setViewingOrder(null);
+      else if (path === '/order-delivery' || path === '/pax-movement') setViewingOrder(null);
+
+      if (pkgId) setViewingPackage(pkgId);
+      else if (path === '/packages') setViewingPackage(null);
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);

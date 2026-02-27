@@ -22,6 +22,7 @@ const AddCommissionView = ({ onBack, initialData }) => {
         valid_until: ''
     }]);
     const [isActive, setIsActive] = useState(true);
+    const [hotelSearches, setHotelSearches] = useState(hotelCommissions.map(() => ''));
 
     useEffect(() => {
         const fetchHotels = async () => {
@@ -61,9 +62,19 @@ const AddCommissionView = ({ onBack, initialData }) => {
                     valid_from: hc.valid_from || '',
                     valid_until: hc.valid_until || ''
                 })));
+                setHotelSearches(initialData.hotel_commissions.map(() => ''));
             }
         }
     }, [initialData]);
+
+    useEffect(() => {
+        setHotelSearches(prev => {
+            const next = [...prev];
+            while (next.length < hotelCommissions.length) next.push('');
+            while (next.length > hotelCommissions.length) next.pop();
+            return next;
+        });
+    }, [hotelCommissions.length]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -140,12 +151,21 @@ const AddCommissionView = ({ onBack, initialData }) => {
             valid_from: '',
             valid_until: ''
         }]);
+        setHotelSearches(prev => [...prev, '']);
     };
 
     const removeHotelCommissionPeriod = (index) => {
         if (hotelCommissions.length > 1) {
             setHotelCommissions(hotelCommissions.filter((_, i) => i !== index));
+            setHotelSearches(prev => prev.filter((_, i) => i !== index));
         }
+    };
+
+    const toggleHotelSelection = (periodIndex, hotelId) => {
+        const current = hotelCommissions[periodIndex].hotels || [];
+        const exists = current.includes(hotelId);
+        const updated = exists ? current.filter(h => h !== hotelId) : [...current, hotelId];
+        updateHotelCommission(periodIndex, 'hotels', updated);
     };
 
     const handleReset = () => {
@@ -298,24 +318,42 @@ const AddCommissionView = ({ onBack, initialData }) => {
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-slate-600 mb-2">Hotels</label>
-                            <select
-                                multiple
-                                value={commission.hotels}
-                                onChange={(e) => {
-                                    const selected = Array.from(e.target.selectedOptions, option => option.value);
-                                    updateHotelCommission(index, 'hotels', selected);
-                                }}
-                                className="w-full px-4 py-3 rounded-lg border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none font-medium text-sm"
-                                size="5"
-                            >
-                                {hotels.map(hotel => (
-                                    <option key={hotel._id} value={hotel._id}>
-                                        {hotel.hotel_name} - {hotel.city}
-                                    </option>
+                            <label className="block text-sm font-medium text-slate-600 mb-2">
+                                Hotels (search by name or city)
+                            </label>
+                            <input
+                                type="text"
+                                value={hotelSearches[index]}
+                                onChange={(e) => setHotelSearches(prev => { const n = [...prev]; n[index] = e.target.value; return n; })}
+                                placeholder="Search hotels by city or name"
+                                className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none font-medium text-sm mb-2"
+                            />
+                            <div className="max-h-40 overflow-auto border border-slate-100 rounded-lg p-2">
+                                {(hotels || []).filter(h => {
+                                    const q = (hotelSearches[index] || '').toLowerCase().trim();
+                                    if (!q) return true;
+                                    const name = (h.name || h.hotel_name || '').toLowerCase();
+                                    const city = (h.city || '').toLowerCase();
+                                    return name.includes(q) || city.includes(q);
+                                }).slice(0, 50).map(h => (
+                                    <label key={h._id} className="flex items-center gap-2 py-1 px-2 hover:bg-slate-50 rounded">
+                                        <input type="checkbox" checked={(commission.hotels || []).includes(h._id)} onChange={() => toggleHotelSelection(index, h._id)} />
+                                        <span className="text-sm">{(h.name || h.hotel_name)} — <span className="text-xs text-slate-400">{h.city}</span></span>
+                                    </label>
                                 ))}
-                            </select>
-                            <p className="text-xs text-slate-500 mt-1">Hold Ctrl/Cmd to select multiple hotels</p>
+                                {hotels.length === 0 && <div className="text-xs text-slate-400">No hotels available</div>}
+                            </div>
+                            <div className="mt-2 flex flex-wrap gap-2">
+                                {(commission.hotels || []).map(hid => {
+                                    const h = hotels.find(x => x._id === hid) || {};
+                                    return (
+                                        <div key={hid} className="px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full text-xs font-medium flex items-center gap-2">
+                                            <span>{(h.name || h.hotel_name) || hid}</span>
+                                            <button type="button" onClick={() => toggleHotelSelection(index, hid)} className="text-emerald-600">×</button>
+                                        </div>
+                                    )
+                                })}
+                            </div>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-slate-100">

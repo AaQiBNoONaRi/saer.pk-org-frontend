@@ -222,6 +222,31 @@ export default function OrderConfirmationView({ onBack, booking: initialBooking,
     const [serviceOptions, setServiceOptions] = useState({ approve: false, draft: true });
     const [notes, setNotes] = useState('');
 
+    // Status helpers
+    const getVisaStatus = () => {
+        return (booking?.package_details?.visa_pricing || booking?.visa_details) ? 'Included' : 'Not Included';
+    };
+
+    const getTicketsStatus = () => {
+        return (booking?.package_details?.flight) ? 'Included' : 'Not Included';
+    };
+
+    const getHotelVoucherStatus = () => {
+        return (booking?.package_details?.hotels?.length > 0) ? 'Included' : 'Not Included';
+    };
+
+    const getTransportStatus = () => {
+        return (booking?.package_details?.transport) ? 'Included' : 'Not Included';
+    };
+
+    const getFoodStatus = () => {
+        return (booking?.package_details?.food || booking?.package_details?.fooding) ? 'Included' : 'Not Included';
+    };
+
+    const getZiaratStatus = () => {
+        return (booking?.package_details?.ziarat || booking?.package_details?.ziyarat) ? 'Included' : 'Not Included';
+    };
+
     // Modal States
     const [editModal, setEditModal] = useState({ isOpen: false, type: '', index: null, data: null });
 
@@ -237,6 +262,13 @@ export default function OrderConfirmationView({ onBack, booking: initialBooking,
         setToast({ msg, type });
         setTimeout(() => setToast(null), 3500);
     };
+
+    const [selectedPassengers, setSelectedPassengers] = useState([]);
+
+    useEffect(() => {
+        const passengers = booking?.passengers || [];
+        setSelectedPassengers([...new Set(passengers.map(p => p.passport_no || p.id || p._id || p.name).filter(Boolean))]);
+    }, [booking]);
 
     useEffect(() => {
         const fetchBooking = async () => {
@@ -258,7 +290,12 @@ export default function OrderConfirmationView({ onBack, booking: initialBooking,
 
                 if (res.ok) {
                     const data = await res.json();
-                    setBooking(data);
+                    console.log("DEBUG: fetchBooking data:", data);
+                    if (data && (data._id || data.id)) {
+                        setBooking(data);
+                    } else {
+                        console.error("DEBUG: fetchBooking returned invalid data:", data);
+                    }
                 }
             } catch (err) {
                 console.error("Error fetching booking:", err);
@@ -294,7 +331,8 @@ export default function OrderConfirmationView({ onBack, booking: initialBooking,
         let initialVoucherHotels = [];
         const roomsHaveHotelData = baseRooms.length > 0 && baseRooms.every(r => r.hotel_name);
 
-        if (!roomsHaveHotelData && pkgHotels.length > 0 && baseRooms.length > 0 && booking.package_id) {
+        // Expand if hotels exist in package but not in rooms_selected
+        if (!roomsHaveHotelData && pkgHotels.length > 0 && baseRooms.length > 0) {
             pkgHotels.forEach(hotel => {
                 baseRooms.forEach(room => {
                     initialVoucherHotels.push({
@@ -304,56 +342,86 @@ export default function OrderConfirmationView({ onBack, booking: initialBooking,
                         city: hotel.city,
                         check_in: hotel.check_in,
                         check_out: hotel.check_out,
-                        nights: hotel.nights
+                        nights: hotel.nights,
+                        hotel_brn: room.hotel_brn || room.brn || 'N/A',
+                        hotel_voucher_number: room.hotel_voucher_number || room.hotel_voucher_number || room.voucher_no || 'N/A'
                     });
                 });
             });
         } else {
-            initialVoucherHotels = baseRooms;
+            initialVoucherHotels = baseRooms.map(r => ({
+                ...r,
+                hotel_brn: r.hotel_brn || r.brn || 'N/A',
+                hotel_voucher_number: r.hotel_voucher_number || r.voucher_no || 'N/A'
+            }));
         }
         setVoucherHotels(initialVoucherHotels);
 
         // Shirka initialization
         setSelectedShirka(booking.shirka || '');
 
-        // Normalize flights (Handle both array and object formats)
+        // Normalize flights (Handle both array and object structures)
         let depFlights = [];
         let retFlights = [];
         const flightData = pkgData.flight;
+
+        const normalizeFlight = (f) => {
+            if (!f) return null;
+            // Handle both Collections.FLIGHTS structure and PackageFlightData structure
+            const departureTrip = f.departure_trip || {};
+            return {
+                ...f,
+                airline: f.airline || departureTrip.airline || '—',
+                flight_no: f.flight_no || f.flight_number || departureTrip.flight_number || '—',
+                departure_trip: {
+                    ...departureTrip,
+                    from_city: f.departure_city || departureTrip.departure_city || departureTrip.from_city || departureTrip.from_city_name || '—',
+                    to_city: f.arrival_city || departureTrip.arrival_city || departureTrip.to_city || departureTrip.to_city_name || '—',
+                    departure_time: f.time || departureTrip.departure_time || departureTrip.departure_datetime || '—',
+                    arrival_time: f.arrival_time || departureTrip.arrival_time || departureTrip.arrival_datetime || '—'
+                }
+            };
+        };
+
         if (flightData) {
-            if (Array.isArray(flightData)) {
-                // If it's an array, [0] is departure, [1] is return
-                depFlights = flightData[0] ? [flightData[0]] : [];
-                retFlights = flightData[1] ? [flightData[1]] : (flightData[0] ? [flightData[0]] : []);
-            } else {
-                // If it's a single object, use it for both as a fallback
-                depFlights = [flightData];
-                retFlights = [flightData];
+            const flightArray = Array.isArray(flightData) ? flightData : [flightData];
+            const firstFlight = flightArray[0];
+            const isRoundTrip = firstFlight?.trip_type === 'Round-trip';
+
+            depFlights = firstFlight ? [normalizeFlight(firstFlight)] : [];
+
+            // Only show return flight if it's a Round-trip
+            if (isRoundTrip) {
+                // Use explicit second flight if exists, otherwise fallback to first (as a placeholder)
+                retFlights = flightArray[1] ? [normalizeFlight(flightArray[1])] : [normalizeFlight(firstFlight)];
             }
         }
         setVoucherFlights({ departure: depFlights, return: retFlights });
 
         const transportItem = pkgData.transport ? {
-            type: pkgData.transport.vehicle_type,
-            sector: pkgData.transport.sector,
-            brn: booking.transport_brn || 'N/A',
-            voucher_no: booking.transport_voucher_number || 'N/A'
+            type: pkgData.transport.title || pkgData.transport.name || pkgData.transport.vehicle_type || '—',
+            type: pkgData.transport.title || pkgData.transport.name || pkgData.transport.vehicle_type || '—',
+            sector: pkgData.transport.sector || pkgData.transport.route || '—',
+            brn: booking.transport_brn || pkgData.transport.brn || 'N/A',
+            voucher_no: booking.transport_voucher_number || pkgData.transport.voucher_no || 'N/A'
         } : null;
         setVoucherTransport(transportItem ? [transportItem] : []);
 
-        const foodItem = pkgData.food ? {
-            menu: pkgData.food.title || 'Standard Meal',
-            brn: 'N/A',
-            voucher_no: 'N/A'
+        const foodData = pkgData.food || pkgData.fooding;
+        const foodItem = foodData ? {
+            menu: foodData.title || foodData.menu || 'Standard Meal',
+            brn: booking.food_brn || foodData.brn || 'N/A',
+            voucher_no: booking.food_voucher_number || foodData.voucher_no || 'N/A'
         } : null;
         setVoucherFood(foodItem ? [foodItem] : []);
 
-        const ziaratItem = pkgData.ziarat ? {
-            name: pkgData.ziarat.title || 'Local Ziarat',
-            contact_person: pkgData.ziarat.contact_person || 'N/A',
-            contact_number: pkgData.ziarat.contact_number || 'N/A',
-            brn: 'N/A',
-            voucher_no: 'N/A'
+        const ziaratData = pkgData.ziarat || pkgData.ziyarat;
+        const ziaratItem = ziaratData ? {
+            name: ziaratData.title || ziaratData.name || 'Local Ziarat',
+            contact_person: ziaratData.contact_person || 'N/A',
+            contact_number: ziaratData.contact_number || 'N/A',
+            brn: booking.ziyarat_brn || booking.ziarat_brn || ziaratData.brn || 'N/A',
+            voucher_no: booking.ziyarat_voucher_number || booking.ziarat_voucher_number || ziaratData.voucher_no || 'N/A'
         } : null;
         setVoucherZiarat(ziaratItem ? [ziaratItem] : []);
 
@@ -427,11 +495,6 @@ export default function OrderConfirmationView({ onBack, booking: initialBooking,
     const agentContact = agencyDetails.phone_number || agencyDetails.contact || branchDetails.phone_number || '—';
     const totalPax = passengers.length || booking.total_passengers || 0;
 
-    const [selectedPassengers, setSelectedPassengers] = useState([...new Set(passengers.map(p => p.passport_no || p.id || p._id || p.name).filter(Boolean))]);
-
-    useEffect(() => {
-        setSelectedPassengers([...new Set(passengers.map(p => p.passport_no || p.id || p._id || p.name).filter(Boolean))]);
-    }, [booking]);
 
     const togglePassenger = (id) => {
         setSelectedPassengers(prev =>
@@ -526,7 +589,7 @@ export default function OrderConfirmationView({ onBack, booking: initialBooking,
     const removeVoucherPassenger = (idx) => setVoucherPassengers(voucherPassengers.filter((_, i) => i !== idx));
     const clearVoucherPassengers = () => setVoucherPassengers([]);
 
-    const addVoucherHotel = () => setVoucherHotels([...voucherHotels, { hotel_name: '', check_in: '', check_out: '', room_type: 'Double', quantity: 1, sharing_type: 'Gender or Family', special_request: 'N/A', brn: 'N/A', hotel_voucher_number: 'N/A' }]);
+    const addVoucherHotel = () => setVoucherHotels([...voucherHotels, { hotel_name: '', check_in: '', check_out: '', room_type: 'Double', quantity: 1, sharing_type: 'Gender or Family', special_request: 'N/A', hotel_brn: 'N/A', hotel_voucher_number: 'N/A' }]);
     const removeVoucherHotel = (idx) => setVoucherHotels(voucherHotels.filter((_, i) => i !== idx));
     const clearVoucherHotels = () => setVoucherHotels([]);
 
@@ -608,12 +671,34 @@ export default function OrderConfirmationView({ onBack, booking: initialBooking,
                     package_details: {
                         ...booking.package_details,
                         flight: [...voucherFlights.departure, ...voucherFlights.return].length > 0 ? [...voucherFlights.departure, ...voucherFlights.return] : booking.package_details.flight,
-                        transport: voucherTransport[0] ? { ...booking.package_details.transport, vehicle_type: voucherTransport[0].type, sector: voucherTransport[0].sector } : booking.package_details.transport,
-                        food: voucherFood[0] ? { ...booking.package_details.food, title: voucherFood[0].menu } : booking.package_details.food,
-                        ziarat: voucherZiarat[0] ? { ...booking.package_details.ziarat, title: voucherZiarat[0].name, contact_person: voucherZiarat[0].contact_person, contact_number: voucherZiarat[0].contact_number } : booking.package_details.ziarat
+                        transport: voucherTransport[0] ? {
+                            ...booking.package_details.transport,
+                            vehicle_type: voucherTransport[0].type,
+                            sector: voucherTransport[0].sector,
+                            brn: voucherTransport[0].brn,
+                            voucher_no: voucherTransport[0].voucher_no
+                        } : booking.package_details.transport,
+                        food: voucherFood[0] ? {
+                            ...(typeof (booking.package_details.food || booking.package_details.fooding) === 'object' ? (booking.package_details.food || booking.package_details.fooding) : {}),
+                            title: voucherFood[0].menu,
+                            brn: voucherFood[0].brn,
+                            voucher_no: voucherFood[0].voucher_no
+                        } : (booking.package_details.food || booking.package_details.fooding),
+                        ziarat: voucherZiarat[0] ? {
+                            ...(typeof (booking.package_details.ziarat || booking.package_details.ziyarat) === 'object' ? (booking.package_details.ziarat || booking.package_details.ziyarat) : {}),
+                            title: voucherZiarat[0].name,
+                            contact_person: voucherZiarat[0].contact_person,
+                            contact_number: voucherZiarat[0].contact_number,
+                            brn: voucherZiarat[0].brn,
+                            voucher_no: voucherZiarat[0].voucher_no
+                        } : (booking.package_details.ziarat || booking.package_details.ziyarat)
                     },
                     transport_brn: voucherTransport[0]?.brn,
                     transport_voucher_number: voucherTransport[0]?.voucher_no,
+                    food_brn: voucherFood[0]?.brn,
+                    food_voucher_number: voucherFood[0]?.voucher_no,
+                    ziyarat_brn: voucherZiarat[0]?.brn,
+                    ziyarat_voucher_number: voucherZiarat[0]?.voucher_no,
                     notes: notes,
                     booking_status: serviceOptions.approve ? 'approved' : booking.booking_status
                 })
@@ -621,8 +706,14 @@ export default function OrderConfirmationView({ onBack, booking: initialBooking,
 
             if (res.ok) {
                 const updated = await res.json();
-                setBooking(updated);
-                showToast("All changes saved successfully");
+                console.log("DEBUG: handleSaveAllChanges updated:", updated);
+                if (updated && (updated._id || updated.id)) {
+                    setBooking(updated);
+                    showToast("All changes saved successfully");
+                } else {
+                    console.error("DEBUG: handleSaveAllChanges returned invalid data:", updated);
+                    showToast("Changes saved, but failed to refresh data locally", "warning");
+                }
             }
         } catch (err) {
             console.error("Error saving all changes:", err);
@@ -656,6 +747,7 @@ export default function OrderConfirmationView({ onBack, booking: initialBooking,
     };
 
     const PKR_FORMAT = (n) => `PKR ${(Number(n) || 0).toLocaleString()}`;
+    const SAR_FORMAT = (n) => `SAR ${(Number(n) || 0).toLocaleString()}`;
 
     // Totals logic (similar to detail view)
     const adults = passengers.filter(p => (p.type || '').toLowerCase() === 'adult').length;
@@ -781,10 +873,12 @@ export default function OrderConfirmationView({ onBack, booking: initialBooking,
 
                             {/* Right Side: Status Pills */}
                             <div className="w-full xl:w-64 flex flex-col justify-start bg-slate-50 p-5 rounded-2xl border border-slate-100">
-                                <StatusRow label="Visa" value="N/A" />
-                                <StatusRow label="Hotel Voucher" value="N/A" />
-                                <StatusRow label="Transport" value="N/A" />
-                                <StatusRow label="Tickets" value="N/A" />
+                                <StatusRow label="Visa" value={getVisaStatus()} />
+                                <StatusRow label="Hotel Voucher" value={getHotelVoucherStatus()} />
+                                <StatusRow label="Transport" value={getTransportStatus()} />
+                                <StatusRow label="Tickets" value={getTicketsStatus()} />
+                                {getFoodStatus() === 'Included' && <StatusRow label="Food" value="Included" />}
+                                {getZiaratStatus() === 'Included' && <StatusRow label="Ziarat" value="Included" />}
                             </div>
                         </div>
 
@@ -1032,7 +1126,7 @@ export default function OrderConfirmationView({ onBack, booking: initialBooking,
                                             <td className="py-3 px-4 text-xs font-bold text-slate-700">{room.quantity || 0}</td>
                                             <td className="py-3 px-4 text-xs font-bold text-slate-700">{room.sharing_type || '—'}</td>
                                             <td className="py-3 px-4 text-xs font-bold text-slate-700">{room.special_request || '—'}</td>
-                                            <td className="py-3 px-4 text-xs font-bold text-slate-700">{room.brn || '—'}</td>
+                                            <td className="py-3 px-4 text-xs font-bold text-slate-700">{room.hotel_brn || '—'}</td>
                                             <td className="py-3 px-4 text-xs font-bold text-slate-700">{room.hotel_voucher_number || '—'}</td>
                                             <td className="py-3 px-4">
                                                 <div className="flex items-center justify-center gap-2">
@@ -1111,42 +1205,50 @@ export default function OrderConfirmationView({ onBack, booking: initialBooking,
                                 </VoucherTable>
 
                                 {/* Food Details Section */}
-                                <VoucherSectionHeader title="Food Details" onAdd={addVoucherFood} onClear={clearVoucherFood} addLabel="Add Food" />
-                                <VoucherTable headers={['Food / Menu', 'BRN', 'Voucher No', 'Action']}>
-                                    {voucherFood.map((f, i) => (
-                                        <tr key={i} className="hover:bg-slate-50/50 transition-colors">
-                                            <td className="py-3 px-4 text-xs font-bold text-slate-700">{f.menu || '—'}</td>
-                                            <td className="py-3 px-4 text-xs font-bold text-slate-700">{f.brn || '—'}</td>
-                                            <td className="py-3 px-4 text-xs font-bold text-slate-700">{f.voucher_no || '—'}</td>
-                                            <td className="py-3 px-4">
-                                                <div className="flex items-center justify-center gap-2">
-                                                    <button onClick={() => openEditModal('food', i, f)} className="p-1.5 text-slate-400 hover:text-blue-600 border border-slate-200 rounded-md transition-colors"><Edit3 size={14} /></button>
-                                                    <button onClick={() => removeVoucherFood(i)} className="p-1.5 text-slate-400 hover:text-rose-600 border border-slate-200 rounded-md transition-colors"><Trash size={14} /></button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </VoucherTable>
+                                {voucherFood.length > 0 && (
+                                    <>
+                                        <VoucherSectionHeader title="Food Details" onAdd={addVoucherFood} onClear={clearVoucherFood} addLabel="Add Food" />
+                                        <VoucherTable headers={['Food / Menu', 'BRN', 'Voucher No', 'Action']}>
+                                            {voucherFood.map((f, i) => (
+                                                <tr key={i} className="hover:bg-slate-50/50 transition-colors">
+                                                    <td className="py-3 px-4 text-xs font-bold text-slate-700">{f.menu || '—'}</td>
+                                                    <td className="py-3 px-4 text-xs font-bold text-slate-700">{f.brn || '—'}</td>
+                                                    <td className="py-3 px-4 text-xs font-bold text-slate-700">{f.voucher_no || '—'}</td>
+                                                    <td className="py-3 px-4">
+                                                        <div className="flex items-center justify-center gap-2">
+                                                            <button onClick={() => openEditModal('food', i, f)} className="p-1.5 text-slate-400 hover:text-blue-600 border border-slate-200 rounded-md transition-colors"><Edit3 size={14} /></button>
+                                                            <button onClick={() => removeVoucherFood(i)} className="p-1.5 text-slate-400 hover:text-rose-600 border border-slate-200 rounded-md transition-colors"><Trash size={14} /></button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </VoucherTable>
+                                    </>
+                                )}
 
                                 {/* Ziarat Details Section */}
-                                <VoucherSectionHeader title="Ziarat Details" onAdd={addVoucherZiarat} onClear={clearVoucherZiarat} addLabel="Add Ziarat" />
-                                <VoucherTable headers={['Ziarat Name', 'Contact Person', 'Contact Number', 'BRN', 'Voucher No', 'Action']}>
-                                    {voucherZiarat.map((z, i) => (
-                                        <tr key={i} className="hover:bg-slate-50/50 transition-colors">
-                                            <td className="py-3 px-4 text-xs font-bold text-slate-700">{z.name || '—'}</td>
-                                            <td className="py-3 px-4 text-xs font-bold text-slate-700">{z.contact_person || '—'}</td>
-                                            <td className="py-3 px-4 text-xs font-bold text-slate-700">{z.contact_number || '—'}</td>
-                                            <td className="py-3 px-4 text-xs font-bold text-slate-700">{z.brn || '—'}</td>
-                                            <td className="py-3 px-4 text-xs font-bold text-slate-700">{z.voucher_no || '—'}</td>
-                                            <td className="py-3 px-4">
-                                                <div className="flex items-center justify-center gap-2">
-                                                    <button onClick={() => openEditModal('ziarat', i, z)} className="p-1.5 text-slate-400 hover:text-blue-600 border border-slate-200 rounded-md transition-colors"><Edit3 size={14} /></button>
-                                                    <button onClick={() => removeVoucherZiarat(i)} className="p-1.5 text-slate-400 hover:text-rose-600 border border-slate-200 rounded-md transition-colors"><Trash size={14} /></button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </VoucherTable>
+                                {voucherZiarat.length > 0 && (
+                                    <>
+                                        <VoucherSectionHeader title="Ziarat Details" onAdd={addVoucherZiarat} onClear={clearVoucherZiarat} addLabel="Add Ziarat" />
+                                        <VoucherTable headers={['Ziarat Name', 'Contact Person', 'Contact Number', 'BRN', 'Voucher No', 'Action']}>
+                                            {voucherZiarat.map((z, i) => (
+                                                <tr key={i} className="hover:bg-slate-50/50 transition-colors">
+                                                    <td className="py-3 px-4 text-xs font-bold text-slate-700">{z.name || '—'}</td>
+                                                    <td className="py-3 px-4 text-xs font-bold text-slate-700">{z.contact_person || '—'}</td>
+                                                    <td className="py-3 px-4 text-xs font-bold text-slate-700">{z.contact_number || '—'}</td>
+                                                    <td className="py-3 px-4 text-xs font-bold text-slate-700">{z.brn || '—'}</td>
+                                                    <td className="py-3 px-4 text-xs font-bold text-slate-700">{z.voucher_no || '—'}</td>
+                                                    <td className="py-3 px-4">
+                                                        <div className="flex items-center justify-center gap-2">
+                                                            <button onClick={() => openEditModal('ziarat', i, z)} className="p-1.5 text-slate-400 hover:text-blue-600 border border-slate-200 rounded-md transition-colors"><Edit3 size={14} /></button>
+                                                            <button onClick={() => removeVoucherZiarat(i)} className="p-1.5 text-slate-400 hover:text-rose-600 border border-slate-200 rounded-md transition-colors"><Trash size={14} /></button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </VoucherTable>
+                                    </>
+                                )}
 
                                 {/* Service Options & Notes */}
                                 <div className="mt-10 border-t border-slate-100 pt-8">
@@ -1155,6 +1257,54 @@ export default function OrderConfirmationView({ onBack, booking: initialBooking,
                                         <Checkbox label="APPROVE" selected={serviceOptions.approve} onChange={v => setServiceOptions({ ...serviceOptions, approve: v })} />
                                         <Checkbox label="DRAFT" selected={serviceOptions.draft} onChange={v => setServiceOptions({ ...serviceOptions, draft: v })} />
                                     </div>
+
+                                    {booking.sar_to_pkr_rate && (
+                                        <div className="mb-10 p-6 bg-blue-50/30 border border-blue-100 rounded-[24px]">
+                                            <h3 className="text-sm font-black text-blue-600 uppercase tracking-widest mb-4">Dual Pricing (Audit)</h3>
+                                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+                                                <div>
+                                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Exchange Rate:</p>
+                                                    <p className="text-sm font-black text-slate-800">1 SAR = {booking.sar_to_pkr_rate} PKR</p>
+                                                </div>
+                                                {booking.visa_cost_sar && (
+                                                    <div>
+                                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Visa SAR:</p>
+                                                        <p className="text-sm font-black text-slate-800">{SAR_FORMAT(booking.visa_cost_sar)}</p>
+                                                    </div>
+                                                )}
+                                                {booking.hotel_cost_sar && (
+                                                    <div>
+                                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Hotel SAR:</p>
+                                                        <p className="text-sm font-black text-slate-800">{SAR_FORMAT(booking.hotel_cost_sar)}</p>
+                                                    </div>
+                                                )}
+                                                {booking.transport_cost_sar && (
+                                                    <div>
+                                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Transport SAR:</p>
+                                                        <p className="text-sm font-black text-slate-800">{SAR_FORMAT(booking.transport_cost_sar)}</p>
+                                                    </div>
+                                                )}
+                                                {booking.food_cost_sar && (
+                                                    <div>
+                                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Food SAR:</p>
+                                                        <p className="text-sm font-black text-slate-800">{SAR_FORMAT(booking.food_cost_sar)}</p>
+                                                    </div>
+                                                )}
+                                                <div>
+                                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total SAR Audit:</p>
+                                                    <p className="text-sm font-black text-blue-600">
+                                                        {SAR_FORMAT(
+                                                            (booking.visa_cost_sar || (booking.visa_cost_pkr / booking.sar_to_pkr_rate)) +
+                                                            (booking.hotel_cost_sar || (booking.hotel_cost_pkr / booking.sar_to_pkr_rate)) +
+                                                            (booking.transport_cost_sar || (booking.transport_cost_pkr / booking.sar_to_pkr_rate)) +
+                                                            (booking.food_cost_sar || (booking.food_cost_pkr / booking.sar_to_pkr_rate)) +
+                                                            (booking.ziyarat_cost_sar || (booking.ziyarat_cost_pkr / booking.sar_to_pkr_rate))
+                                                        )}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
 
                                     <div className="space-y-2">
                                         <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Notes</h3>
@@ -1286,7 +1436,7 @@ export default function OrderConfirmationView({ onBack, booking: initialBooking,
                                         </div>
                                         <div className="space-y-1.5">
                                             <Label>BRN</Label>
-                                            <VoucherInput value={editModal.data.brn} onChange={v => setEditModal({ ...editModal, data: { ...editModal.data, brn: v } })} placeholder="Enter BRN" />
+                                            <VoucherInput value={editModal.data.hotel_brn || editModal.data.brn} onChange={v => setEditModal({ ...editModal, data: { ...editModal.data, hotel_brn: v, brn: v } })} placeholder="Enter BRN" />
                                         </div>
                                         <div className="space-y-1.5 col-span-2">
                                             <Label>Voucher Number</Label>

@@ -5,6 +5,7 @@ import {
     ChevronDown, AlertCircle, Star, FileText, X, Check,
     ArrowRight, UserCheck, UserX, DollarSign, Plus, ChevronUp, MessageSquare
 } from 'lucide-react';
+import { getModulePermissions, getCurrentUser } from '../../utils/permissions';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const API = 'http://localhost:8000/api';
@@ -170,6 +171,13 @@ function LeadsSection({ token, onViewLead }) {
     const FU_COLS = ['Name', 'Contact', 'Type', 'Next Follow-up', 'Status', 'Actions'];
     const CLOSED_COLS = ['Name', 'Contact', 'Status', 'Reason', 'Closed On', 'Actions'];
 
+    // Permission checks for CRM module
+    const crmPerms = getModulePermissions('customers');
+    const leadsPerms = getModulePermissions('customers.leads');
+    const canAddLead = crmPerms.add || leadsPerms.add;
+    const canUpdateLead = crmPerms.update || leadsPerms.update;
+    const canDeleteLead = crmPerms.delete || leadsPerms.delete;
+
     const LeadRow = ({ l }) => (
         <tr className="hover:bg-slate-50/50 transition-colors">
             <Td>
@@ -190,12 +198,16 @@ function LeadsSection({ token, onViewLead }) {
                     <button onClick={(e) => { e.stopPropagation(); if (typeof onViewLead === 'function') onViewLead(l); }} className="flex items-center gap-1 px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-[9px] font-black uppercase hover:bg-blue-100 transition-all">
                         <Eye size={11} /> View
                     </button>
-                    <button onClick={(e) => { e.stopPropagation(); openUpdateFollowup(l); }} className="flex items-center gap-1 px-3 py-1.5 bg-amber-50 text-amber-600 rounded-lg text-[9px] font-black uppercase hover:bg-amber-100 transition-all">
-                        <Clock size={11} /> Update
-                    </button>
-                    <button onClick={(e) => { e.stopPropagation(); handleCloseLead(l); }} className="flex items-center gap-1 px-3 py-1.5 bg-red-50 text-red-500 rounded-lg text-[9px] font-black uppercase hover:bg-red-100 transition-all">
-                        <X size={11} /> Close
-                    </button>
+                    {canUpdateLead && (
+                        <button onClick={(e) => { e.stopPropagation(); openUpdateFollowup(l); }} className="flex items-center gap-1 px-3 py-1.5 bg-amber-50 text-amber-600 rounded-lg text-[9px] font-black uppercase hover:bg-amber-100 transition-all">
+                            <Clock size={11} /> Update
+                        </button>
+                    )}
+                    {canDeleteLead && (
+                        <button onClick={(e) => { e.stopPropagation(); handleCloseLead(l); }} className="flex items-center gap-1 px-3 py-1.5 bg-red-50 text-red-500 rounded-lg text-[9px] font-black uppercase hover:bg-red-100 transition-all">
+                            <X size={11} /> Close
+                        </button>
+                    )}
                 </div>
             </Td>
         </tr>
@@ -893,12 +905,14 @@ function LeadsSection({ token, onViewLead }) {
                                 <h2 className="text-base font-black text-slate-900">All Leads</h2>
                                 <p className="text-[10px] text-slate-400 font-bold mt-0.5">All customer-facing sales leads</p>
                             </div>
-                            <div className="flex items-center gap-2">
-                                <button onClick={() => setShowAddLead(true)}
-                                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl text-[12px] font-black hover:bg-blue-700 transition-all">
-                                    <Plus size={14} /> Add Lead
-                                </button>
-                            </div>
+                            {canAddLead && (
+                                <div className="flex items-center gap-2">
+                                    <button onClick={() => setShowAddLead(true)}
+                                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl text-[12px] font-black hover:bg-blue-700 transition-all">
+                                        <Plus size={14} /> Add Lead
+                                    </button>
+                                </div>
+                            )}
                         </div>
 
                         {/* Add Lead Modal */}

@@ -69,13 +69,18 @@ const PhotoGallery = ({ photos, isOpen, onClose, hotelName }) => {
     );
 };
 
-const HotelsView = () => {
+const HotelsView = ({ permissions = null }) => {
     // View State
     const [viewMode, setViewMode] = useState('list'); // list, categories, bed-types, room-map, availability
     const [hotels, setHotels] = useState([]);
     const [bedTypes, setBedTypes] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedHotel, setSelectedHotel] = useState(null);
+    
+    // If permissions prop is not provided, assume full access (for org admin)
+    const canAdd = permissions ? permissions.add : true;
+    const canUpdate = permissions ? permissions.update : true;
+    const canDelete = permissions ? permissions.delete : true;
 
     // Gallery State
     const [galleryOpen, setGalleryOpen] = useState(false);
@@ -330,13 +335,15 @@ const HotelsView = () => {
                             </select>
                         </div>
 
-                        <button
-                            onClick={handleCreateHotel}
-                            className="w-full md:w-auto px-6 py-3 bg-blue-600 text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-blue-700 transition-all shadow-lg shadow-blue-200"
-                        >
-                            <Plus size={20} />
-                            Add Property
-                        </button>
+                        {canAdd && (
+                            <button
+                                onClick={handleCreateHotel}
+                                className="w-full md:w-auto px-6 py-3 bg-blue-600 text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-blue-700 transition-all shadow-lg shadow-blue-200"
+                            >
+                                <Plus size={20} />
+                                Add Property
+                            </button>
+                        )}
                     </div>
 
                     {/* Content */}
@@ -483,18 +490,22 @@ const HotelsView = () => {
                                                 </td>
                                                 <td className="px-4 py-3 align-top">
                                                     <div className="flex gap-2">
-                                                        <button
-                                                            onClick={() => handleEditHotel(hotel)}
-                                                            className="text-xs text-blue-600 hover:underline font-medium"
-                                                        >
-                                                            Edit
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleDeleteHotel(hotel)}
-                                                            className="text-xs text-red-600 hover:underline font-medium"
-                                                        >
-                                                            Delete
-                                                        </button>
+                                                        {canUpdate && (
+                                                            <button
+                                                                onClick={() => handleEditHotel(hotel)}
+                                                                className="text-xs text-blue-600 hover:underline font-medium"
+                                                            >
+                                                                Edit
+                                                            </button>
+                                                        )}
+                                                        {canDelete && (
+                                                            <button
+                                                                onClick={() => handleDeleteHotel(hotel)}
+                                                                className="text-xs text-red-600 hover:underline font-medium"
+                                                            >
+                                                                Delete
+                                                            </button>
+                                                        )}
                                                     </div>
                                                 </td>
                                             </tr>

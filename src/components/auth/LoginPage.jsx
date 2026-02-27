@@ -5,7 +5,10 @@ import { authAPI } from '../../services/api';
 const API_BASE = 'http://localhost:8000';
 
 export default function LoginPage({ onLogin, onEmployeeLogin }) {
-    const [loginMode, setLoginMode] = useState('admin'); // 'admin' | 'employee'
+    // Determine initial mode from URL (allow linking directly to Employee tab)
+    const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
+    const initialMode = urlParams.get('mode') === 'employee' ? 'employee' : 'admin';
+    const [loginMode, setLoginMode] = useState(initialMode); // 'admin' | 'employee'
 
     // Admin login state
     const [username, setUsername] = useState('');

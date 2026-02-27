@@ -45,12 +45,17 @@ const StatusBadge = ({ status }) => {
     );
 };
 
-export default function PaymentsView({ onAddAccount, onEditAccount }) {
+export default function PaymentsView({ onAddAccount, onEditAccount, permissions = null }) {
     const [activeTab, setActiveTab] = useState('Add Payment');
     const [accounts, setAccounts] = useState([]);
     const [agencies, setAgencies] = useState([]);
     const [branches, setBranches] = useState([]);
     const [loading, setLoading] = useState(false);
+    
+    // If permissions prop is not provided, assume full access (for org admin)
+    const canAdd = permissions ? permissions.add : true;
+    const canUpdate = permissions ? permissions.update : true;
+    const canDelete = permissions ? permissions.delete : true;
 
     // Voucher states
     const [vouchers, setVouchers] = useState([]);
@@ -1087,12 +1092,16 @@ export default function PaymentsView({ onAddAccount, onEditAccount }) {
                                                         <td className="px-6 py-4 text-right">
                                                             <div className="flex items-center justify-end gap-2">
                                                                 <Badge status={acc.status} />
-                                                                <button onClick={() => onEditAccount(acc)} className="p-2 bg-slate-50 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors border border-transparent hover:border-blue-100">
-                                                                    <Edit3 size={16} />
-                                                                </button>
-                                                                <button onClick={() => handleDeleteAccount(acc._id)} className="p-2 bg-slate-50 hover:bg-rose-50 hover:text-rose-600 rounded-lg transition-colors border border-transparent hover:border-rose-100">
-                                                                    <Trash2 size={16} />
-                                                                </button>
+                                                                {canUpdate && (
+                                                                    <button onClick={() => onEditAccount(acc)} className="p-2 bg-slate-50 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors border border-transparent hover:border-blue-100">
+                                                                        <Edit3 size={16} />
+                                                                    </button>
+                                                                )}
+                                                                {canDelete && (
+                                                                    <button onClick={() => handleDeleteAccount(acc._id)} className="p-2 bg-slate-50 hover:bg-rose-50 hover:text-rose-600 rounded-lg transition-colors border border-transparent hover:border-rose-100">
+                                                                        <Trash2 size={16} />
+                                                                    </button>
+                                                                )}
                                                             </div>
                                                         </td>
                                                     </tr>

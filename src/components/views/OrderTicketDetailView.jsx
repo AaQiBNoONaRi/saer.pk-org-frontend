@@ -1,340 +1,581 @@
 import React, { useState } from 'react';
-import {
-    ChevronDown,
-    ChevronLeft,
-    ChevronRight,
-    Search,
-    Bell,
-    Menu,
-    Printer,
-    Download,
-    Calendar
-} from 'lucide-react';
+import { ChevronLeft, Printer, FileText, X, CheckCircle2 } from 'lucide-react';
 
-// --- Reusable Components (Internal to this view for now, or import if shared) ---
+const API = 'http://localhost:8000';
 
-const TopFilterButton = ({ label }) => (
-    <button className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-600 hover:border-blue-300 hover:text-blue-600 transition-all shadow-sm">
-        {label}
-        <ChevronDown size={14} />
-    </button>
+// ─── Helpers ────────────────────────────────────────────────────────────────
+const fmt = (v) => (v != null && v !== '' ? v : '—');
+const fmtMoney = (v) => (v != null ? `Rs. ${Number(v).toLocaleString()}/-` : 'Rs. 0/-');
+
+const formatDate = (d) => {
+    if (!d) return '—';
+    try { return new Date(d).toLocaleDateString('en-GB', { year: 'numeric', month: '2-digit', day: '2-digit' }); }
+    catch { return d; }
+};
+const formatDateTime = (d) => {
+    if (!d) return '—';
+    try {
+        const dt = new Date(d);
+        return dt.toLocaleDateString('en-GB', { month: '2-digit', day: '2-digit', year: 'numeric' }) + ', ' +
+            dt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+    } catch { return d; }
+};
+
+// ─── Sub-components ─────────────────────────────────────────────────────────
+
+const SectionTitle = ({ children }) => (
+    <h3 className="text-sm font-black text-slate-800 mb-3">{children}</h3>
 );
 
-const SectionHeader = ({ title, actions }) => (
-    <div className="flex items-center justify-between mb-4 mt-8">
-        <h3 className="text-lg font-black text-slate-800 tracking-tight">{title}</h3>
-        {actions && <div className="flex gap-3">{actions}</div>}
+const TableHead = ({ cols }) => (
+    <thead>
+        <tr className="border-b border-slate-100">
+            {cols.map((c, i) => (
+                <th key={i} className="pb-3 px-3 first:pl-0 last:pr-0 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left whitespace-nowrap">
+                    {c}
+                </th>
+            ))}
+        </tr>
+    </thead>
+);
+
+const Td = ({ children, className = '' }) => (
+    <td className={`py-3 px-3 first:pl-0 last:pr-0 text-xs font-semibold text-slate-700 whitespace-nowrap ${className}`}>
+        {children}
+    </td>
+);
+
+const StatusPill = ({ value }) => {
+    const v = (value || '').toLowerCase();
+    const map = {
+        confirmed: 'bg-emerald-100 text-emerald-700',
+        approved: 'bg-emerald-100 text-emerald-700',
+        paid: 'bg-emerald-100 text-emerald-700',
+        pending: 'bg-amber-100 text-amber-700',
+        underprocess: 'bg-amber-100 text-amber-700',
+        unpaid: 'bg-rose-100 text-rose-700',
+        cancelled: 'bg-rose-100 text-rose-700',
+        partial: 'bg-orange-100 text-orange-700',
+    };
+    // Normalize display text
+    let display = (value || '—').toUpperCase();
+    if (v === 'confirmed' || v === 'approved') display = 'APPROVED';
+
+    return (
+        <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wide ${map[v] || 'bg-slate-100 text-slate-500'}`}>
+            {display}
+        </span>
+    );
+};
+
+const ActionBtn = ({ label, color = 'blue', onClick, small }) => {
+    const colors = {
+        blue: 'bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-600/20',
+        red: 'bg-rose-600 hover:bg-rose-700 text-white shadow-md shadow-rose-600/20',
+        amber: 'bg-amber-500 hover:bg-amber-600 text-white shadow-md shadow-amber-500/20',
+        green: 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/20',
+        slate: 'bg-white hover:bg-slate-50 text-slate-600 border border-slate-200',
+        indigo: 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/20',
+        violet: 'bg-violet-600 hover:bg-violet-700 text-white shadow-md shadow-violet-600/20',
+        orange: 'bg-orange-500 hover:bg-orange-600 text-white shadow-md shadow-orange-500/20',
+    };
+    return (
+        <button
+            onClick={onClick}
+            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${small ? 'px-3 py-1.5 text-[10px]' : ''} ${colors[color] || colors.blue}`}
+        >
+            {label}
+        </button>
+    );
+};
+
+// ─── Modal helpers ───────────────────────────────────────────────────────────
+const Modal = ({ title, children, onClose }) => (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+                <h4 className="text-sm font-black text-slate-800">{title}</h4>
+                <button onClick={onClose} className="p-1 hover:bg-slate-100 rounded-lg text-slate-400"><X size={16} /></button>
+            </div>
+            <div className="px-6 py-5">{children}</div>
+        </div>
     </div>
 );
 
-const ActionButtonSmall = ({ label }) => (
-    <button className="px-4 py-2 bg-[#4FA5FE] hover:bg-blue-500 text-white rounded-lg text-xs font-bold shadow-sm transition-colors">
-        {label}
-    </button>
-);
-
+// ─── Main Component ──────────────────────────────────────────────────────────
 export default function OrderTicketDetailView({ onBack, order }) {
-    // We can use the 'order' prop to populate details dynamically in the future.
-    // For now, we will use the static layout as requested, matching frontend.js
+    const initialRaw = order?._raw || order || {};
+
+    // ── Local booking state so we can update it after API calls ──
+    const [bookingData, setBookingData] = useState(initialRaw);
+    const raw = bookingData;
+
+    const passengers = raw.passengers || [];
+    const td = raw.ticket_details || {};
+    const agency = raw.agency_details || {};
+    const branch = raw.branch_details || {};
+
+    // Financial
+    const adultPrice = raw.base_price_per_person || raw.adult_price || 0;
+    const childPrice = raw.child_price || 0;
+    const infantPrice = raw.infant_price || 0;
+    const discount = raw.discount || 0;
+    const paidAmt = raw.paid_amount || 0;
+    const grandTotal = raw.grand_total || raw.total_amount || 0;
+    const remaining = Math.max(0, grandTotal - paidAmt - discount);
+    const receivedBy = raw.received_by || raw.created_by || '—';
+
+    // Agency info
+    const agencyName = agency.name || agency.agency_name || branch.name || branch.branch_name || raw.agent_name || '—';
+    const agencyCode = agency.agency_code || agency.code || branch.branch_code || branch.code || '—';
+    const agentName = raw.agent_name || agency.contact_person || '—';
+    const contact = agency.phone || branch.phone || raw.contact || '—';
+    const address = agency.address || branch.address || '—';
+    const email = agency.email || branch.email || '—';
+    const agreement = agency.agreement_status || branch.agreement_status || 'Active';
+    const balance = agency.balance != null ? `Rs. ${Number(agency.balance).toLocaleString()}` : '—';
+
+    // Flights — support both flat and nested trip structures
+    const flights = (() => {
+        if (Array.isArray(td)) return td;
+        const rows = [];
+        if (td.departure_trip) rows.push({ ...td.departure_trip, _leg: 'Departure' });
+        else if (td.airline || td.flight_no || td.flight_number) rows.push({ ...td, _leg: 'Departure' });
+        if (td.return_trip) rows.push({ ...td.return_trip, _leg: 'Return' });
+        return rows;
+    })();
+
+    // Shared ticket meta (price, seats, pnr) from ticket_details or top-level raw
+    const sharedMeta = {
+        price: raw.base_price_per_person || td.price || 0,
+        total_seats: raw.total_passengers || raw.total_seats || td.total_seats || 0,
+        weight: td.weight || raw.weight || '—',
+        piece: td.piece || raw.piece || '—',
+        pnr: td.pnr || raw.pnr || '—',
+        meal: td.meal != null ? (td.meal ? 'Yes' : 'No') : '—',
+        ticket_type: td.ticket_type || td.type || '—',
+    };
+
+    // Modal states
+    const [modal, setModal] = useState(null);
+    const [modalNote, setModalNote] = useState('');
+    const [discountAmt, setDiscountAmt] = useState('');
+    const [infantFare, setInfantFare] = useState({ infant: '', child: '' });
+    const [partialAmt, setPartialAmt] = useState('');
+    const [saving, setSaving] = useState(false);
+    const [toast, setToast] = useState(null);
+
+    const showToast = (msg, type = 'success') => {
+        setToast({ msg, type });
+        setTimeout(() => setToast(null), 4000);
+    };
+
+    // ── Re-fetch booking after actions so the view visually updates ──
+    const refetchBooking = async () => {
+        try {
+            const id = raw._id || raw.id;
+            console.log('DEBUG: Re-fetching booking ID:', id);
+            if (!id) return;
+            const token = localStorage.getItem('access_token');
+            const res = await fetch(`${API}/api/ticket-bookings/${id}`, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            if (res.ok) {
+                const updated = await res.json();
+                console.log('DEBUG: Received updated booking data:', updated);
+                setBookingData(updated);
+            } else {
+                console.error('DEBUG: Re-fetch failed with status:', res.status);
+            }
+        } catch (e) {
+            console.error('DEBUG: Re-fetch error:', e);
+        }
+    };
+
+    const updateBooking = async (data) => {
+        const id = raw._id || raw.id;
+        if (!id) throw new Error('No booking ID found');
+        const token = localStorage.getItem('access_token');
+        const res = await fetch(`${API}/api/ticket-bookings/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify(data),
+        });
+        return res;
+    };
+
+    const handleAction = async (action) => {
+        setSaving(true);
+        try {
+            let res;
+            switch (action) {
+                case 'approve':
+                    res = await updateBooking({
+                        booking_status: 'approved',
+                        order_status: 'approved',
+                        payment_status: 'paid',
+                        voucher_status: 'Approved'
+                    });
+                    if (res.ok) {
+                        await refetchBooking();
+                        showToast('✓ Order approved successfully!');
+                        setModal(null);
+                    } else {
+                        const err = await res.json().catch(() => ({}));
+                        showToast(err.detail || `Failed (${res.status})`, 'error');
+                    }
+                    break;
+                case 'cancel':
+                    res = await updateBooking({
+                        booking_status: 'cancelled',
+                        order_status: 'cancelled'
+                    });
+                    if (res.ok) { await refetchBooking(); showToast('Order cancelled.', 'warning'); setModal(null); }
+                    else { const e = await res.json().catch(() => ({})); showToast(e.detail || `Failed (${res.status})`, 'error'); }
+                    break;
+                case 'reject':
+                    res = await updateBooking({
+                        booking_status: 'rejected',
+                        order_status: 'rejected',
+                        notes: modalNote
+                    });
+                    if (res.ok) { await refetchBooking(); showToast('Order rejected.', 'warning'); setModal(null); setModalNote(''); }
+                    else { const e = await res.json().catch(() => ({})); showToast(e.detail || `Failed (${res.status})`, 'error'); }
+                    break;
+                case 'cancel_note':
+                    res = await updateBooking({
+                        booking_status: 'cancelled',
+                        order_status: 'cancelled',
+                        notes: modalNote
+                    });
+                    if (res.ok) { await refetchBooking(); showToast('Order cancelled with note.', 'warning'); setModal(null); setModalNote(''); }
+                    else { const e = await res.json().catch(() => ({})); showToast(e.detail || `Failed (${res.status})`, 'error'); }
+                    break;
+                case 'partial':
+                    res = await updateBooking({ payment_status: 'partial', paid_amount: Number(partialAmt) });
+                    if (res.ok) { await refetchBooking(); showToast('Partial payment recorded.'); setModal(null); setPartialAmt(''); }
+                    else { const e = await res.json().catch(() => ({})); showToast(e.detail || `Failed (${res.status})`, 'error'); }
+                    break;
+                case 'discount':
+                    res = await updateBooking({ discount: Number(discountAmt) });
+                    if (res.ok) { await refetchBooking(); showToast('Discount applied.'); setModal(null); setDiscountAmt(''); }
+                    else { const e = await res.json().catch(() => ({})); showToast(e.detail || `Failed (${res.status})`, 'error'); }
+                    break;
+                case 'infant_fare':
+                    res = await updateBooking({ infant_price: Number(infantFare.infant), child_price: Number(infantFare.child) });
+                    if (res.ok) { await refetchBooking(); showToast('Infant & child fare set.'); setModal(null); }
+                    else { const e = await res.json().catch(() => ({})); showToast(e.detail || `Failed (${res.status})`, 'error'); }
+                    break;
+                case 'refund':
+                    res = await updateBooking({
+                        payment_status: 'refunded',
+                        booking_status: 'cancelled',
+                        order_status: 'cancelled'
+                    });
+                    if (res.ok) { await refetchBooking(); showToast('Ticket refunded.', 'warning'); setModal(null); }
+                    else { const e = await res.json().catch(() => ({})); showToast(e.detail || `Failed (${res.status})`, 'error'); }
+                    break;
+                default: break;
+            }
+        } catch (e) {
+            showToast(`Error: ${e.message || 'Network error'}`, 'error');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const inputCls = "w-full border border-slate-200 rounded-lg px-3 py-2 text-sm font-semibold text-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 outline-none transition-all";
 
     return (
-        <div className="bg-[#F8F9FD] min-h-screen">
-            <div className="p-4 md:px-8 md:pb-8 space-y-4">
+        <div className="bg-[#F8F9FD] min-h-screen relative">
 
-                {/* Top Navigation Tabs - (Visual only for this view as per request, or we can remove if it conflicts with App.jsx tabs)
-            In App.jsx, we are already inside a tab, so maybe we don't need this, but keeping it to match the mockup exactly.
-        */}
-                <div className="flex gap-6 mb-2">
-                    <button className="text-sm font-bold text-slate-400 hover:text-slate-600 transition-colors pb-2">Umrah Package</button>
-                    <button className="text-sm font-bold text-blue-600 border-b-[3px] border-blue-600 pb-2">Ticketing</button>
+            {/* Toast */}
+            {toast && (
+                <div className={`fixed top-5 right-5 z-[100] px-5 py-3 rounded-xl shadow-xl text-white text-xs font-bold transition-all ${toast.type === 'error' ? 'bg-rose-600' : toast.type === 'warning' ? 'bg-amber-500' : 'bg-emerald-600'
+                    }`}>
+                    {toast.msg}
                 </div>
+            )}
 
-                {/* Secondary Search & Date Filter (Right Aligned) */}
-                <div className="hidden md:flex justify-end gap-3 mb-2 -mt-10">
-                    <div className="relative w-64">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-                        <input type="text" placeholder="Search name, package, etc" className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-600 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-all shadow-sm" />
+            {/* Modals */}
+            {modal === 'discount' && (
+                <Modal title="Add Discount" onClose={() => setModal(null)}>
+                    <label className="block text-xs font-bold text-slate-500 mb-1">Discount Amount (Rs.)</label>
+                    <input className={inputCls} type="number" min="0" value={discountAmt} onChange={e => setDiscountAmt(e.target.value)} placeholder="0" />
+                    <div className="flex gap-3 mt-4">
+                        <ActionBtn label="Apply" color="green" onClick={() => handleAction('discount')} />
+                        <ActionBtn label="Cancel" color="slate" onClick={() => setModal(null)} />
                     </div>
-                    <button className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm">
-                        <Calendar size={14} className="text-slate-400" />
-                        Today
-                        <ChevronDown size={14} className="text-slate-400" />
-                    </button>
-                </div>
-
-                {/* Filters Bar */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 pt-2">
-                    <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 font-medium">
-                        <span>Showing</span>
-                        <button className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 rounded-lg font-bold text-slate-700 shadow-sm">11 <ChevronDown size={14} /></button>
-                        <span>out of 286</span>
-                        <TopFilterButton label="LHR-JED" />
-                        <TopFilterButton label="JED-LHR" />
-                        <TopFilterButton label="Sort by travel date" />
+                </Modal>
+            )}
+            {modal === 'refund' && (
+                <Modal title="Refund Payment" onClose={() => setModal(null)}>
+                    <p className="text-xs text-slate-500 font-semibold mb-4">This will mark the booking as <span className="font-black text-rose-600">Refunded</span> and cancel the order. Are you sure?</p>
+                    <div className="flex gap-3">
+                        <ActionBtn label={saving ? 'Processing...' : 'Confirm Refund'} color="red" onClick={() => handleAction('refund')} />
+                        <ActionBtn label="Cancel" color="slate" onClick={() => setModal(null)} />
                     </div>
-
-                    <div className="flex items-center gap-2">
-                        <button className="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-50">
-                            <ChevronLeft size={14} /> Previous
-                        </button>
-                        <button className="w-8 h-8 flex items-center justify-center bg-[#4FA5FE] text-white rounded-lg text-xs font-bold shadow-sm">1</button>
-                        <button className="w-8 h-8 flex items-center justify-center bg-white border border-slate-200 text-slate-600 rounded-lg text-xs font-bold hover:bg-slate-50">2</button>
-                        <button className="w-8 h-8 flex items-center justify-center bg-white border border-slate-200 text-slate-600 rounded-lg text-xs font-bold hover:bg-slate-50">3</button>
-                        <span className="text-slate-400 px-1">...</span>
-                        <button className="w-8 h-8 flex items-center justify-center bg-white border border-slate-200 text-slate-600 rounded-lg text-xs font-bold hover:bg-slate-50">16</button>
-                        <button className="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-50">
-                            Next <ChevronRight size={14} />
-                        </button>
+                </Modal>
+            )}
+            {modal === 'reject' && (
+                <Modal title="Reject With Note" onClose={() => setModal(null)}>
+                    <label className="block text-xs font-bold text-slate-500 mb-1">Rejection Note</label>
+                    <textarea className={`${inputCls} resize-none`} rows={3} value={modalNote} onChange={e => setModalNote(e.target.value)} placeholder="Enter reason for rejection..." />
+                    <div className="flex gap-3 mt-4">
+                        <ActionBtn label={saving ? 'Saving...' : 'Reject Order'} color="red" onClick={() => handleAction('reject')} />
+                        <ActionBtn label="Cancel" color="slate" onClick={() => setModal(null)} />
                     </div>
-                </div>
+                </Modal>
+            )}
+            {modal === 'cancel_note' && (
+                <Modal title="Cancel With Note" onClose={() => setModal(null)}>
+                    <label className="block text-xs font-bold text-slate-500 mb-1">Cancellation Note</label>
+                    <textarea className={`${inputCls} resize-none`} rows={3} value={modalNote} onChange={e => setModalNote(e.target.value)} placeholder="Enter cancellation reason..." />
+                    <div className="flex gap-3 mt-4">
+                        <ActionBtn label={saving ? 'Saving...' : 'Cancel Order'} color="red" onClick={() => handleAction('cancel_note')} />
+                        <ActionBtn label="Close" color="slate" onClick={() => setModal(null)} />
+                    </div>
+                </Modal>
+            )}
+            {modal === 'partial' && (
+                <Modal title="Partial Payment" onClose={() => setModal(null)}>
+                    <label className="block text-xs font-bold text-slate-500 mb-1">Amount Received (Rs.)</label>
+                    <input className={inputCls} type="number" min="0" value={partialAmt} onChange={e => setPartialAmt(e.target.value)} placeholder="0" />
+                    <div className="flex gap-3 mt-4">
+                        <ActionBtn label={saving ? 'Saving...' : 'Save Payment'} color="green" onClick={() => handleAction('partial')} />
+                        <ActionBtn label="Cancel" color="slate" onClick={() => setModal(null)} />
+                    </div>
+                </Modal>
+            )}
+            {modal === 'infant_fare' && (
+                <Modal title="Set Infant & Child Fare" onClose={() => setModal(null)}>
+                    <div className="space-y-3">
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 mb-1">Child Price (Rs.)</label>
+                            <input className={inputCls} type="number" min="0" value={infantFare.child} onChange={e => setInfantFare(p => ({ ...p, child: e.target.value }))} placeholder="0" />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 mb-1">Infant Price (Rs.)</label>
+                            <input className={inputCls} type="number" min="0" value={infantFare.infant} onChange={e => setInfantFare(p => ({ ...p, infant: e.target.value }))} placeholder="0" />
+                        </div>
+                    </div>
+                    <div className="flex gap-3 mt-4">
+                        <ActionBtn label={saving ? 'Saving...' : 'Set Fares'} color="green" onClick={() => handleAction('infant_fare')} />
+                        <ActionBtn label="Cancel" color="slate" onClick={() => setModal(null)} />
+                    </div>
+                </Modal>
+            )}
+            {modal === 'refund_ticket' && (
+                <Modal title="Refund Ticket" onClose={() => setModal(null)}>
+                    <p className="text-xs text-slate-500 font-semibold mb-4">Are you sure you want to refund this ticket? The booking will be marked as <span className="font-black text-rose-600">Refunded</span>.</p>
+                    <div className="flex gap-3">
+                        <ActionBtn label={saving ? 'Processing...' : 'Confirm Refund'} color="red" onClick={() => handleAction('refund')} />
+                        <ActionBtn label="Cancel" color="slate" onClick={() => setModal(null)} />
+                    </div>
+                </Modal>
+            )}
 
-                {/* Main Content Card */}
-                <div className="bg-white rounded-[32px] shadow-sm border border-slate-100/50 p-8">
+            <div className="p-4 md:px-8 md:pb-8">
+                <div className="bg-white rounded-[28px] shadow-sm border border-slate-100/50 p-6 md:p-8">
 
-                    {/* 1. Header Area */}
-                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8 border-b border-slate-100 pb-8">
+                    {/* ── Header ── */}
+                    <div className="flex items-center justify-between mb-6 pb-5 border-b border-slate-100">
                         <div
-                            className="flex items-center gap-3 text-blue-600 hover:text-blue-700 transition-colors cursor-pointer group"
+                            className="flex items-center gap-2 cursor-pointer group"
                             onClick={onBack}
                         >
-                            <ChevronLeft size={24} strokeWidth={3} />
-                            <h2 className="text-xl font-black text-slate-800 group-hover:text-blue-700 transition-colors">
-                                Order Delivery system/Tickets/ Detail
-                            </h2>
+                            <ChevronLeft size={20} strokeWidth={3} className="text-blue-500 group-hover:text-blue-700 transition-colors" />
+                            <span className="text-sm font-black text-slate-700 group-hover:text-blue-700 transition-colors">
+                                Order Delivery system / Tickets / Detail
+                            </span>
                         </div>
-                        <div className="flex flex-wrap gap-3">
-                            <button className="px-8 py-2.5 bg-[#0066FF] hover:bg-blue-700 text-white rounded-xl text-sm font-bold shadow-md shadow-blue-600/20 transition-all flex items-center gap-2">
-                                <Printer size={16} /> Print
-                            </button>
-                            <button className="px-8 py-2.5 bg-white border border-slate-200 text-slate-400 hover:text-slate-600 hover:border-slate-300 rounded-xl text-sm font-bold shadow-sm transition-all flex items-center gap-2">
-                                <Download size={16} /> Download
+                        <div className="flex gap-2">
+                            <button className="flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-md shadow-blue-600/20 transition-all">
+                                <Printer size={14} /> Print
                             </button>
                         </div>
                     </div>
 
-                    {/* 2. Order Summary Table */}
+                    {/* ── 1. Order Summary Table ── */}
+                    <div className="overflow-x-auto mb-8">
+                        <table className="w-full text-left">
+                            <TableHead cols={['Order No', 'Status', 'Agency Code', 'Agency Name', 'Agent Name', 'Contact', 'Address', 'Email', 'Agreement Status', 'Balance', 'Creation Timestamp']} />
+                            <tbody>
+                                <tr>
+                                    <Td>
+                                        <span className="text-blue-600 font-black underline underline-offset-2 decoration-slate-300">
+                                            {raw.booking_reference || raw._id?.slice(-8) || '—'}
+                                        </span>
+                                    </Td>
+                                    <Td><StatusPill value={raw.booking_status || raw.payment_status} /></Td>
+                                    <Td className="font-black text-slate-800">{agencyCode}</Td>
+                                    <Td className="font-black text-slate-800">{agencyName}</Td>
+                                    <Td>{agentName}</Td>
+                                    <Td>{contact}</Td>
+                                    <Td className="max-w-[160px] truncate">{address}</Td>
+                                    <Td className="text-blue-600">{email}</Td>
+                                    <Td>{agreement}</Td>
+                                    <Td className="font-black text-slate-800">{balance}</Td>
+                                    <Td>{formatDateTime(raw.created_at)}</Td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {/* ── 2. Pax Detail ── */}
                     <div className="mb-8">
+                        <SectionTitle>Pax Detail</SectionTitle>
                         <div className="overflow-x-auto">
                             <table className="w-full text-left">
-                                <thead>
-                                    <tr className="border-b border-slate-100 text-[11px] font-black text-slate-500 uppercase tracking-widest">
-                                        <th className="pb-4 pr-4">order no</th>
-                                        <th className="pb-4 px-4">Status</th>
-                                        <th className="pb-4 px-4">Agency Code</th>
-                                        <th className="pb-4 px-4">Agreement Status</th>
-                                        <th className="pb-4 px-4">Balance</th>
-                                        <th className="pb-4 pl-4 text-right">Creation Timestamps</th>
-                                    </tr>
-                                </thead>
+                                <TableHead cols={['SND', 'Type', 'Title', 'First Name', 'Last Name', 'Passport No', 'DOB', 'Passport Issue', 'Passport Expiry', 'Country', 'Actions']} />
                                 <tbody>
-                                    <tr className="text-sm font-bold text-slate-800">
-                                        <td className="py-5 pr-4 underline decoration-slate-300 underline-offset-4 font-black">{order?.id || 'sjdns'}</td>
-                                        <td className="py-5 px-4 text-blue-600">{order?.paymentStatus || 'Paid'}</td>
-                                        <td className="py-5 px-4 text-blue-600">OUHEFW89</td>
-                                        <td className="py-5 px-4 text-blue-600">N/A</td>
-                                        <td className="py-5 px-4 text-blue-600">1000</td>
-                                        <td className="py-5 pl-4 text-right text-slate-600 font-semibold">Dec 19, 2025 14:00</td>
-                                    </tr>
+                                    {passengers.length === 0 ? (
+                                        <tr><td colSpan={11} className="py-8 text-center text-xs text-slate-400 italic">No passengers found</td></tr>
+                                    ) : passengers.map((p, idx) => (
+                                        <tr key={idx} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
+                                            <Td className="font-black text-slate-800">{idx + 1}</Td>
+                                            <Td className="capitalize">{p.type || 'Adult'}</Td>
+                                            <Td>{p.title || '—'}</Td>
+                                            <Td className="font-black text-slate-900">{p.first_name || '—'}</Td>
+                                            <Td className="font-black text-slate-900">{p.last_name || '—'}</Td>
+                                            <Td className="text-slate-800 font-black">{p.passport || p.passport_number || '—'}</Td>
+                                            <Td>{formatDate(p.dob || p.date_of_birth)}</Td>
+                                            <Td className={!p.passportIssue && !p.passport_issue_date ? 'text-slate-400' : 'text-amber-600 font-black'}>
+                                                {formatDate(p.passportIssue || p.passport_issue_date)}
+                                            </Td>
+                                            <Td className={!p.passportExpiry && !p.passport_expiry_date ? 'text-slate-400' : ''}>
+                                                {formatDate(p.passportExpiry || p.passport_expiry_date)}
+                                            </Td>
+                                            <Td>{p.country || '—'}</Td>
+                                            <Td>
+                                                <button className="flex items-center gap-1 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg text-[10px] font-black transition-colors">
+                                                    ✎ Edit
+                                                </button>
+                                            </Td>
+                                        </tr>
+                                    ))}
                                 </tbody>
                             </table>
                         </div>
                     </div>
 
-                    {/* 3. Pax Detail */}
+                    {/* ── 3. Flight Details ── */}
                     <div className="mb-8">
-                        <SectionHeader
-                            title="Pax Detail"
-                            actions={<ActionButtonSmall label="Edit Details" />}
-                        />
+                        <div className="flex items-center justify-between mb-3">
+                            <SectionTitle>Flight Details</SectionTitle>
+                            <ActionBtn label="Send Ticket" color="blue" small />
+                        </div>
                         <div className="overflow-x-auto">
                             <table className="w-full text-left">
-                                <thead>
-                                    <tr className="border-b border-slate-100 text-[11px] font-black text-slate-500 uppercase tracking-widest">
-                                        <th className="pb-4 pr-4">SNO</th>
-                                        <th className="pb-4 px-4">Passport No</th>
-                                        <th className="pb-4 px-4">Expiry Date</th>
-                                        <th className="pb-4 px-4">Pax Name</th>
-                                        <th className="pb-4 px-4">Gender</th>
-                                        <th className="pb-4 pl-4">Passport Detail</th>
-                                    </tr>
-                                </thead>
+                                <TableHead cols={['Airline', 'Flight Number', 'Meal', 'Type', 'PNR', 'Price', 'Total Seats', 'Weight', 'Piece', 'Route', 'Dep Date & Time', 'Arv Date & Time', 'Dep Date & Time', 'Arv Date & Time']} />
                                 <tbody>
-                                    <tr className="text-sm text-slate-600 font-semibold">
-                                        <td className="py-5 pr-4 font-black text-slate-800 underline decoration-slate-300 underline-offset-4">1</td>
-                                        <td className="py-5 px-4 font-bold text-slate-800">Lkaf2623165</td>
-                                        <td className="py-5 px-4 font-bold text-slate-800">December 2025</td>
-                                        <td className="py-5 px-4 font-black text-slate-900">Ali Hamza</td>
-                                        <td className="py-5 px-4 font-bold text-slate-800">M</td>
-                                        <td className="py-5 pl-4">ETC....</td>
-                                    </tr>
+                                    {flights.length === 0 ? (
+                                        <tr><td colSpan={14} className="py-8 text-center text-xs text-slate-400 italic">No flight data available</td></tr>
+                                    ) : flights.map((f, idx) => {
+                                        const leg = f._leg || (idx === 0 ? 'Departure' : 'Return');
+                                        const route = [f.departure_city, f.arrival_city].filter(Boolean).join(' - ') || fmt(f.route);
+                                        const depDT = f.departure_time || f.departure_datetime;
+                                        const arvDT = f.arrival_time || f.arrival_datetime;
+                                        // For 2nd entry show return times differently
+                                        return (
+                                            <tr key={idx} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
+                                                <Td className="font-black text-slate-800">{fmt(f.airline || f.airline_name)}</Td>
+                                                <Td>{fmt(f.flight_no || f.flight_number)}</Td>
+                                                <Td>{sharedMeta.meal}</Td>
+                                                <Td>
+                                                    <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase ${(sharedMeta.ticket_type || '').toLowerCase().includes('refund') ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-blue-700'
+                                                        }`}>
+                                                        {sharedMeta.ticket_type || leg}
+                                                    </span>
+                                                </Td>
+                                                <Td className="font-black text-blue-600 uppercase">{fmt(f.pnr || sharedMeta.pnr)}</Td>
+                                                <Td className="font-black">{fmtMoney(sharedMeta.price)}</Td>
+                                                <Td>{sharedMeta.total_seats}</Td>
+                                                <Td>{sharedMeta.weight}</Td>
+                                                <Td>{sharedMeta.piece}</Td>
+                                                <Td className="uppercase font-black text-slate-800">{route}</Td>
+                                                <Td className="text-slate-600">{formatDateTime(depDT)}</Td>
+                                                <Td className="text-slate-600">{formatDateTime(arvDT)}</Td>
+                                                {/* Return columns (if applicable, show for dep row as return data) */}
+                                                <Td className="text-slate-400">{idx === 0 && flights[1] ? formatDateTime(flights[1].departure_time || flights[1].departure_datetime) : '—'}</Td>
+                                                <Td className="text-slate-400">{idx === 0 && flights[1] ? formatDateTime(flights[1].arrival_time || flights[1].arrival_datetime) : '—'}</Td>
+                                            </tr>
+                                        );
+                                    })}
                                 </tbody>
                             </table>
                         </div>
                     </div>
 
-                    {/* 4. Flight Details */}
+                    {/* ── 4. Order Detail ── */}
                     <div className="mb-8">
-                        <SectionHeader
-                            title="Flight Details"
-                            actions={<ActionButtonSmall label="Send Ticket" />}
-                        />
+                        <div className="flex items-center gap-3 mb-3">
+                            <SectionTitle>Order Detail</SectionTitle>
+                            <ActionBtn label="Add Discount" color="blue" small onClick={() => setModal('discount')} />
+                            <ActionBtn label="Refund Payment" color="red" small onClick={() => setModal('refund')} />
+                        </div>
                         <div className="overflow-x-auto">
                             <table className="w-full text-left">
-                                <thead>
-                                    <tr className="border-b border-slate-100 text-[11px] font-black text-slate-500 uppercase tracking-widest">
-                                        <th className="pb-4 pr-4">Airline</th>
-                                        <th className="pb-4 px-4">PNR</th>
-                                        <th className="pb-4 px-4">Route</th>
-                                        <th className="pb-4 px-4">Dep Date & Time</th>
-                                        <th className="pb-4 px-4">Arv Date & Time</th>
-                                        <th className="pb-4 px-4">Dep Date & Time</th>
-                                        <th className="pb-4 pl-4">Arv Date & Time</th>
-                                    </tr>
-                                </thead>
+                                <TableHead cols={['Order No', 'Date', 'No. of Pax', 'Adult Price', 'Child Price', 'Infant Price', 'Discount', 'Received By', 'Paid Amount', 'Remaining Amount', 'Total Amount', 'Action']} />
                                 <tbody>
-                                    <tr className="text-sm font-bold text-slate-800">
-                                        <td className="py-5 pr-4 underline decoration-slate-300 underline-offset-4">Saudia Airline</td>
-                                        <td className="py-5 px-4">2463366</td>
-                                        <td className="py-5 px-4">LHR-JED-LHR</td>
-                                        <td className="py-5 px-4">28/03/25 14:30</td>
-                                        <td className="py-5 px-4">28/03/25 10:30</td>
-                                        <td className="py-5 px-4">14/04/25 1:30</td>
-                                        <td className="py-5 pl-4">14/04/25 2:00</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    {/* 5. Agent Detail */}
-                    <div className="mb-8">
-                        <SectionHeader title="Agent Detail" />
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-center">
-                                <thead>
-                                    <tr className="border-b border-slate-100 text-[11px] font-black text-slate-500 uppercase tracking-widest">
-                                        <th className="pb-4 px-4 text-left">Agency Name</th>
-                                        <th className="pb-4 px-4">Agent Name</th>
-                                        <th className="pb-4 px-4">Contact</th>
-                                        <th className="pb-4 px-4">Adress</th>
-                                        <th className="pb-4 pl-4 text-right">Email</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr className="text-sm font-bold text-slate-800">
-                                        <td className="py-5 px-4 text-left">92 World Tour and travel</td>
-                                        <td className="py-5 px-4 underline decoration-slate-300 underline-offset-4">Ali Meer</td>
-                                        <td className="py-5 px-4">+92361 6565235</td>
-                                        <td className="py-5 px-4">+92361 6565235</td>
-                                        <td className="py-5 pl-4 text-right uppercase text-slate-600">alimeer@GMAIL.COM</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    {/* 6. Order Detail */}
-                    <div className="mb-8">
-                        <SectionHeader
-                            title="Order Detail"
-                            actions={
-                                <>
-                                    <ActionButtonSmall label="Add Discount" />
-                                    <ActionButtonSmall label="Refund Payment" />
-                                </>
-                            }
-                        />
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-center">
-                                <thead>
-                                    <tr className="border-b border-slate-100 text-[11px] font-black text-slate-500 uppercase tracking-widest">
-                                        <th className="pb-4 px-4 text-left">Order No</th>
-                                        <th className="pb-4 px-4">Date</th>
-                                        <th className="pb-4 px-4">No. of Pax</th>
-                                        <th className="pb-4 px-4">Discount</th>
-                                        <th className="pb-4 px-4">Total Amount</th>
-                                        <th className="pb-4 pl-4 text-right">Total Amount</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr className="text-sm font-bold text-slate-800">
-                                        <td className="py-5 px-4 text-left">36636298</td>
-                                        <td className="py-5 px-4">Dec 19, 2025</td>
-                                        <td className="py-5 px-4">10</td>
-                                        <td className="py-5 px-4">1000</td>
-                                        <td className="py-5 px-4 underline decoration-slate-300 underline-offset-4">Rs. 120,000/-</td>
-                                        <td className="py-5 pl-4 text-right">
-                                            <button className="px-6 py-2 bg-[#0066FF] hover:bg-blue-700 text-white rounded-md text-xs font-bold uppercase shadow-sm transition-colors">
-                                                INVOICE
+                                    <tr className="border-b border-slate-50">
+                                        <Td className="font-black text-blue-600 underline underline-offset-2 decoration-slate-300">
+                                            {raw.booking_reference || raw._id?.slice(-8) || '—'}
+                                        </Td>
+                                        <Td>{formatDate(raw.created_at)}</Td>
+                                        <Td className="font-black text-slate-800">{raw.total_passengers || passengers.length || 1}</Td>
+                                        <Td>{fmtMoney(adultPrice)}</Td>
+                                        <Td>{fmtMoney(childPrice)}</Td>
+                                        <Td>{fmtMoney(infantPrice)}</Td>
+                                        <Td className="text-rose-600 font-black">Rs. {Number(discount).toLocaleString()}/-</Td>
+                                        <Td>{receivedBy}</Td>
+                                        <Td className="text-blue-600 font-black">{fmtMoney(paidAmt)}</Td>
+                                        <Td>{fmtMoney(remaining)}</Td>
+                                        <Td className="font-black text-slate-900">{fmtMoney(grandTotal)}</Td>
+                                        <Td>
+                                            <button className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[10px] font-black transition-colors shadow-md shadow-blue-600/20">
+                                                <FileText size={11} /> INVOICE
                                             </button>
-                                        </td>
+                                        </Td>
                                     </tr>
                                 </tbody>
                             </table>
                         </div>
                     </div>
 
-                    {/* 7. Payment Detail */}
-                    <div className="mb-12">
-                        <SectionHeader title="Payment Detail" />
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-center">
-                                <thead>
-                                    <tr className="border-b border-slate-100 text-[11px] font-black text-slate-500 uppercase tracking-widest">
-                                        <th className="pb-4 px-4 text-left">Total Amount</th>
-                                        <th className="pb-4 px-4">Received By</th>
-                                        <th className="pb-4 px-4">Date</th>
-                                        <th className="pb-4 px-4">Paid Amount</th>
-                                        <th className="pb-4 px-4">Payment Method</th>
-                                        <th className="pb-4 pl-4 text-right">Remaining Amount</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr className="text-sm font-bold text-slate-800">
-                                        <td className="py-5 px-4 text-left underline decoration-slate-300 underline-offset-4">Rs. 120,000/-</td>
-                                        <td className="py-5 px-4">Ali meer</td>
-                                        <td className="py-5 px-4">Dec 20, 2025</td>
-                                        <td className="py-5 px-4 text-[#4FA5FE] underline decoration-blue-200 underline-offset-4">Rs. 120,000/-</td>
-                                        <td className="py-5 px-4">Via Alfalah Bank</td>
-                                        <td className="py-5 pl-4 text-right">Rs. 0/-</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
+                    {/* ── 5. Set Infant & Child Fare Button ── */}
+                    <div className="mb-8">
+                        <ActionBtn label="Set Infant And Child Fare" color="blue" onClick={() => setModal('infant_fare')} />
                     </div>
 
-                    {/* 8. Footer Info & Primary Actions */}
-                    <div className="flex flex-col md:flex-row justify-between items-center gap-6 border-b border-slate-100 pb-10 mb-8">
-                        <div className="flex-1 flex justify-center md:justify-start lg:justify-center">
-                            <button className="px-6 py-3 bg-[#0066FF] hover:bg-blue-700 text-white rounded-lg text-sm font-bold shadow-md shadow-blue-600/20 transition-all">
-                                Set Infant And Child Fare
-                            </button>
-                        </div>
-                        <div className="text-right">
-                            <span className="text-xs font-medium text-slate-400">Agent Confirm By: </span>
-                            <span className="text-sm font-bold text-slate-800">Ali Meer/code</span>
-                        </div>
-                    </div>
+                    {/* ── 6. Bottom Action Buttons ── */}
+                    <div className="pt-5 border-t border-slate-100 flex flex-wrap items-center gap-3">
+                        {/* Only show actions if NOT already approved or cancelled/rejected */}
+                        {((raw.booking_status || '').toLowerCase() !== 'approved' && !['cancelled', 'rejected'].includes((raw.booking_status || '').toLowerCase())) && (
+                            <>
+                                <ActionBtn label="Reject With Note" color="blue" onClick={() => { setModalNote(''); setModal('reject'); }} />
+                                <ActionBtn label="Partial Paid" color="blue" onClick={() => { setPartialAmt(''); setModal('partial'); }} />
+                                <ActionBtn label="Refund Ticket" color="blue" onClick={() => setModal('refund_ticket')} />
+                                <ActionBtn label={saving ? 'Approving...' : 'Approve Order'} color="blue" onClick={() => handleAction('approve')} />
+                                <ActionBtn label="cancel Order" color="blue" onClick={() => handleAction('cancel')} />
+                                <ActionBtn label="Cancel with note" color="blue" onClick={() => { setModalNote(''); setModal('cancel_note'); }} />
+                            </>
+                        )}
 
-                    {/* Bottom Buttons Array */}
-                    <div className="flex flex-wrap justify-center lg:justify-between items-center gap-4">
-                        <div className="flex flex-wrap gap-3">
-                            {[
-                                'Add payment',
-                                'Partail Paid',
-                                'Refund Ticket',
-                                'Confirm Order',
-                                'cancel Order',
-                                'Cancel with note'
-                            ].map((label, idx) => (
-                                <button key={idx} className="px-6 py-2.5 bg-[#0066FF] hover:bg-blue-700 text-white rounded-lg text-xs font-bold shadow-sm transition-colors capitalize">
-                                    {label}
-                                </button>
-                            ))}
-                        </div>
-                        <button disabled className="px-10 py-2.5 bg-slate-50 border border-slate-200 text-slate-400 rounded-lg text-xs font-bold cursor-not-allowed">
-                            Close
-                        </button>
+                        {/* Show limited actions if approved or confirmed */}
+                        {((raw.booking_status || '').toLowerCase() === 'approved' || (raw.booking_status || '').toLowerCase() === 'confirmed') ? (
+                            <div className="flex items-center gap-3">
+                                <span className="text-emerald-600 font-bold text-xs bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100 flex items-center gap-2">
+                                    <CheckCircle2 size={14} /> This order is now APPROVED
+                                </span>
+                                {(raw.booking_status || '').toLowerCase() === 'confirmed' && (
+                                    <ActionBtn label={saving ? 'Updating...' : 'Ensure Approved Status'} color="green" small onClick={() => handleAction('approve')} />
+                                )}
+                                <ActionBtn label="Refund Ticket" color="blue" onClick={() => setModal('refund_ticket')} />
+                            </div>
+                        ) : null}
+
+                        <ActionBtn label="Close" color="slate" onClick={onBack} />
                     </div>
 
                 </div>

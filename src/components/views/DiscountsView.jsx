@@ -1,10 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Search, Edit2, Trash2, Percent } from 'lucide-react';
+import { getModulePermissions } from '../../utils/permissions';
 
-const DiscountsView = ({ onAddDiscount, onEditDiscount }) => {
+const DiscountsView = ({ onAddDiscount, onEditDiscount, permissions = null }) => {
     const [discounts, setDiscounts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    
+    // If permissions prop is not provided or empty, fallback to module permissions
+    const fallbackPerms = getModulePermissions('pricing.discounts');
+    const effectivePerms = permissions && Object.values(permissions).some(Boolean) ? permissions : fallbackPerms;
+    const canAdd = effectivePerms.add;
+    const canUpdate = effectivePerms.update;
+    const canDelete = effectivePerms.delete;
 
     useEffect(() => {
         fetchDiscounts();
@@ -76,12 +84,14 @@ const DiscountsView = ({ onAddDiscount, onEditDiscount }) => {
                     <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tight">Discounts</h2>
                     <p className="text-slate-500 font-medium">Manage discount groups for tickets, packages and hotels</p>
                 </div>
-                <button
-                    onClick={onAddDiscount}
-                    className="w-full sm:w-auto px-6 py-3 bg-blue-600 text-white rounded-xl text-xs font-bold transition-all hover:scale-105 shadow-lg shadow-blue-100 flex items-center justify-center gap-2"
-                >
-                    <Plus size={16} /> Add Discount
-                </button>
+                {canAdd && (
+                    <button
+                        onClick={onAddDiscount}
+                        className="w-full sm:w-auto px-6 py-3 bg-blue-600 text-white rounded-xl text-xs font-bold transition-all hover:scale-105 shadow-lg shadow-blue-100 flex items-center justify-center gap-2"
+                    >
+                        <Plus size={16} /> Add Discount
+                    </button>
+                )}
             </div>
 
             {/* Search */}
@@ -151,18 +161,22 @@ const DiscountsView = ({ onAddDiscount, onEditDiscount }) => {
                             </div>
 
                             <div className="flex gap-2">
-                                <button
-                                    onClick={() => onEditDiscount(discount)}
-                                    className="flex-1 py-2 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition-all flex items-center justify-center gap-1"
-                                >
-                                    <Edit2 size={14} /> Edit
-                                </button>
-                                <button
-                                    onClick={() => handleDelete(discount._id)}
-                                    className="flex-1 py-2 bg-red-50 text-red-600 rounded-lg text-xs font-bold hover:bg-red-100 transition-all flex items-center justify-center gap-1"
-                                >
-                                    <Trash2 size={14} /> Delete
-                                </button>
+                                {canUpdate && (
+                                    <button
+                                        onClick={() => onEditDiscount(discount)}
+                                        className="flex-1 py-2 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition-all flex items-center justify-center gap-1"
+                                    >
+                                        <Edit2 size={14} /> Edit
+                                    </button>
+                                )}
+                                {canDelete && (
+                                    <button
+                                        onClick={() => handleDelete(discount._id)}
+                                        className="flex-1 py-2 bg-red-50 text-red-600 rounded-lg text-xs font-bold hover:bg-red-100 transition-all flex items-center justify-center gap-1"
+                                    >
+                                        <Trash2 size={14} /> Delete
+                                    </button>
+                                )}
                             </div>
                         </div>
                     ))
