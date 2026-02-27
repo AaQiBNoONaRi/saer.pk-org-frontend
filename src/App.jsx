@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import LoginPage from './components/auth/LoginPage';
 import EmployeeApp from './components/employee/EmployeeApp';
 import EmployeeDashboard from './components/employee/EmployeeDashboard';
-import EmployeeHRView from './components/employee/EmployeeHRView';
+import HRManagementView from './components/views/HRManagementView';
 import Layout from './components/layout/Layout';
 import DashboardView from './components/views/DashboardView';
 import TicketsView from './components/views/TicketsView';
@@ -417,7 +417,7 @@ const App = () => {
       case 'Customer Database':
         return <EmployeeDashboard initialTab="Customers" />;
       case 'HR Employees':
-        return <EmployeeHRView />;
+        return <HRManagementView />;
       case 'Employees':
         return <EmployeesView />;
 

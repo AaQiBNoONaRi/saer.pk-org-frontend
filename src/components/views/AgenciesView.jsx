@@ -13,6 +13,12 @@ const AgenciesView = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [selectedAgency, setSelectedAgency] = useState(null);
     const [viewMode, setViewMode] = useState('list'); // 'list', 'detail', 'add', 'edit'
+    const [agencyStats, setAgencyStats] = useState({
+        total_bookings: 0,
+        on_time_payments: 0,
+        late_payments: 0,
+        disputes: 0
+    });
 
     const [searchQuery, setSearchQuery] = useState('');
     const [filterType, setFilterType] = useState('all');
@@ -115,6 +121,35 @@ const AgenciesView = () => {
         } catch (error) {
             console.error('Error fetching commission groups:', error);
         }
+    };
+
+    const fetchAgencyStats = async (agencyId) => {
+        try {
+            const token = localStorage.getItem('access_token');
+            const response = await fetch(`http://localhost:8000/api/agencies/${agencyId}/stats`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                setAgencyStats(data);
+            }
+        } catch (error) {
+            console.error('Error fetching agency stats:', error);
+            // Keep default values if fetch fails
+            setAgencyStats({
+                total_bookings: 0,
+                on_time_payments: 0,
+                late_payments: 0,
+                disputes: 0
+            });
+        }
+    };
+
+    const handleViewAgencyDetails = (agency) => {
+        setSelectedAgency(agency);
+        setViewMode('detail');
+        // Fetch stats for this agency
+        fetchAgencyStats(agency._id || agency.id);
     };
 
     const handleConfirmDelete = async (agency) => {
@@ -396,7 +431,7 @@ const AgenciesView = () => {
                             {filteredAgencies.map(agency => (
                                 <div
                                     key={agency._id || agency.id}
-                                    onClick={() => { setSelectedAgency(agency); setViewMode('detail'); }}
+                                    onClick={() => handleViewAgencyDetails(agency)}
                                     className="p-6 rounded-2xl border border-slate-100 cursor-pointer transition-all hover:shadow-xl hover:scale-[1.02] active:scale-95 bg-white"
                                 >
                                     <div className="flex justify-between items-start mb-3">
@@ -506,28 +541,28 @@ const AgenciesView = () => {
                         <div className="bg-blue-50 p-6 rounded-xl border border-blue-100">
                             <div className="flex flex-col items-center text-center">
                                 <Ticket size={24} className="text-blue-600 mb-2" />
-                                <p className="text-3xl font-bold text-blue-600 mb-1">0</p>
+                                <p className="text-3xl font-bold text-blue-600 mb-1">{agencyStats.total_bookings}</p>
                                 <p className="text-xs font-medium text-slate-600 uppercase tracking-wide">Total Bookings</p>
                             </div>
                         </div>
                         <div className="bg-green-50 p-6 rounded-xl border border-green-100">
                             <div className="flex flex-col items-center text-center">
                                 <Check size={24} className="text-green-600 mb-2" />
-                                <p className="text-3xl font-bold text-green-600 mb-1">0</p>
+                                <p className="text-3xl font-bold text-green-600 mb-1">{agencyStats.on_time_payments}</p>
                                 <p className="text-xs font-medium text-slate-600 uppercase tracking-wide">On-Time Payments</p>
                             </div>
                         </div>
                         <div className="bg-white p-6 rounded-xl border border-slate-200">
                             <div className="flex flex-col items-center text-center">
                                 <Clock size={24} className="text-slate-600 mb-2" />
-                                <p className="text-3xl font-bold text-slate-900 mb-1">0</p>
+                                <p className="text-3xl font-bold text-slate-900 mb-1">{agencyStats.late_payments}</p>
                                 <p className="text-xs font-medium text-slate-600 uppercase tracking-wide">Late Payments</p>
                             </div>
                         </div>
                         <div className="bg-red-50 p-6 rounded-xl border border-red-100">
                             <div className="flex flex-col items-center text-center">
                                 <AlertCircle size={24} className="text-red-600 mb-2" />
-                                <p className="text-3xl font-bold text-red-600 mb-1">0</p>
+                                <p className="text-3xl font-bold text-red-600 mb-1">{agencyStats.disputes}</p>
                                 <p className="text-xs font-medium text-slate-600 uppercase tracking-wide">Disputes</p>
                             </div>
                         </div>
