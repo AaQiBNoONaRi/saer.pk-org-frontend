@@ -177,7 +177,8 @@ const BlogsView = () => {
             let method = 'POST';
 
             if (selectedBlog) {
-                url = `${API_BASE}/${selectedBlog._id}`;
+                const blogId = selectedBlog._id || selectedBlog.id;
+                url = `${API_BASE}/${blogId}`;
                 method = 'PUT';
             }
 
@@ -193,7 +194,8 @@ const BlogsView = () => {
             if (response.ok) {
                 const savedBlog = await response.json();
                 if (publish) {
-                    await fetch(`${API_BASE}/${savedBlog._id}/publish`, {
+                    const blogId = savedBlog._id || savedBlog.id;
+                    await fetch(`${API_BASE}/${blogId}/publish`, {
                         method: 'PATCH',
                         headers: { 'Authorization': `Bearer ${token}` }
                     });
@@ -327,7 +329,7 @@ const BlogsView = () => {
                     ) : (
                         <div className="space-y-3">
                             {filteredBlogs.map(blog => (
-                                <div key={blog._id} className="p-5 border border-slate-200 rounded-2xl hover:border-blue-300 hover:shadow-sm transition-all flex items-center gap-4">
+                                <div key={blog._id || blog.id} className="p-5 border border-slate-200 rounded-2xl hover:border-blue-300 hover:shadow-sm transition-all flex items-center gap-4">
                                     {blog.thumbnail_image_url ? (
                                         <div className="w-20 h-20 rounded-xl bg-cover bg-center shrink-0 border border-slate-200" style={{ backgroundImage: `url(${blog.thumbnail_image_url})` }} />
                                     ) : (
@@ -351,7 +353,7 @@ const BlogsView = () => {
                                     <div className="flex gap-2">
                                         <button onClick={() => setViewMode('preview') || setSelectedBlog(blog)} className="p-2.5 text-slate-600 hover:bg-slate-50 rounded-xl" title="Preview"><MonitorSmartphone size={18} /></button>
                                         <button onClick={() => handleEdit(blog)} className="p-2.5 text-blue-600 hover:bg-blue-50 rounded-xl" title="Edit"><Edit2 size={18} /></button>
-                                        <button onClick={() => handleDelete(blog._id)} className="p-2.5 text-red-600 hover:bg-red-50 rounded-xl" title="Delete"><Trash2 size={18} /></button>
+                                        <button onClick={() => handleDelete(blog._id || blog.id)} className="p-2.5 text-red-600 hover:bg-red-50 rounded-xl" title="Delete"><Trash2 size={18} /></button>
                                     </div>
                                 </div>
                             ))}
