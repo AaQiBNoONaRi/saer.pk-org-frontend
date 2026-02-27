@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import {
     Building, Plus, Search, MapPin, Phone, Mail, ArrowLeft,
-    Edit2, Trash2, Loader2, AlertCircle, User, Check
+    Edit2, Trash2, Loader2, AlertCircle, User, Check,
+    ShieldCheck, Eye, EyeOff
 } from 'lucide-react';
 
 const BranchesView = () => {
@@ -19,6 +20,7 @@ const BranchesView = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState('');
 
+    const [showPassword, setShowPassword] = useState(false);
     const [formData, setFormData] = useState({
         name: '',
         code: '',
@@ -31,7 +33,10 @@ const BranchesView = () => {
         country: '',
         commission_group_id: '',
         service_charge_group_id: '',
-        is_active: true
+        is_active: true,
+        portal_access_enabled: true,
+        username: '',
+        password: ''
     });
 
     useEffect(() => {
@@ -149,10 +154,18 @@ const BranchesView = () => {
 
     const handleInputChange = (e) => {
         const { name, value, type, checked } = e.target;
-        setFormData(prev => ({
-            ...prev,
-            [name]: type === 'checkbox' ? checked : value
-        }));
+        if (name === 'email') {
+            setFormData(prev => ({
+                ...prev,
+                email: value,
+                username: value
+            }));
+        } else {
+            setFormData(prev => ({
+                ...prev,
+                [name]: type === 'checkbox' ? checked : value
+            }));
+        }
     };
 
     const openAddForm = () => {
@@ -168,7 +181,10 @@ const BranchesView = () => {
             country: '',
             commission_group_id: '',
             service_charge_group_id: '',
-            is_active: true
+            is_active: true,
+            portal_access_enabled: true,
+            username: '',
+            password: ''
         });
         setError('');
         setViewMode('add');
@@ -187,7 +203,10 @@ const BranchesView = () => {
             country: branch.country || '',
             commission_group_id: branch.commission_group_id || '',
             service_charge_group_id: branch.service_charge_group_id || '',
-            is_active: branch.is_active ?? true
+            is_active: branch.is_active ?? true,
+            portal_access_enabled: branch.portal_access_enabled ?? true,
+            username: branch.username || branch.email || '',
+            password: ''
         });
         setSelectedBranch(branch);
         setError('');
@@ -226,7 +245,10 @@ const BranchesView = () => {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify(formData)
+                body: JSON.stringify({
+                    ...formData,
+                    password: formData.password || undefined // Only send if set
+                })
             });
 
             if (response.ok) {
@@ -235,7 +257,15 @@ const BranchesView = () => {
                 setViewMode('list');
             } else {
                 const errorData = await response.json();
-                setError(errorData.detail || 'Failed to save branch');
+                let errorMessage = 'Failed to save branch';
+                if (typeof errorData.detail === 'string') {
+                    errorMessage = errorData.detail;
+                } else if (Array.isArray(errorData.detail)) {
+                    errorMessage = errorData.detail.map(e => e.msg).join(', ');
+                } else if (typeof errorData.detail === 'object' && errorData.detail !== null) {
+                    errorMessage = JSON.stringify(errorData.detail);
+                }
+                setError(errorMessage);
             }
         } catch (err) {
             console.error(err);
@@ -464,6 +494,59 @@ const BranchesView = () => {
                         </div>
                     </div>
 
+                    {/* Portal Access – Set Password */}
+                    <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm mt-6">
+                        <div className="flex items-center gap-3 mb-4">
+                            <ShieldCheck size={18} className="text-blue-600" />
+                            <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Portal Access</h3>
+                            <span className={`ml-auto px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest ${selectedBranch.portal_access_enabled !== false ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}`}>
+                                {selectedBranch.portal_access_enabled !== false ? 'Enabled' : 'Disabled'}
+                            </span>
+                        </div>
+                        {selectedBranch.email && (
+                            <p className="text-xs text-slate-500 mb-3">Login email: <span className="font-bold text-slate-700">{selectedBranch.email}</span></p>
+                        )}
+                        {!selectedBranch.password && (
+                            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4 flex items-center gap-2">
+                                <AlertCircle size={14} className="text-amber-600 shrink-0" />
+                                <p className="text-xs font-bold text-amber-700">No portal password set yet — set one below to enable login.</p>
+                            </div>
+                        )}
+                        <div className="flex gap-3">
+                            <input
+                                type="password"
+                                id="quickSetPassword"
+                                placeholder="Set / reset portal password"
+                                className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100"
+                            />
+                            <button
+                                onClick={async () => {
+                                    const pw = document.getElementById('quickSetPassword').value;
+                                    if (!pw || pw.length < 4) { alert('Password must be at least 4 characters'); return; }
+                                    try {
+                                        const token = localStorage.getItem('access_token');
+                                        const res = await fetch(`http://localhost:8000/api/branches/${selectedBranch._id || selectedBranch.id}/set-password`, {
+                                            method: 'POST',
+                                            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ password: pw })
+                                        });
+                                        if (res.ok) {
+                                            alert('Password set! The branch can now log in with their email and this password.');
+                                            document.getElementById('quickSetPassword').value = '';
+                                            await fetchBranches();
+                                        } else {
+                                            const err = await res.json();
+                                            alert(err.detail || 'Failed to set password');
+                                        }
+                                    } catch (e) { alert('Error setting password'); }
+                                }}
+                                className="px-5 py-2.5 bg-blue-600 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-blue-700 transition-all whitespace-nowrap"
+                            >
+                                Set Password
+                            </button>
+                        </div>
+                    </div>
+
                     {/* Branch Agencies */}
                     <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm mt-6">
                         <div className="flex items-center justify-between mb-6">
@@ -479,7 +562,7 @@ const BranchesView = () => {
                         ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {agencies.filter(a => (a.branch_id || a.branch?._id) === (selectedBranch._id || selectedBranch.id)).map(agency => (
-                                    <div 
+                                    <div
                                         key={agency._id || agency.id}
                                         className="p-4 border border-slate-200 rounded-lg hover:border-blue-300 hover:shadow-sm transition-all"
                                     >
@@ -630,6 +713,52 @@ const BranchesView = () => {
                         <textarea name="address" value={formData.address} onChange={handleInputChange} rows="2"
                             className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100 resize-none" placeholder="Full Address" />
                     </div>
+                </div>
+
+                <div className="border-t border-slate-100"></div>
+
+                {/* Portal Access */}
+                <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 shadow-sm">
+                    <div className="flex items-center justify-between mb-6">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-white rounded-xl shadow-sm border border-slate-100 flex items-center justify-center text-slate-400">
+                                <ShieldCheck size={20} />
+                            </div>
+                            <div>
+                                <h4 className="text-sm font-black text-slate-900 uppercase tracking-tight">Portal Access</h4>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Enable branch management portal</p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <input type="checkbox" name="portal_access_enabled" id="portal_access_enabled" checked={formData.portal_access_enabled} onChange={handleInputChange}
+                                className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500" />
+                            <label htmlFor="portal_access_enabled" className="text-sm font-bold text-slate-700">
+                                Enable Login
+                            </label>
+                        </div>
+                    </div>
+
+                    {formData.portal_access_enabled && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in slide-in-from-top-2 duration-300">
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Username (Auto-filled)</label>
+                                <input type="text" name="username" value={formData.username} readOnly
+                                    className="w-full px-4 py-3 bg-slate-200 rounded-2xl text-sm font-bold text-slate-600 cursor-not-allowed" placeholder="Email will be used as username" />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Password {viewMode === 'add' && '*'}</label>
+                                <div className="relative">
+                                    <input type={showPassword ? 'text' : 'password'} name="password" value={formData.password} onChange={handleInputChange} required={viewMode === 'add'}
+                                        className="w-full px-4 py-3 pr-12 bg-white rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100 border border-slate-100"
+                                        placeholder={viewMode === 'edit' ? "Leave blank to keep current" : "Enter password"} />
+                                    <button type="button" onClick={() => setShowPassword(!showPassword)}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors">
+                                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 <div className="flex items-center justify-between pt-4">
