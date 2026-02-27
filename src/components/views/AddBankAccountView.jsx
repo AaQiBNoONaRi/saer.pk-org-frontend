@@ -38,23 +38,12 @@ export default function AddBankAccountView({ onBack, editingAccount }) {
             const token = localStorage.getItem('access_token');
             if (!token) return;
 
-            // Simplified extraction for brevity, assuming similar structure to PaymentsView
-            let orgId = null;
-            try {
-                const payload = JSON.parse(atob(token.split('.')[1]));
-                orgId = payload.organization_id || payload.sub;
-            } catch (e) {
-                console.error("Error parsing token", e);
-            }
-
-            if (orgId) {
-                const response = await fetch(`http://localhost:8000/api/agencies?organization_id=${orgId}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                if (response.ok) {
-                    const data = await response.json();
-                    setAgencies(data);
-                }
+            const response = await fetch(`http://localhost:8000/api/agencies`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                setAgencies(data);
             }
         } catch (error) {
             console.error('Error fetching agencies:', error);
@@ -66,22 +55,12 @@ export default function AddBankAccountView({ onBack, editingAccount }) {
             const token = localStorage.getItem('access_token');
             if (!token) return;
 
-            let orgId = null;
-            try {
-                const payload = JSON.parse(atob(token.split('.')[1]));
-                orgId = payload.organization_id || payload.sub;
-            } catch (e) {
-                console.error("Error parsing token", e);
-            }
-
-            if (orgId) {
-                const response = await fetch(`http://localhost:8000/api/branches?organization_id=${orgId}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                if (response.ok) {
-                    const data = await response.json();
-                    setBranches(data);
-                }
+            const response = await fetch(`http://localhost:8000/api/branches`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                setBranches(data);
             }
         } catch (error) {
             console.error('Error fetching branches:', error);
@@ -230,7 +209,7 @@ export default function AddBankAccountView({ onBack, editingAccount }) {
                                     >
                                         <option value="">Select Agency...</option>
                                         {agencies.map(agency => (
-                                            <option key={agency._id} value={agency._id}>{agency.name}</option>
+                                            <option key={agency.id || agency._id} value={agency.id || agency._id}>{agency.name}</option>
                                         ))}
                                     </select>
                                     <MoreVertical className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
@@ -252,7 +231,7 @@ export default function AddBankAccountView({ onBack, editingAccount }) {
                                     >
                                         <option value="">Select Branch...</option>
                                         {branches.map(branch => (
-                                            <option key={branch._id} value={branch._id}>{branch.name}</option>
+                                            <option key={branch.id || branch._id} value={branch.id || branch._id}>{branch.name}</option>
                                         ))}
                                     </select>
                                     <MoreVertical className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
