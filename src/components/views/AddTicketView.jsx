@@ -265,6 +265,34 @@ const AddTicketView = ({ onBack, editingTicket }) => {
 
     const handleSave = async () => {
         try {
+            // --- VALIDATION ---
+            const missingFields = [];
+            if (!trip.airline) missingFields.push("Airline");
+            if (!trip.flightNumber) missingFields.push("Flight Number");
+            if (!trip.departureDateTime) missingFields.push("Departure Date/Time");
+            if (!trip.arrivalDateTime) missingFields.push("Arrival Date/Time");
+            if (!trip.departureCity) missingFields.push("Departure City");
+            if (!trip.arrivalCity) missingFields.push("Arrival City");
+            if (!formData.pnr) missingFields.push("PNR");
+            if (!formData.totalSeats) missingFields.push("Total Seats");
+            if (!formData.weight) missingFields.push("Weight");
+            if (!formData.adultSelling) missingFields.push("Adult Selling Price");
+            if (!formData.adultPurchasing) missingFields.push("Adult Purchasing Price");
+
+            if (tripType === 'Round-trip') {
+                if (!trip.returnAirline) missingFields.push("Return Airline");
+                if (!trip.returnFlightNumber) missingFields.push("Return Flight Number");
+                if (!trip.returnDepartureDateTime) missingFields.push("Return Departure Date/Time");
+                if (!trip.returnArrivalDateTime) missingFields.push("Return Arrival Date/Time");
+                if (!trip.returnDepartureCity) missingFields.push("Return Departure City");
+                if (!trip.returnArrivalCity) missingFields.push("Return Arrival City");
+            }
+
+            if (missingFields.length > 0) {
+                alert(`Please fill in the following required fields:\n- ${missingFields.join('\n- ')}`);
+                return;
+            }
+
             // Prepare departure trip data
             const departureTrip = {
                 flight_type: trip.flightType,

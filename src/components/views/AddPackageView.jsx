@@ -633,40 +633,41 @@ const AddPackageView = ({ onBack, initialData }) => {
                         <button
                             onClick={() => {
                                 if (step === 1) {
-                                    if (!packageTitle.trim() && !paxCapacity.toString().trim()) {
+                                    if (!packageTitle.trim() || !paxCapacity.toString().trim()) {
                                         showToast('Package Title and Pax Capacity are required');
-                                        return;
-                                    }
-                                    if (!packageTitle.trim()) {
-                                        showToast('Package Title is required');
-                                        return;
-                                    }
-                                    if (!paxCapacity.toString().trim()) {
-                                        showToast('Pax Capacity is required');
                                         return;
                                     }
                                     setStep(2);
                                 } else if (step === 2) {
-                                    // Validate Step 2: At least one hotel required
-                                    console.log('Validating Hotels:', hotels);
-                                    // Check if name exists OR if an ID is present (meaning a hotel was selected)
-                                    const validHotels = hotels.filter(h => (h.name && h.name.trim() !== '') || h.hotelId || (h.id && h.id.toString().length > 10));
+                                    // Validate Step 2: Flight selection required
+                                    if (!selectedFlight) {
+                                        showToast('Please select a Flight');
+                                        return;
+                                    }
+
+                                    // Validate Step 2: At least one hotel required with valid dates/name
+                                    const validHotels = hotels.filter(h =>
+                                        (h.name && h.name.trim() !== '') &&
+                                        h.checkIn && h.checkOut
+                                    );
 
                                     if (validHotels.length === 0) {
-                                        // ONE LAST CHECK: If the user has selected room types, maybe the hotel object is malformed but exists?
-                                        // Let's check for ANY hotel with valid room types
-                                        const hotelsWithRooms = hotels.filter(h => h.selected_room_types && Object.values(h.selected_room_types).some(v => v));
-                                        if (hotelsWithRooms.length > 0) {
-                                            console.log('Found hotels with selected rooms but missing names. Allowing pass.', hotelsWithRooms);
-                                            setStep(3);
-                                            return;
-                                        }
-
-                                        showToast('Please select at least one hotel');
+                                        showToast('Please select at least one hotel with check-in and check-out dates');
                                         return;
                                     }
                                     setStep(3);
                                 } else {
+                                    // Validate Step 3: Visa pricing required
+                                    const isVisaPricingValid =
+                                        visaPricing.adult_selling > 0 &&
+                                        visaPricing.child_selling > 0 &&
+                                        visaPricing.infant_selling > 0;
+
+                                    if (!isVisaPricingValid) {
+                                        showToast('Please enter Visa Selling Prices (Adult, Child, Infant)');
+                                        return;
+                                    }
+
                                     handleSavePackage();
                                 }
                             }}

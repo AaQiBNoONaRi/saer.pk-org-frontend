@@ -17,7 +17,7 @@ const SearchableSelect = ({ label, options = [], value, onChange, placeholder = 
     }, []);
 
     const filtered = options.filter(opt => {
-        const labelText = typeof opt === 'object' ? opt.label : String(opt);
+        const labelText = (typeof opt === 'object' && opt !== null) ? opt.label : String(opt || '');
         return labelText.toLowerCase().includes(query.toLowerCase());
     });
 
@@ -43,7 +43,7 @@ const SearchableSelect = ({ label, options = [], value, onChange, placeholder = 
                         />
                     ) : (
                         <span className={`flex-1 text-xs font-bold truncate ${value ? 'text-slate-700' : 'text-slate-400'}`}>
-                            {typeof value === 'object' ? value.label : (value || placeholder)}
+                            {(typeof value === 'object' && value !== null) ? value.label : (value || placeholder)}
                         </span>
                     )}
                     <ChevronDown size={14} className={`text-slate-400 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
@@ -56,9 +56,9 @@ const SearchableSelect = ({ label, options = [], value, onChange, placeholder = 
                                 <div className="px-5 py-3 text-xs text-slate-400 font-bold">No results found</div>
                             ) : (
                                 filtered.map((opt, i) => {
-                                    const val = typeof opt === 'object' ? opt.value : opt;
-                                    const lab = typeof opt === 'object' ? opt.label : opt;
-                                    const currentVal = typeof value === 'object' ? value.value : value;
+                                    const val = (typeof opt === 'object' && opt !== null) ? opt.value : opt;
+                                    const lab = (typeof opt === 'object' && opt !== null) ? opt.label : opt;
+                                    const currentVal = (typeof value === 'object' && value !== null) ? value.value : value;
 
                                     return (
                                         <div

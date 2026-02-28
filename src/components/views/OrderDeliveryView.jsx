@@ -74,8 +74,16 @@ function normalizeBooking(b) {
 
     // Source classification
     let source = 'Agent Orders';
-    if (b.branch_id && !b.agency_id) source = 'Branch Orders';
-    else if (b.agency_id) source = 'Agent Orders';
+    if (b.branch_id && !b.agency_id) {
+        source = 'Branch Orders';
+    } else if (b.agency_id) {
+        const aType = (agencyDetails.agency_type || '').toLowerCase();
+        if (aType === 'area' || aType === 'area_agent' || aType.includes('area')) {
+            source = 'Area Agent Orders';
+        } else {
+            source = 'Agent Orders';
+        }
+    }
 
     // Package type display
     let type = 'Custom Packages';
@@ -84,7 +92,7 @@ function normalizeBooking(b) {
 
     const paxCount = b.total_passengers || (b.passengers?.length) || 0;
     const orderStatus = b.order_status || b.booking_status || 'underprocess';
-    const paymentStatus = b.payment_status || 'unpaid';
+    const paymentStatus = b.payment_details?.payment_status || b.payment_status || 'unpaid';
     const deliveryStatus = b.voucher_status || b.delivery_status || 'Draft';
 
     return {
@@ -164,7 +172,11 @@ export default function OrderDeliveryView({ onOrderClick }) {
         const map = {};
         allBookings.forEach(b => {
             const name = b.agent;
-            if (!map[name]) map[name] = { name, paid: 0, unpaid: 0, total: 0 };
+            if (!map[name]) {
+                const aType = (b._raw?.agency_details?.agency_type || '').toLowerCase();
+                const typeLabel = (aType === 'area' || aType.includes('area')) ? 'AREA AGENT' : 'FULL AGENT';
+                map[name] = { name, type: typeLabel, paid: 0, unpaid: 0, total: 0 };
+            }
             map[name].total++;
             if (['paid', 'confirmed'].includes(b.paymentStatus?.toLowerCase())) map[name].paid++;
             else map[name].unpaid++;
@@ -259,7 +271,7 @@ export default function OrderDeliveryView({ onOrderClick }) {
                                         ) : Object.values(agencyBookingMap).map((agency, idx) => (
                                             <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
                                                 <td className="px-6 py-4 text-sm font-medium text-slate-800">{agency.name}</td>
-                                                <td className="px-6 py-4"><AgencyTypeBadge type="FULL AGENT" /></td>
+                                                <td className="px-6 py-4"><AgencyTypeBadge type={agency.type} /></td>
                                                 <td className="px-6 py-4 pl-10"><CountBadge count={agency.total} color="red" /></td>
                                                 <td className="px-6 py-4 pl-10"><CountBadge count={agency.paid} color="green" /></td>
                                                 <td className="px-6 py-4 pl-10"><CountBadge count={agency.unpaid} color="amber" /></td>

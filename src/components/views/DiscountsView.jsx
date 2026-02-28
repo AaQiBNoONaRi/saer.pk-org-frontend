@@ -6,13 +6,11 @@ const DiscountsView = ({ onAddDiscount, onEditDiscount, permissions = null }) =>
     const [discounts, setDiscounts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
-    
-    // If permissions prop is not provided or empty, fallback to module permissions
-    const fallbackPerms = getModulePermissions('pricing.discounts');
-    const effectivePerms = permissions && Object.values(permissions).some(Boolean) ? permissions : fallbackPerms;
-    const canAdd = effectivePerms.add;
-    const canUpdate = effectivePerms.update;
-    const canDelete = effectivePerms.delete;
+
+    // If permissions prop is not provided, default to true for org admin portal
+    const canAdd = permissions ? permissions.add : true;
+    const canUpdate = permissions ? permissions.update : true;
+    const canDelete = permissions ? permissions.delete : true;
 
     useEffect(() => {
         fetchDiscounts();
@@ -22,14 +20,14 @@ const DiscountsView = ({ onAddDiscount, onEditDiscount, permissions = null }) =>
         try {
             const token = localStorage.getItem('access_token');
             console.log('Fetching discounts with token:', token ? 'Present' : 'Missing');
-            
+
             const response = await fetch('http://localhost:8000/api/discounts/', {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-            
+
             console.log('Response status:', response.status);
             console.log('Response ok:', response.ok);
-            
+
             if (response.ok) {
                 const data = await response.json();
                 console.log('Fetched discounts:', data);
@@ -50,7 +48,7 @@ const DiscountsView = ({ onAddDiscount, onEditDiscount, permissions = null }) =>
 
     const handleDelete = async (id) => {
         if (!window.confirm('Are you sure you want to delete this discount?')) return;
-        
+
         try {
             const token = localStorage.getItem('access_token');
             const response = await fetch(`http://localhost:8000/api/discounts/${id}`, {
@@ -127,11 +125,10 @@ const DiscountsView = ({ onAddDiscount, onEditDiscount, permissions = null }) =>
                                         {discount.name}
                                     </h3>
                                 </div>
-                                <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
-                                    discount.is_active
+                                <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${discount.is_active
                                         ? 'bg-emerald-50 text-emerald-600'
                                         : 'bg-red-50 text-red-600'
-                                }`}>
+                                    }`}>
                                     {discount.is_active ? 'Active' : 'Inactive'}
                                 </span>
                             </div>

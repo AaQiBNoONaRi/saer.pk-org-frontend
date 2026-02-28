@@ -5,7 +5,7 @@ import { getModulePermissions } from '../../utils/permissions';
 const CommissionsView = ({ onAddCommission, onEditCommission, permissions = null }) => {
     const [commissions, setCommissions] = useState([]);
     const [loading, setLoading] = useState(true);
-    
+
     // If permissions prop is not provided or empty, fallback to module permissions
     const fallbackPerms = getModulePermissions('pricing.commissions');
     const effectivePerms = permissions && Object.values(permissions).some(Boolean) ? permissions : fallbackPerms;
@@ -13,6 +13,7 @@ const CommissionsView = ({ onAddCommission, onEditCommission, permissions = null
     const canUpdate = effectivePerms.update;
     const canDelete = effectivePerms.delete;
     const [searchTerm, setSearchTerm] = useState('');
+    const [filterType, setFilterType] = useState('all');
 
     useEffect(() => {
         fetchCommissions();
@@ -42,7 +43,7 @@ const CommissionsView = ({ onAddCommission, onEditCommission, permissions = null
 
     const handleDelete = async (id) => {
         if (!window.confirm('Are you sure you want to delete this commission group?')) return;
-        
+
         try {
             const token = localStorage.getItem('access_token');
             const response = await fetch(`http://localhost:8000/api/commissions/${id}`, {
@@ -60,9 +61,11 @@ const CommissionsView = ({ onAddCommission, onEditCommission, permissions = null
         }
     };
 
-    const filteredCommissions = commissions.filter(c =>
-        c.name?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredCommissions = commissions.filter(c => {
+        const matchesSearch = c.name?.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesType = filterType === 'all' || c.applied_to === filterType;
+        return matchesSearch && matchesType;
+    });
 
     if (loading) {
         return <div className="text-center text-slate-500">Loading commissions...</div>;
@@ -85,8 +88,8 @@ const CommissionsView = ({ onAddCommission, onEditCommission, permissions = null
                 )}
             </div>
 
-            <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
-                <div className="relative">
+            <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col md:flex-row gap-4 items-center">
+                <div className="relative flex-1 w-full">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
                     <input
                         type="text"
@@ -95,6 +98,18 @@ const CommissionsView = ({ onAddCommission, onEditCommission, permissions = null
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="w-full pl-12 pr-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
                     />
+                </div>
+                <div className="w-full md:w-64">
+                    <select
+                        value={filterType}
+                        onChange={(e) => setFilterType(e.target.value)}
+                        className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none font-bold text-xs bg-slate-50 text-slate-700 uppercase tracking-wider"
+                    >
+                        <option value="all">All Entities</option>
+                        <option value="employee">Employees</option>
+                        <option value="branch">Branches</option>
+                        <option value="agency">Agencies</option>
+                    </select>
                 </div>
             </div>
 
@@ -111,14 +126,18 @@ const CommissionsView = ({ onAddCommission, onEditCommission, permissions = null
                             className="bg-white rounded-2xl border border-slate-200 p-6 hover:shadow-md transition-all"
                         >
                             <div className="flex justify-between items-start mb-4">
-                                <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">
-                                    {commission.name}
-                                </h3>
-                                <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
-                                    commission.is_active
-                                        ? 'bg-emerald-50 text-emerald-600'
-                                        : 'bg-red-50 text-red-600'
-                                }`}>
+                                <div className="flex flex-col">
+                                    <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">
+                                        {commission.name}
+                                    </h3>
+                                    <span className="text-[10px] font-bold text-blue-500 uppercase tracking-widest mt-0.5">
+                                        {commission.applied_to || 'employee'}
+                                    </span>
+                                </div>
+                                <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${commission.is_active
+                                    ? 'bg-emerald-50 text-emerald-600'
+                                    : 'bg-red-50 text-red-600'
+                                    }`}>
                                     {commission.is_active ? 'Active' : 'Inactive'}
                                 </span>
                             </div>

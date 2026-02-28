@@ -33,13 +33,15 @@ const Badge = ({ status }) => {
 };
 
 const StatusBadge = ({ status }) => {
+    const s = String(status || 'pending').toLowerCase();
     const styles = {
         pending: 'bg-amber-50 text-amber-700 border-amber-200',
-        approved: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+        confirmed: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+        approved: 'bg-blue-50 text-blue-700 border-blue-200',
         rejected: 'bg-red-50 text-red-700 border-red-200',
     };
     return (
-        <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wide border ${styles[status] || styles.pending}`}>
+        <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wide border ${styles[s] || styles.pending}`}>
             {status}
         </span>
     );
@@ -51,7 +53,7 @@ export default function PaymentsView({ onAddAccount, onEditAccount, permissions 
     const [agencies, setAgencies] = useState([]);
     const [branches, setBranches] = useState([]);
     const [loading, setLoading] = useState(false);
-    
+
     // If permissions prop is not provided, assume full access (for org admin)
     const canAdd = permissions ? permissions.add : true;
     const canUpdate = permissions ? permissions.update : true;
@@ -125,7 +127,7 @@ export default function PaymentsView({ onAddAccount, onEditAccount, permissions 
                 const payload = JSON.parse(atob(token.split('.')[1]));
 
                 // Try to get additional user data from localStorage
-                const userData = JSON.parse(localStorage.getItem('user_data') || '{}');
+                const userData = JSON.parse(localStorage.getItem('user_data') || localStorage.getItem('admin_data') || '{}');
 
                 // Determine if this is an organization login or user linked to org
                 const orgId = payload.organization_id || (payload.user_type === 'organization' ? payload.sub : null) || (payload.entity_type === 'organization' ? payload.entity_id : null);
@@ -469,7 +471,7 @@ export default function PaymentsView({ onAddAccount, onEditAccount, permissions 
                             <TabButton
                                 key={tab}
                                 label={tab === 'Pending Payments' ? `Pending Payments ${pendingPayments.length > 0 ? `(${pendingPayments.length})` : ''}` : tab}
-                                active={activeTab === tab}  
+                                active={activeTab === tab}
                                 onClick={() => setActiveTab(tab)}
                             />
                         ))}
@@ -532,6 +534,7 @@ export default function PaymentsView({ onAddAccount, onEditAccount, permissions 
                                                 className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:bg-white focus:border-blue-500 focus:outline-none transition-all appearance-none">
                                                 <option value="bank">Bank Transfer</option>
                                                 <option value="cash">Cash</option>
+                                                <option value="transfer">Transfer</option>
                                                 <option value="cheque">Cheque</option>
                                                 <option value="credit">Credit</option>
                                             </select>
@@ -629,7 +632,7 @@ export default function PaymentsView({ onAddAccount, onEditAccount, permissions 
                                             <table className="w-full">
                                                 <thead>
                                                     <tr className="bg-slate-50 border-b border-slate-200">
-                                                        {['Date', 'Transaction', 'Trans Type', 'Beneficiary Ac', 'Account #', 'Agent Account', 'Agent Ac #', 'Amount', 'Status', 'Slip', 'Actions'].map((h, i) => (
+                                                        {['Date', 'Booking #', 'Sender', 'Sender Role', 'Trans Type', 'Beneficiary Ac', 'Account #', 'Agent Account', 'Amount', 'Status', 'Slip', 'Actions'].map((h, i) => (
                                                             <th key={i} className="px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-wider text-left whitespace-nowrap">{h}</th>
                                                         ))}
                                                     </tr>
@@ -644,12 +647,39 @@ export default function PaymentsView({ onAddAccount, onEditAccount, permissions 
                                                             return (
                                                                 <tr key={p._id} className="hover:bg-slate-50 transition-colors">
                                                                     <td className="px-4 py-3 text-xs font-medium text-slate-600 whitespace-nowrap">{p.payment_date || p.created_at?.split('T')[0]}</td>
-                                                                    <td className="px-4 py-3 text-xs font-mono text-slate-500">{(p._id || '').slice(-8).toUpperCase()}</td>
+                                                                    <td className="px-4 py-3">
+                                                                        <p className="text-xs font-black text-blue-600 truncate max-w-[100px]" title={p.booking_reference || p.booking_id}>
+                                                                            {p.booking_reference || (p.booking_id || '').slice(-8).toUpperCase()}
+                                                                        </p>
+                                                                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">{p.booking_type || 'Manual'}</span>
+                                                                    </td>
+                                                                    <td className="px-4 py-3">
+                                                                        <p className="text-xs font-bold text-slate-700 truncate max-w-[120px]" title={p.agent_name}>{p.agent_name || '-'}</p>
+                                                                        <p className="text-[9px] text-slate-400 truncate max-w-[120px]">{p.created_by}</p>
+                                                                    </td>
+                                                                    <td className="px-4 py-3">
+                                                                        <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full border ${p.sender_role === 'agency' ? 'bg-purple-50 text-purple-600 border-purple-100' :
+                                                                            p.sender_role === 'branch' ? 'bg-indigo-50 text-indigo-600 border-indigo-100' :
+                                                                                'bg-slate-50 text-slate-500 border-slate-100'
+                                                                            }`}>
+                                                                            {p.sender_role || 'Employee'}
+                                                                        </span>
+                                                                    </td>
                                                                     <td className="px-4 py-3"><span className="text-[10px] font-black uppercase bg-blue-50 text-blue-700 px-2 py-1 rounded">{p.payment_method}</span></td>
-                                                                    <td className="px-4 py-3 text-xs font-medium text-slate-600 whitespace-nowrap">{baParts[0] || '-'}</td>
-                                                                    <td className="px-4 py-3 text-xs font-mono text-slate-500">{baParts[1] || '-'}</td>
-                                                                    <td className="px-4 py-3 text-xs font-medium text-slate-600 whitespace-nowrap">{agParts[0] || p.agent_name || '-'}</td>
-                                                                    <td className="px-4 py-3 text-xs font-mono text-slate-500">{agParts[1] || '-'}</td>
+                                                                    <td className="px-4 py-3 text-xs font-medium text-slate-600 whitespace-nowrap">
+                                                                        {p.payment_method === 'transfer' ? (
+                                                                            <div className="space-y-0.5">
+                                                                                <p className="font-bold text-slate-800">{p.transfer_account_name || '-'}</p>
+                                                                                <p className="text-[10px] text-slate-500">Client Acc: {p.transfer_account_number || '-'}</p>
+                                                                            </div>
+                                                                        ) : (baParts[0] || '-')}
+                                                                    </td>
+                                                                    <td className="px-4 py-3 text-xs font-mono text-slate-500">
+                                                                        {p.payment_method === 'transfer' ? (p.transfer_account || '-') : (baParts[1] || '-')}
+                                                                    </td>
+                                                                    <td className="px-4 py-3 text-xs font-medium text-slate-600 whitespace-nowrap">
+                                                                        {p.payment_method === 'transfer' ? (p.transfer_phone || '-') : (agParts[0] || '-')}
+                                                                    </td>
                                                                     <td className="px-4 py-3 text-sm font-black text-slate-900">PKR {Number(p.amount || 0).toLocaleString()}</td>
                                                                     <td className="px-4 py-3"><StatusBadge status={p.status} /></td>
                                                                     <td className="px-4 py-3">
@@ -720,7 +750,7 @@ export default function PaymentsView({ onAddAccount, onEditAccount, permissions 
                                         <table className="w-full">
                                             <thead>
                                                 <tr className="bg-amber-50/60 border-b border-slate-200">
-                                                    {['Date', 'Agent / Agency', 'Trans Type', 'Beneficiary Account', 'Agent Account', 'Amount', 'Note', 'Slip', 'Actions'].map((h, i) => (
+                                                    {['Date', 'Booking #', 'Sender Identity', 'Trans Type', 'Beneficiary Account', 'Agent Account', 'Amount', 'Note', 'Slip', 'Actions'].map((h, i) => (
                                                         <th key={i} className="px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-wider text-left whitespace-nowrap">{h}</th>
                                                     ))}
                                                 </tr>
@@ -739,21 +769,45 @@ export default function PaymentsView({ onAddAccount, onEditAccount, permissions 
                                                         <tr key={p._id} className="hover:bg-amber-50/30 transition-colors">
                                                             <td className="px-4 py-4 text-xs font-medium text-slate-600 whitespace-nowrap">{p.payment_date || p.created_at?.split('T')[0]}</td>
                                                             <td className="px-4 py-4">
-                                                                <p className="text-sm font-bold text-slate-800">{p.agent_name || 'Unknown'}</p>
-                                                                <div className="flex items-center gap-2">
-                                                                    <p className="text-[10px] font-medium text-slate-400">Booking: {(p.booking_id || '').slice(-8).toUpperCase()}</p>
-                                                                    <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${p.booking_type === 'ticket' ? 'bg-blue-50 text-blue-600 border border-blue-100' :
-                                                                        p.booking_type === 'umrah' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
-                                                                            p.booking_type === 'custom' ? 'bg-amber-50 text-amber-600 border border-amber-100' :
-                                                                                'bg-slate-50 text-slate-500 border border-slate-100'
+                                                                <p className="text-sm font-black text-blue-700">{p.booking_reference || (p.booking_id || '').slice(-8).toUpperCase()}</p>
+                                                                <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full border ${p.booking_type === 'ticket' ? 'bg-blue-50 text-blue-600 border-blue-100' :
+                                                                    p.booking_type === 'umrah' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                                                                        p.booking_type === 'custom' ? 'bg-amber-50 text-amber-600 border-amber-100' :
+                                                                            'bg-slate-50 text-slate-500 border-slate-100'
+                                                                    }`}>
+                                                                    {p.booking_type === 'custom' ? 'Custom Umrah' : p.booking_type || 'Manual'}
+                                                                </span>
+                                                            </td>
+                                                            <td className="px-4 py-4">
+                                                                <div className="flex items-center gap-2 mb-1">
+                                                                    <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full border ${p.sender_role === 'agency' ? 'bg-purple-100 text-purple-700 border-purple-200' :
+                                                                        p.sender_role === 'branch' ? 'bg-indigo-100 text-indigo-700 border-indigo-200' :
+                                                                            'bg-slate-100 text-slate-600 border-slate-200'
                                                                         }`}>
-                                                                        {p.booking_type === 'custom' ? 'Custom Umrah' : p.booking_type || 'Manual'}
+                                                                        {p.sender_role || 'Employee'}
                                                                     </span>
+                                                                    <p className="text-sm font-bold text-slate-800">{p.agent_name || 'Unknown'}</p>
                                                                 </div>
+                                                                <p className="text-[10px] text-slate-400 font-medium">{p.created_by}</p>
                                                             </td>
                                                             <td className="px-4 py-4"><span className="text-[10px] font-black uppercase bg-blue-50 text-blue-700 px-2 py-1 rounded">{p.payment_method}</span></td>
-                                                            <td className="px-4 py-4 text-xs font-medium text-slate-600">{p.beneficiary_account || '—'}</td>
-                                                            <td className="px-4 py-4 text-xs font-medium text-slate-600">{p.agent_account || '—'}</td>
+                                                            <td className="px-4 py-4 text-xs font-medium text-slate-600">
+                                                                {p.payment_method === 'transfer' ? (
+                                                                    <div className="space-y-1">
+                                                                        <p className="font-bold">{p.transfer_account_name || '—'}</p>
+                                                                        <p className="text-[10px] text-blue-600 font-bold">Client Acc: {p.transfer_account_number || '—'}</p>
+                                                                        <p className="text-[10px] font-mono opacity-60 text-slate-500">{p.transfer_account || '—'}</p>
+                                                                    </div>
+                                                                ) : (p.beneficiary_account || '—')}
+                                                            </td>
+                                                            <td className="px-4 py-4 text-xs font-medium text-slate-600">
+                                                                {p.payment_method === 'transfer' ? (
+                                                                    <div className="space-y-1">
+                                                                        <p className="font-bold">{p.transfer_phone || '—'}</p>
+                                                                        <p className="text-[10px]">{p.transfer_cnic || '—'}</p>
+                                                                    </div>
+                                                                ) : (p.agent_account || '—')}
+                                                            </td>
                                                             <td className="px-4 py-4 text-sm font-black text-slate-900">PKR {Number(p.amount || 0).toLocaleString()}</td>
                                                             <td className="px-4 py-4 text-xs text-slate-500 max-w-[150px] truncate">{p.note || '—'}</td>
                                                             <td className="px-4 py-4">
