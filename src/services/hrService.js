@@ -39,7 +39,7 @@ export const getEmployees = async (filters = {}) => {
     const params = new URLSearchParams();
     if (filters.is_active !== undefined) params.append('is_active', filters.is_active);
     if (filters.department) params.append('department', filters.department);
-    
+
     const response = await fetch(`${API_BASE_URL}/hr/employees?${params}`, {
         headers: getAuthHeader()
     });
@@ -92,12 +92,12 @@ export const checkOut = async (empId, checkOutTime = null, reason = null) => {
             reason: reason
         })
     });
-    
+
     // Handle both success (200) and approval required (202)
     if (response.ok) {
         return response.json();
     }
-    
+
     // Handle errors
     const error = await response.json();
     throw new Error(error.detail || 'Failed to check out');
@@ -109,11 +109,19 @@ export const getAttendance = async (filters = {}) => {
     if (filters.start_date) params.append('start_date', filters.start_date);
     if (filters.end_date) params.append('end_date', filters.end_date);
     if (filters.status) params.append('status', filters.status);
-    
+
     const response = await fetch(`${API_BASE_URL}/hr/attendance?${params}`, {
         headers: getAuthHeader()
     });
     if (!response.ok) throw new Error('Failed to fetch attendance');
+    return response.json();
+};
+
+export const getTodayAttendance = async (empId) => {
+    const response = await fetch(`${API_BASE_URL}/hr/attendance/today/${empId}`, {
+        headers: getAuthHeader()
+    });
+    if (!response.ok) throw new Error('Failed to fetch today attendance');
     return response.json();
 };
 
@@ -158,7 +166,7 @@ export const getMovements = async (filters = {}) => {
     if (filters.start_date) params.append('start_date', filters.start_date);
     if (filters.end_date) params.append('end_date', filters.end_date);
     if (filters.status) params.append('status', filters.status);
-    
+
     const response = await fetch(`${API_BASE_URL}/hr/movements?${params}`, {
         headers: getAuthHeader()
     });
@@ -182,7 +190,7 @@ export const getLeaveRequests = async (filters = {}) => {
     if (filters.emp_id) params.append('emp_id', filters.emp_id);
     if (filters.status) params.append('status', filters.status);
     if (filters.request_type) params.append('request_type', filters.request_type);
-    
+
     const response = await fetch(`${API_BASE_URL}/hr/leave-requests?${params}`, {
         headers: getAuthHeader()
     });
@@ -222,7 +230,7 @@ export const getPunctuality = async (filters = {}) => {
     if (filters.emp_id) params.append('emp_id', filters.emp_id);
     if (filters.start_date) params.append('start_date', filters.start_date);
     if (filters.end_date) params.append('end_date', filters.end_date);
-    
+
     const response = await fetch(`${API_BASE_URL}/hr/punctuality?${params}`, {
         headers: getAuthHeader()
     });
@@ -245,7 +253,7 @@ export const getFines = async (filters = {}) => {
     const params = new URLSearchParams();
     if (filters.emp_id) params.append('emp_id', filters.emp_id);
     if (filters.month) params.append('month', filters.month);
-    
+
     const response = await fetch(`${API_BASE_URL}/hr/fines?${params}`, {
         headers: getAuthHeader()
     });
@@ -268,7 +276,7 @@ export const getSalaries = async (filters = {}) => {
     if (filters.emp_id) params.append('emp_id', filters.emp_id);
     if (filters.month) params.append('month', filters.month);
     if (filters.status) params.append('status', filters.status);
-    
+
     const response = await fetch(`${API_BASE_URL}/hr/salaries?${params}`, {
         headers: getAuthHeader()
     });
@@ -279,7 +287,7 @@ export const getSalaries = async (filters = {}) => {
 export const getSalaryStatistics = async (month = null) => {
     const params = new URLSearchParams();
     if (month) params.append('month', month);
-    
+
     const response = await fetch(`${API_BASE_URL}/hr/salaries/statistics?${params}`, {
         headers: getAuthHeader()
     });
@@ -292,7 +300,7 @@ export const markSalaryPaid = async (salaryId, paymentDate = null, paymentMethod
     if (paymentDate) params.append('payment_date', paymentDate);
     if (paymentMethod) params.append('payment_method', paymentMethod);
     if (paymentReference) params.append('payment_reference', paymentReference);
-    
+
     const response = await fetch(`${API_BASE_URL}/hr/salaries/${salaryId}/mark-paid?${params}`, {
         method: 'POST',
         headers: getAuthHeader()
@@ -316,7 +324,7 @@ export const getEmployeeLedger = async (empId, startDate = null, endDate = null)
     const params = new URLSearchParams();
     if (startDate) params.append('start_date', startDate);
     if (endDate) params.append('end_date', endDate);
-    
+
     const response = await fetch(`${API_BASE_URL}/hr/employees/${empId}/ledger?${params}`, {
         headers: getAuthHeader()
     });
@@ -330,7 +338,7 @@ export const getPunctualityAnalytics = async (filters = {}) => {
     if (filters.emp_id) params.append('emp_id', filters.emp_id);
     if (filters.start_date) params.append('start_date', filters.start_date);
     if (filters.end_date) params.append('end_date', filters.end_date);
-    
+
     const response = await fetch(`${API_BASE_URL}/hr/punctuality/analytics?${params}`, {
         headers: getAuthHeader()
     });
