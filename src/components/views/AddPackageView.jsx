@@ -47,6 +47,7 @@ const AddPackageView = ({ onBack, initialData }) => {
     const [packageTitle, setPackageTitle] = useState('');
     const [paxCapacity, setPaxCapacity] = useState('');
     const [packageDescription, setPackageDescription] = useState('');
+    const [isPublicActive, setIsPublicActive] = useState(false);
 
     // Modal State
     const [showFlightModal, setShowFlightModal] = useState(false);
@@ -145,6 +146,7 @@ const AddPackageView = ({ onBack, initialData }) => {
             setPackageTitle(initialData.title || '');
             setPaxCapacity(initialData.pax_capacity || '');
             setPackageDescription(initialData.description || '');
+            setIsPublicActive(initialData.public_active || false);
 
             // Restore Flight - Lookup in flights master list
             if (initialData.flight) {
@@ -344,6 +346,7 @@ const AddPackageView = ({ onBack, initialData }) => {
                 title: packageTitle,
                 pax_capacity: paxCapacity,
                 description: packageDescription,
+                public_active: isPublicActive,
 
                 // Flight data (only ID)
                 flight: selectedFlight ? (selectedFlight._id || selectedFlight.id) : null,
@@ -704,6 +707,24 @@ const AddPackageView = ({ onBack, initialData }) => {
                                         value={packageDescription}
                                         onChange={(e) => setPackageDescription(e.target.value)}
                                     />
+                                </div>
+                                <div className="md:col-span-2">
+                                    <label className="flex items-center gap-3 cursor-pointer p-4 border border-slate-200 rounded-2xl hover:bg-slate-50 transition-all group">
+                                        <div className="relative">
+                                            <input
+                                                type="checkbox"
+                                                className="sr-only"
+                                                checked={isPublicActive}
+                                                onChange={(e) => setIsPublicActive(e.target.checked)}
+                                            />
+                                            <div className={`w-11 h-6 rounded-full transition-colors ${isPublicActive ? 'bg-blue-600' : 'bg-slate-300'}`}></div>
+                                            <div className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform ${isPublicActive ? 'translate-x-5' : 'translate-x-0'}`}></div>
+                                        </div>
+                                        <div>
+                                            <div className="text-sm font-bold text-slate-800">Publicly Listed</div>
+                                            <div className="text-[10px] text-slate-500 font-medium">Allow this package to be visible to customers on the public site and customer app.</div>
+                                        </div>
+                                    </label>
                                 </div>
                             </div>
                         </div>
