@@ -127,7 +127,7 @@ export default function PaymentsView({ onAddAccount, onEditAccount, permissions 
                 const payload = JSON.parse(atob(token.split('.')[1]));
 
                 // Try to get additional user data from localStorage
-                const userData = JSON.parse(localStorage.getItem('user_data') || '{}');
+                const userData = JSON.parse(localStorage.getItem('user_data') || localStorage.getItem('admin_data') || '{}');
 
                 // Determine if this is an organization login or user linked to org
                 const orgId = payload.organization_id || (payload.user_type === 'organization' ? payload.sub : null) || (payload.entity_type === 'organization' ? payload.entity_id : null);
@@ -271,7 +271,7 @@ export default function PaymentsView({ onAddAccount, onEditAccount, permissions 
         if (!window.confirm('Approve this payment?')) return;
         try {
             const formData = new FormData();
-            formData.append('new_status', 'confirmed');
+            formData.append('new_status', 'approved');
             const res = await fetch(`${API}/api/payments/${paymentId}/status`, {
                 method: 'PUT',
                 headers: { 'Authorization': `Bearer ${token()}` },
