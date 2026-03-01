@@ -132,6 +132,7 @@ export default function Sidebar({ activeTab, setActiveTab, getPathForTab, isSide
                     <NavGroup title="Financials" isOpen={isSidebarOpen}>
                         <NavItem icon={<Landmark size={20} />} label="Finance Hub" active={activeTab === 'Finance Hub'} onClick={() => handleNavClick('Finance Hub')} isOpen={isSidebarOpen} href={getPathForTab ? getPathForTab('Finance Hub') : '#'} />
                         <NavItem icon={<CreditCard size={20} />} label="Payments" active={activeTab === 'Payments'} onClick={() => handleNavClick('Payments')} isOpen={isSidebarOpen} href={getPathForTab ? getPathForTab('Payments') : '#'} />
+                        <NavItem icon={<DollarSign size={20} />} label="Commission Earnings" active={activeTab === 'Commission Earnings'} onClick={() => handleNavClick('Commission Earnings')} isOpen={isSidebarOpen} href={getPathForTab ? getPathForTab('Commission Earnings') : '#'} />
                     </NavGroup>
 
                     <NavGroup title="CRM" isOpen={isSidebarOpen}>

@@ -1,120 +1,31 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Plus, Search, Filter, Building2, BedDouble, List as ListIcon, X, ArrowLeft, ArrowRight, Image as ImageIcon } from 'lucide-react';
+import { Plus, Search, Filter, Building2, BedDouble, List as ListIcon } from 'lucide-react';
+import HotelCard from './HotelCard';
 import HotelForm from './HotelForm';
 import HotelCategoriesManagement from './HotelCategoriesManagement';
 import BedTypesManagement from './BedTypesManagement';
 import HotelRoomMap from './HotelRoomMap';
 import HotelAvailability from './HotelAvailability';
 
-const PhotoGallery = ({ photos, isOpen, onClose, hotelName }) => {
-    const [currentIndex, setCurrentIndex] = useState(0);
-
-    if (!isOpen || !photos || photos.length === 0) return null;
-
-    const next = () => setCurrentIndex((currentIndex + 1) % photos.length);
-    const prev = () => setCurrentIndex((currentIndex - 1 + photos.length) % photos.length);
-
-    return (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-            <button
-                onClick={onClose}
-                className="absolute top-6 right-6 text-white hover:text-slate-300 transition-colors z-[70]"
-            >
-                <X size={32} />
-            </button>
-
-            <div className="relative max-w-5xl w-full flex flex-col items-center">
-                <div className="text-white text-xl font-bold mb-4">{hotelName} - Gallery ({currentIndex + 1}/{photos.length})</div>
-
-                <div className="relative group w-full aspect-video bg-slate-900 rounded-3xl overflow-hidden shadow-2xl">
-                    <img
-                        src={photos[currentIndex]}
-                        alt={`${hotelName} gallery`}
-                        className="w-full h-full object-contain"
-                    />
-
-                    {photos.length > 1 && (
-                        <>
-                            <button
-                                onClick={prev}
-                                className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 text-white p-3 rounded-full backdrop-blur-md transition-all opacity-0 group-hover:opacity-100"
-                            >
-                                <ArrowLeft size={24} />
-                            </button>
-                            <button
-                                onClick={next}
-                                className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 text-white p-3 rounded-full backdrop-blur-md transition-all opacity-0 group-hover:opacity-100"
-                            >
-                                <ArrowRight size={24} />
-                            </button>
-                        </>
-                    )}
-                </div>
-
-                <div className="flex gap-2 mt-6 overflow-x-auto pb-2 w-full justify-center">
-                    {photos.map((photo, i) => (
-                        <button
-                            key={i}
-                            onClick={() => setCurrentIndex(i)}
-                            className={`w-16 h-16 rounded-xl overflow-hidden border-2 transition-all shrink-0 ${i === currentIndex ? 'border-blue-500 scale-110 shadow-lg' : 'border-transparent opacity-50 hover:opacity-100'
-                                }`}
-                        >
-                            <img src={photo} alt="" className="w-full h-full object-cover" />
-                        </button>
-                    ))}
-                </div>
-            </div>
-        </div>
-    );
-};
-
-const HotelsView = ({ permissions = null }) => {
+const HotelsView = () => {
     // View State
     const [viewMode, setViewMode] = useState('list'); // list, categories, bed-types, room-map, availability
     const [hotels, setHotels] = useState([]);
-    const [bedTypes, setBedTypes] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedHotel, setSelectedHotel] = useState(null);
-    
-    // If permissions prop is not provided, assume full access (for org admin)
-    const canAdd = permissions ? permissions.add : true;
-    const canUpdate = permissions ? permissions.update : true;
-    const canDelete = permissions ? permissions.delete : true;
-
-    // Gallery State
-    const [galleryOpen, setGalleryOpen] = useState(false);
-    const [galleryPhotos, setGalleryPhotos] = useState([]);
-    const [galleryHotelName, setGalleryHotelName] = useState('');
 
     // Filters
     const [searchQuery, setSearchQuery] = useState('');
     const [cityFilter, setCityFilter] = useState('All');
 
     const API_URL = 'http://localhost:8000/api/hotels/';
-    const BED_TYPES_URL = 'http://localhost:8000/api/bed-types/';
-
-    useEffect(() => {
-        fetchBedTypes();
-    }, []);
 
     useEffect(() => {
         if (viewMode === 'list') {
             fetchHotels();
         }
     }, [viewMode]);
-
-    const fetchBedTypes = async () => {
-        try {
-            const token = localStorage.getItem('access_token');
-            const response = await axios.get(BED_TYPES_URL, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            setBedTypes(response.data);
-        } catch (error) {
-            console.error('Error fetching bed types:', error);
-        }
-    };
 
     const fetchHotels = async () => {
         setLoading(true);
@@ -191,7 +102,6 @@ const HotelsView = ({ permissions = null }) => {
 
             if (selectedHotel) {
                 console.log('Attempting to update hotel with ID:', selectedHotel._id);
-                console.log('Payload:', JSON.stringify(formData, null, 2));
                 try {
                     const res = await axios.put(`${API_URL}${selectedHotel._id}`, formData, { headers });
                     console.log('✅ Hotel updated successfully');
@@ -221,7 +131,6 @@ const HotelsView = ({ permissions = null }) => {
                     throw err;
                 }
             } else {
-                console.log('Creating new hotel with payload:', JSON.stringify(formData, null, 2));
                 const res = await axios.post(API_URL, formData, { headers });
                 console.log('✅ Hotel created successfully');
                 setSelectedHotel(null);
@@ -335,15 +244,13 @@ const HotelsView = ({ permissions = null }) => {
                             </select>
                         </div>
 
-                        {canAdd && (
-                            <button
-                                onClick={handleCreateHotel}
-                                className="w-full md:w-auto px-6 py-3 bg-blue-600 text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-blue-700 transition-all shadow-lg shadow-blue-200"
-                            >
-                                <Plus size={20} />
-                                Add Property
-                            </button>
-                        )}
+                        <button
+                            onClick={handleCreateHotel}
+                            className="w-full md:w-auto px-6 py-3 bg-blue-600 text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-blue-700 transition-all shadow-lg shadow-blue-200"
+                        >
+                            <Plus size={20} />
+                            Add Property
+                        </button>
                     </div>
 
                     {/* Content */}
@@ -359,160 +266,17 @@ const HotelsView = ({ permissions = null }) => {
                             <p className="text-slate-500 font-medium">No hotels found matching your criteria.</p>
                         </div>
                     ) : (
-                        <div className="overflow-x-auto bg-white rounded-2xl border border-slate-200 shadow-sm">
-                            <table className="min-w-full divide-y divide-gray-200 text-sm">
-                                <thead className="bg-gray-50">
-                                    <tr>
-                                        <th className="px-4 py-3 text-left font-semibold text-gray-700">Hotel Name</th>
-                                        <th className="px-4 py-3 text-left font-semibold text-gray-700">City</th>
-                                        <th className="px-4 py-3 text-left font-semibold text-gray-700">Address</th>
-                                        <th className="px-4 py-3 text-left font-semibold text-gray-700">Category</th>
-                                        <th className="px-4 py-3 text-left font-semibold text-gray-700">Contact</th>
-                                        <th className="px-4 py-3 text-left font-semibold text-gray-700">Status</th>
-                                        <th className="px-4 py-3 text-left font-semibold text-gray-700">Availability</th>
-                                        <th className="px-4 py-3 text-left font-semibold text-gray-700">Distance (m)</th>
-                                        <th className="px-4 py-3 text-left font-semibold text-gray-700">Walk Time (min)</th>
-                                        <th className="px-4 py-3 text-left font-semibold text-gray-700">Walking Distance (m)</th>
-                                        <th className="px-4 py-3 text-left font-semibold text-gray-700">Price Dates</th>
-                                        <th className="px-4 py-3 text-left font-semibold text-gray-700">Room Price</th>
-                                        <th className="px-4 py-3 text-left font-semibold text-gray-700">Sharing Price</th>
-                                        <th className="px-4 py-3 text-left font-semibold text-gray-700">Quint Price</th>
-                                        <th className="px-4 py-3 text-left font-semibold text-gray-700">Quad Price</th>
-                                        <th className="px-4 py-3 text-left font-semibold text-gray-700">Triple Price</th>
-                                        <th className="px-4 py-3 text-left font-semibold text-gray-700">Double Price</th>
-                                        <th className="px-4 py-3 text-left font-semibold text-gray-700">Pictures</th>
-                                        <th className="px-4 py-3 text-left font-semibold text-gray-700">Location</th>
-                                        <th className="px-4 py-3 text-left font-semibold text-gray-700">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="bg-white divide-y divide-gray-100">
-                                    {filteredHotels.map(hotel => {
-                                        const firstPrice = hotel.prices && hotel.prices.length > 0 ? hotel.prices[0] : null;
-
-                                        // Map prices to named columns using bed type IDs (robust to typos)
-                                        const mapPricesToColumns = (prices) => {
-                                            const cols = { room: 'N/A', sharing: 'N/A', quint: 'N/A', quad: 'N/A', triple: 'N/A', double: 'N/A' };
-                                            if (!prices || !Array.isArray(prices)) return cols;
-
-                                            const bedById = {};
-                                            bedTypes.forEach(bt => {
-                                                if (bt && bt._id) bedById[bt._id] = bt;
-                                            });
-
-                                            for (const p of prices) {
-                                                const bt = bedById[p.bed_type_id];
-                                                const name = (bt?.name || '').toLowerCase();
-
-                                                if (bt?.is_room_price) {
-                                                    cols.room = p.selling_price;
-                                                    continue;
-                                                }
-
-                                                if (name.includes('share') || name.includes('sherr')) cols.sharing = p.selling_price;
-                                                else if (name.includes('doubl') || name.includes('doublr') || name.includes('double')) cols.double = p.selling_price;
-                                                else if (name.includes('triple')) cols.triple = p.selling_price;
-                                                else if (name.includes('quad')) cols.quad = p.selling_price;
-                                                else if (name.includes('quint')) cols.quint = p.selling_price;
-                                                else {
-                                                    // fallback: if no match, and room not set, set room
-                                                    if (cols.room === 'N/A') cols.room = p.selling_price;
-                                                }
-                                            }
-
-                                            return cols;
-                                        };
-                                        const priceCols = mapPricesToColumns(hotel.prices);
-
-                                        const formatDateRange = (from, to) => {
-                                            if (!from || !to) return 'N/A';
-                                            return `${from} — ${to}`;
-                                        };
-
-                                        return (
-                                            <tr key={hotel._id} className="hover:bg-gray-50">
-                                                <td className="px-4 py-3 align-top font-medium text-gray-900">{hotel.name || 'N/A'}</td>
-                                                <td className="px-4 py-3 align-top">{hotel.city || 'N/A'}</td>
-                                                <td className="px-4 py-3 align-top max-w-xs truncate" title={hotel.address}>
-                                                    {hotel.address || 'N/A'}
-                                                </td>
-                                                <td className="px-4 py-3 align-top">{hotel.category_name || 'N/A'}</td>
-                                                <td className="px-4 py-3 align-top">{hotel.contact_number || 'N/A'}</td>
-                                                <td className="px-4 py-3 align-top">
-                                                    <span className={`px-2 py-1 rounded-full text-xs font-bold ${hotel.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                                        {hotel.is_active ? 'Active' : 'Inactive'}
-                                                    </span>
-                                                </td>
-                                                <td className="px-4 py-3 align-top whitespace-nowrap text-xs">
-                                                    {formatDateRange(hotel.available_from, hotel.available_until)}
-                                                </td>
-                                                <td className="px-4 py-3 align-top">{hotel.distance_meters || 'N/A'}</td>
-                                                <td className="px-4 py-3 align-top">{hotel.walking_time_minutes || 'N/A'}</td>
-                                                <td className="px-4 py-3 align-top">{hotel.walking_distance_meters || 'N/A'}</td>
-                                                <td className="px-4 py-3 align-top whitespace-nowrap text-xs">
-                                                    {firstPrice ? formatDateRange(firstPrice.date_from, firstPrice.date_to) : 'N/A'}
-                                                </td>
-                                                <td className="px-4 py-3 align-top font-medium text-blue-600">
-                                                    {priceCols.room !== undefined && priceCols.room !== null ? priceCols.room : (firstPrice?.room_only_price !== undefined && firstPrice?.room_only_price !== null ? firstPrice.room_only_price : 'N/A')}
-                                                </td>
-                                                <td className="px-4 py-3 align-top">{priceCols.sharing}</td>
-                                                <td className="px-4 py-3 align-top">{priceCols.quint}</td>
-                                                <td className="px-4 py-3 align-top">{priceCols.quad}</td>
-                                                <td className="px-4 py-3 align-top">{priceCols.triple}</td>
-                                                <td className="px-4 py-3 align-top">{priceCols.double}</td>
-                                                <td className="px-4 py-3 align-top">
-                                                    {hotel.photos && hotel.photos.length > 0 ? (
-                                                        <button
-                                                            onClick={() => {
-                                                                setGalleryPhotos(hotel.photos);
-                                                                setGalleryHotelName(hotel.name);
-                                                                setGalleryOpen(true);
-                                                            }}
-                                                            className="w-12 h-12 rounded-lg overflow-hidden border border-slate-200 hover:border-blue-400 hover:scale-105 transition-all shadow-sm"
-                                                        >
-                                                            <img
-                                                                src={hotel.photos[0]}
-                                                                alt={hotel.name}
-                                                                className="w-full h-full object-cover"
-                                                            />
-                                                        </button>
-                                                    ) : (
-                                                        <div className="w-12 h-12 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-300">
-                                                            <ImageIcon size={16} />
-                                                        </div>
-                                                    )}
-                                                </td>
-                                                <td className="px-4 py-3 align-top">
-                                                    {hotel.google_location_link ? (
-                                                        <a href={hotel.google_location_link} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-xs">
-                                                            Map
-                                                        </a>
-                                                    ) : 'N/A'}
-                                                </td>
-                                                <td className="px-4 py-3 align-top">
-                                                    <div className="flex gap-2">
-                                                        {canUpdate && (
-                                                            <button
-                                                                onClick={() => handleEditHotel(hotel)}
-                                                                className="text-xs text-blue-600 hover:underline font-medium"
-                                                            >
-                                                                Edit
-                                                            </button>
-                                                        )}
-                                                        {canDelete && (
-                                                            <button
-                                                                onClick={() => handleDeleteHotel(hotel)}
-                                                                className="text-xs text-red-600 hover:underline font-medium"
-                                                            >
-                                                                Delete
-                                                            </button>
-                                                        )}
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
+                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                            {filteredHotels.map(hotel => (
+                                <HotelCard
+                                    key={hotel._id}
+                                    hotel={hotel}
+                                    onEdit={handleEditHotel}
+                                    onDelete={handleDeleteHotel}
+                                    onManageRooms={handleManageRooms}
+                                    onManageAvailability={handleManageAvailability}
+                                />
+                            ))}
                         </div>
                     )}
                 </>
@@ -539,14 +303,6 @@ const HotelsView = ({ permissions = null }) => {
                     }}
                 />
             )}
-
-            {/* Photo Gallery Modal */}
-            <PhotoGallery
-                isOpen={galleryOpen}
-                onClose={() => setGalleryOpen(false)}
-                photos={galleryPhotos}
-                hotelName={galleryHotelName}
-            />
         </div>
     );
 };

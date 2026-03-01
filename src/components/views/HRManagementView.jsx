@@ -380,8 +380,8 @@ function DashboardTab() {
                             {stats.recent_activities.map((activity, i) => (
                                 <div key={i} className="flex items-start gap-3 p-3 rounded-xl border border-slate-100 hover:bg-slate-50 transition-colors">
                                     <div className={`p-2 rounded-lg ${activity.type === 'attendance' ? 'bg-blue-50 text-blue-600' :
-                                            activity.type === 'movement' ? 'bg-purple-50 text-purple-600' :
-                                                'bg-amber-50 text-amber-600'
+                                        activity.type === 'movement' ? 'bg-purple-50 text-purple-600' :
+                                            'bg-amber-50 text-amber-600'
                                         }`}>
                                         {activity.type === 'attendance' ? <Calendar size={16} /> :
                                             activity.type === 'movement' ? <PersonStanding size={16} /> :
@@ -2219,6 +2219,7 @@ function EmployeeProfileView({ employee, onBack, onRefresh }) {
     const [attendance, setAttendance] = useState([]);
     const [movements, setMovements] = useState([]);
     const [ledger, setLedger] = useState([]);
+    const [commissions, setCommissions] = useState([]);
     const [checkoutRequests, setCheckoutRequests] = useState([]);
     const [loading, setLoading] = useState(false);
     const [isCheckedIn, setIsCheckedIn] = useState(false);
@@ -2280,6 +2281,7 @@ function EmployeeProfileView({ employee, onBack, onRefresh }) {
         if (activeTab === 'Attendance') loadAttendance();
         if (activeTab === 'Movements') loadMovements();
         if (activeTab === 'Ledger') loadLedger();
+        if (activeTab === 'Commissions') loadCommissions();
         if (activeTab === 'Checkout Requests') loadCheckoutRequests();
         checkTodayAttendance();
     }, [activeTab]);
@@ -2352,6 +2354,22 @@ function EmployeeProfileView({ employee, onBack, onRefresh }) {
         } catch (error) {
             console.error('Failed to load ledger:', error);
             setLedger([]);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const loadCommissions = async () => {
+        try {
+            setLoading(true);
+            // Use employee._id (MongoDB _id) — NOT emp_id (human-readable like EMP001)
+            const mongoId = employee._id || employee.id;
+            if (!mongoId) { setCommissions([]); return; }
+            const data = await hrService.getEmployeeCommissions(mongoId);
+            setCommissions(Array.isArray(data) ? data : []);
+        } catch (error) {
+            console.error('Failed to load commissions:', error);
+            setCommissions([]);
         } finally {
             setLoading(false);
         }
@@ -3152,26 +3170,71 @@ function EmployeeProfileView({ employee, onBack, onRefresh }) {
                                     {/* Total Earned */}
                                     <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
                                         <p className="text-sm font-bold text-slate-500 mb-2">Total Earned</p>
-                                        <p className="text-2xl font-black text-slate-800">PKR 0</p>
+                                        <p className="text-2xl font-black text-slate-800">
+                                            {pkr(commissions.filter(c => c.status !== 'cancelled').reduce((sum, c) => sum + parseFloat(c.commission_amount || 0), 0))}
+                                        </p>
                                     </div>
 
                                     {/* Paid */}
                                     <div className="bg-emerald-600 p-6 rounded-2xl">
                                         <p className="text-sm font-bold text-white/80 mb-2">Paid</p>
-                                        <p className="text-2xl font-black text-white">PKR 0</p>
+                                        <p className="text-2xl font-black text-white">
+                                            {pkr(commissions.filter(c => c.status === 'paid').reduce((sum, c) => sum + parseFloat(c.commission_amount || 0), 0))}
+                                        </p>
                                     </div>
 
-                                    {/* Unpaid */}
+                                    {/* Unpaid (Pending + Earned) */}
                                     <div className="bg-amber-400 p-6 rounded-2xl">
                                         <p className="text-sm font-bold text-amber-900/70 mb-2">Unpaid</p>
-                                        <p className="text-2xl font-black text-amber-900">PKR 0</p>
+                                        <p className="text-2xl font-black text-amber-900">
+                                            {pkr(commissions.filter(c => c.status === 'pending' || c.status === 'earned').reduce((sum, c) => sum + parseFloat(c.commission_amount || 0), 0))}
+                                        </p>
                                     </div>
                                 </div>
 
-                                {/* Empty State */}
-                                <div className="flex items-center justify-center py-16 text-center">
-                                    <p className="text-sm font-medium text-slate-500">No commission records found</p>
-                                </div>
+                                {/* Commissions Table */}
+                                {loading ? (
+                                    <div className="flex justify-center py-12">
+                                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>
+                                    </div>
+                                ) : commissions.length === 0 ? (
+                                    <div className="flex items-center justify-center py-16 text-center">
+                                        <p className="text-sm font-medium text-slate-500">No commission records found</p>
+                                    </div>
+                                ) : (
+                                    <div className="overflow-x-auto">
+                                        <table className="min-w-full">
+                                            <thead>
+                                                <tr className="border-b-2 border-slate-200">
+                                                    <th className="px-4 py-3 text-left text-xs font-bold text-slate-600">Date</th>
+                                                    <th className="px-4 py-3 text-left text-xs font-bold text-slate-600">Booking Ref</th>
+                                                    <th className="px-4 py-3 text-left text-xs font-bold text-slate-600">Type</th>
+                                                    <th className="px-4 py-3 text-right text-xs font-bold text-slate-600">Amount</th>
+                                                    <th className="px-4 py-3 text-left text-xs font-bold text-slate-600">Status</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-100">
+                                                {commissions.map((record, index) => (
+                                                    <tr key={index} className="hover:bg-slate-50 transition-colors">
+                                                        <td className="px-4 py-3 text-sm font-semibold text-slate-900">{formatDate(record.created_at)}</td>
+                                                        <td className="px-4 py-3 text-sm font-black text-slate-800">{record.booking_reference}</td>
+                                                        <td className="px-4 py-3 text-sm text-slate-600 uppercase tracking-widest text-[10px] font-bold">{record.booking_type}</td>
+                                                        <td className="px-4 py-3 text-sm text-right text-emerald-600 font-bold">{pkr(record.commission_amount)}</td>
+                                                        <td className="px-4 py-3">
+                                                            <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${record.status === 'paid' ? 'bg-emerald-100 text-emerald-700' :
+                                                                record.status === 'earned' ? 'bg-blue-100 text-blue-700' :
+                                                                    record.status === 'cancelled' ? 'bg-red-100 text-red-700' :
+                                                                        'bg-yellow-100 text-yellow-700'
+                                                                }`}>
+                                                                {record.status}
+                                                            </span>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
                             </div>
                         )}
 

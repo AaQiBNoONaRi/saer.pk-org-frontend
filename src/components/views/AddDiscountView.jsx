@@ -5,29 +5,28 @@ const AddDiscountView = ({ onBack, initialData }) => {
     const [saving, setSaving] = useState(false);
     const [hotels, setHotels] = useState([]);
     
-    // Form fields
-    const [name, setName] = useState('');
-    const [ticketDiscount, setTicketDiscount] = useState('');
-    const [ticketDiscountType, setTicketDiscountType] = useState('fixed');
-    const [packageDiscount, setPackageDiscount] = useState('');
-    const [hotelDiscounts, setHotelDiscounts] = useState([
+    // Global: Title (applies to all periods)
+    const [title, setTitle] = useState('');
+    
+    // Discount Periods (Repeatable)
+    const [discountPeriods, setDiscountPeriods] = useState([
         {
             id: Date.now(),
-            quint_discount: '',
-            quad_discount: '',
-            triple_discount: '',
-            double_discount: '',
-            sharing_discount: '',
-            other_discount: '',
-            hotels: [],
-            valid_from: '',
-            valid_until: ''
+            ticketDiscount: 0,
+            packageDiscount: 0,
+            validFrom: '',
+            validUntil: '',
+            hotelGroups: [
+                {
+                    id: Date.now() + 1,
+                    selectedHotels: [],
+                    roomPrices: { double: 0, triple: 0, quad: 0, quint: 0 }
+                }
+            ]
         }
     ]);
-    const [isActive, setIsActive] = useState(true);
-    const [hotelSearches, setHotelSearches] = useState(hotelDiscounts.map(() => ''));
 
-    // Fetch Hotels
+    // Fetch Hotels from Backend
     useEffect(() => {
         const fetchHotels = async () => {
             try {
@@ -48,38 +47,12 @@ const AddDiscountView = ({ onBack, initialData }) => {
 
     useEffect(() => {
         if (initialData) {
-            setName(initialData.name || '');
-            setTicketDiscount(initialData.ticket_discount?.toString() || '');
-            setTicketDiscountType(initialData.ticket_discount_type || 'fixed');
-            setPackageDiscount(initialData.package_discount?.toString() || '');
-            setIsActive(initialData.is_active ?? true);
-            if (initialData.hotel_discounts && initialData.hotel_discounts.length > 0) {
-                setHotelDiscounts(initialData.hotel_discounts.map((hd, idx) => ({
-                    id: Date.now() + idx,
-                    quint_discount: hd.quint_discount?.toString() || '',
-                    quad_discount: hd.quad_discount?.toString() || '',
-                    triple_discount: hd.triple_discount?.toString() || '',
-                    double_discount: hd.double_discount?.toString() || '',
-                    sharing_discount: hd.sharing_discount?.toString() || '',
-                    other_discount: hd.other_discount?.toString() || '',
-                    hotels: hd.hotels || [],
-                    valid_from: hd.valid_from || '',
-                    valid_until: hd.valid_until || ''
-                })));
-                setHotelSearches(initialData.hotel_discounts.map(() => ''));
+            setTitle(initialData.title || '');
+            if (initialData.discount_periods && initialData.discount_periods.length > 0) {
+                setDiscountPeriods(initialData.discount_periods);
             }
         }
     }, [initialData]);
-
-    // Keep hotelSearches in sync with hotelDiscounts length
-    useEffect(() => {
-        setHotelSearches(prev => {
-            const next = [...prev];
-            while (next.length < hotelDiscounts.length) next.push('');
-            while (next.length > hotelDiscounts.length) next.pop();
-            return next;
-        });
-    }, [hotelDiscounts.length]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -88,23 +61,8 @@ const AddDiscountView = ({ onBack, initialData }) => {
         try {
             const token = localStorage.getItem('access_token');
             const payload = {
-                name,
-                ticket_discount: parseFloat(ticketDiscount) || 0,
-                ticket_discount_type: ticketDiscountType,
-                package_discount: parseFloat(packageDiscount) || 0,
-                package_discount_type: 'fixed',
-                hotel_discounts: hotelDiscounts.map(hd => ({
-                    quint_discount: parseFloat(hd.quint_discount) || 0,
-                    quad_discount: parseFloat(hd.quad_discount) || 0,
-                    triple_discount: parseFloat(hd.triple_discount) || 0,
-                    double_discount: parseFloat(hd.double_discount) || 0,
-                    sharing_discount: parseFloat(hd.sharing_discount) || 0,
-                    other_discount: parseFloat(hd.other_discount) || 0,
-                    hotels: hd.hotels,
-                    valid_from: hd.valid_from || undefined,
-                    valid_until: hd.valid_until || undefined
-                })),
-                is_active: isActive
+                title,
+                discount_periods: discountPeriods
             };
 
             const url = initialData
@@ -123,11 +81,10 @@ const AddDiscountView = ({ onBack, initialData }) => {
             });
 
             if (response.ok) {
-                alert('Discount saved successfully!');
                 onBack();
             } else {
                 const error = await response.json();
-                alert(`Error: ${JSON.stringify(error.detail || 'Failed to save')}`);
+                alert(`Error: ${error.detail || 'Failed to save'}`);
             }
         } catch (error) {
             console.error('Error saving:', error);
@@ -137,370 +94,375 @@ const AddDiscountView = ({ onBack, initialData }) => {
         }
     };
 
-    const updateHotelDiscount = (index, field, value) => {
-        const updated = [...hotelDiscounts];
-        updated[index][field] = value;
-        setHotelDiscounts(updated);
+    const addHotelToGroup = (periodIndex, groupIndex, hotelId) => {
+        const hotel = hotels.find(h => h._id === hotelId);
+        if (!hotel) return;
+
+        const updated = [...discountPeriods];
+        if (updated[periodIndex].hotelGroups[groupIndex].selectedHotels.some(h => h._id === hotelId)) return;
+        
+        updated[periodIndex].hotelGroups[groupIndex].selectedHotels.push({
+            _id: hotel._id,
+            hotel_name: hotel.hotel_name,
+            city: hotel.city
+        });
+        setDiscountPeriods(updated);
     };
 
-    const addHotelDiscountPeriod = () => {
-        setHotelDiscounts([...hotelDiscounts, {
+    const removeHotelFromGroup = (periodIndex, groupIndex, hotelId) => {
+        const updated = [...discountPeriods];
+        updated[periodIndex].hotelGroups[groupIndex].selectedHotels = 
+            updated[periodIndex].hotelGroups[groupIndex].selectedHotels.filter(h => h._id !== hotelId);
+        setDiscountPeriods(updated);
+    };
+
+    const updateRoomPrice = (periodIndex, groupIndex, roomType, value) => {
+        const updated = [...discountPeriods];
+        updated[periodIndex].hotelGroups[groupIndex].roomPrices[roomType] = Number(value) || 0;
+        setDiscountPeriods(updated);
+    };
+
+    const addHotelGroup = (periodIndex) => {
+        const updated = [...discountPeriods];
+        updated[periodIndex].hotelGroups.push({
             id: Date.now(),
-            quint_discount: '',
-            quad_discount: '',
-            triple_discount: '',
-            double_discount: '',
-            sharing_discount: '',
-            other_discount: '',
-            hotels: [],
-            valid_from: '',
-            valid_until: ''
-        }]);
-        setHotelSearches(prev => [...prev, '']);
+            selectedHotels: [],
+            roomPrices: { double: 0, triple: 0, quad: 0, quint: 0 }
+        });
+        setDiscountPeriods(updated);
     };
 
-    const removeHotelDiscountPeriod = (index) => {
-        if (hotelDiscounts.length > 1) {
-            setHotelDiscounts(hotelDiscounts.filter((_, i) => i !== index));
-            setHotelSearches(prev => prev.filter((_, i) => i !== index));
-        }
+    const removeHotelGroup = (periodIndex, groupIndex) => {
+        const updated = [...discountPeriods];
+        updated[periodIndex].hotelGroups = updated[periodIndex].hotelGroups.filter((_, i) => i !== groupIndex);
+        setDiscountPeriods(updated);
     };
 
-    const toggleHotelSelection = (periodIndex, hotelId) => {
-        const current = hotelDiscounts[periodIndex].hotels || [];
-        const exists = current.includes(hotelId);
-        const updated = exists ? current.filter(h => h !== hotelId) : [...current, hotelId];
-        updateHotelDiscount(periodIndex, 'hotels', updated);
+    const updatePeriodField = (periodIndex, field, value) => {
+        const updated = [...discountPeriods];
+        updated[periodIndex][field] = value;
+        setDiscountPeriods(updated);
     };
 
-    const handleReset = () => {
-        setName('');
-        setTicketDiscount('');
-        setTicketDiscountType('fixed');
-        setPackageDiscount('');
-        setHotelDiscounts([{
+    const addDiscountPeriod = () => {
+        const lastPeriod = discountPeriods[discountPeriods.length - 1];
+        const newPeriod = {
             id: Date.now(),
-            quint_discount: '',
-            quad_discount: '',
-            triple_discount: '',
-            double_discount: '',
-            sharing_discount: '',
-            other_discount: '',
-            hotels: [],
-            valid_from: '',
-            valid_until: ''
-        }]);
-        setIsActive(true);
+            ticketDiscount: 0,
+            packageDiscount: 0,
+            validFrom: lastPeriod.validUntil || '', // Auto-fill from last period's end date
+            validUntil: '',
+            hotelGroups: [
+                {
+                    id: Date.now() + 1,
+                    selectedHotels: [],
+                    roomPrices: { double: 0, triple: 0, quad: 0, quint: 0 }
+                }
+            ]
+        };
+        setDiscountPeriods([...discountPeriods, newPeriod]);
     };
 
+    const removeDiscountPeriod = (index) => {
+        setDiscountPeriods(discountPeriods.filter((_, i) => i !== index));
+    };
 
     return (
-        <div className="max-w-7xl mx-auto p-8 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="max-w-6xl mx-auto p-8 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* Header */}
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                    <button onClick={onBack} className="p-2 hover:bg-slate-100 rounded-xl transition-all">
-                        <ArrowLeft size={24} className="text-slate-600" />
-                    </button>
-                    <div>
-                        <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tight">
-                            {initialData ? 'Edit Discount Group' : 'Add Discount Group'}
-                        </h2>
-                        <p className="text-slate-500 font-medium">Configure discount amounts for tickets, packages, and hotels</p>
-                    </div>
-                </div>
-                <div className="flex gap-3">
-                    <button
-                        type="button"
-                        onClick={handleReset}
-                        className="px-6 py-2.5 bg-slate-100 text-slate-700 rounded-xl text-sm font-bold transition-all hover:bg-slate-200"
-                    >
-                        Reset
-                    </button>
-                    <button
-                        onClick={handleSubmit}
-                        disabled={saving}
-                        className="px-6 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold transition-all hover:bg-blue-700 shadow-lg shadow-blue-100 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                    >
-                        <Save size={18} />
-                        {saving ? 'Saving...' : 'Save'}
-                    </button>
+            <div className="flex items-center gap-4">
+                <button onClick={onBack} className="p-2 hover:bg-slate-100 rounded-xl transition-all">
+                    <ArrowLeft size={24} className="text-slate-600" />
+                </button>
+                <div>
+                    <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tight">
+                        {initialData ? 'Edit Discount' : 'Add Discount'}
+                    </h2>
+                    <p className="text-slate-500 font-medium">Configure group details and hotel pricing</p>
                 </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Discount Group Selection */}
-                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-                    <h3 className="text-sm font-bold text-slate-700 mb-4">Select Discount Group</h3>
-                    <input
-                        type="text"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        placeholder="Enter discount group name"
-                        required
-                        className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none font-medium text-sm"
-                    />
-                </div>
+            <form onSubmit={handleSubmit} className="space-y-8">
+                {/* Title Section (Global - applies to all periods) */}
+                <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-6">
+                    <div className="flex items-center gap-3 mb-4">
+                        <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center">
+                            <Tag size={24} />
+                        </div>
+                        <div>
+                            <h3 className="text-xl font-black text-slate-900 tracking-tight">Group Title</h3>
+                            <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Applies to all discount periods</p>
+                        </div>
+                    </div>
 
-                {/* Basic Discounts */}
-                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-                    <h3 className="text-sm font-bold text-slate-700 mb-4">Discounts</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-3">
-                            <label className="block text-sm font-bold text-slate-700">
-                                Group Ticket Discount
-                            </label>
-                            <select
-                                value={ticketDiscountType}
-                                onChange={(e) => setTicketDiscountType(e.target.value)}
-                                className="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none font-medium text-sm bg-white"
-                            >
-                                <option value="fixed">Fixed Amount</option>
-                                <option value="percentage">Percentage (%)</option>
-                            </select>
-                            <input
-                                type="number"
-                                value={ticketDiscount}
-                                onChange={(e) => setTicketDiscount(e.target.value)}
-                                placeholder={ticketDiscountType === 'percentage' ? 'e.g. 10 (for 10%)' : 'e.g. 922'}
-                                min="0"
-                                max={ticketDiscountType === 'percentage' ? '100' : undefined}
-                                step="0.01"
-                                className="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none font-medium text-sm"
-                            />
-                        </div>
-                        <div className="space-y-3">
-                            <label className="block text-sm font-bold text-slate-700">
-                                Umrah Package Discount Amount
-                            </label>
-                            <input
-                                type="number"
-                                value={packageDiscount}
-                                onChange={(e) => setPackageDiscount(e.target.value)}
-                                placeholder="e.g. 150"
-                                min="0"
-                                step="0.01"
-                                className="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none font-medium text-sm"
-                            />
-                        </div>
+                    <div>
+                        <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2">
+                            Title *
+                        </label>
+                        <input
+                            type="text"
+                            value={title}
+                            onChange={(e) => setTitle(e.target.value)}
+                            placeholder="Enter group title"
+                            required
+                            className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none font-bold text-sm"
+                        />
                     </div>
                 </div>
 
-                {/* Hotel Night Discounts - Repeatable Sections */}
-                {hotelDiscounts.map((discount, index) => (
-                    <div key={discount.id} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6 relative">
-                        {hotelDiscounts.length > 1 && (
+                {/* Discount Periods */}
+                {discountPeriods.map((period, periodIndex) => (
+                    <div key={period.id} className="space-y-6 relative">
+                        {discountPeriods.length > 1 && (
                             <button
                                 type="button"
-                                onClick={() => removeHotelDiscountPeriod(index)}
-                                className="absolute top-4 right-4 p-2 text-red-500 hover:bg-red-50 rounded-lg transition-all"
-                                title="Remove this period"
+                                onClick={() => removeDiscountPeriod(periodIndex)}
+                                className="absolute top-0 right-0 p-2 text-red-500 hover:text-red-600 rounded-lg transition-colors"
+                                title="Remove this discount period"
                             >
                                 <X size={20} />
                             </button>
                         )}
 
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center">
-                                <Hotel size={20} />
-                            </div>
-                            <h3 className="text-sm font-bold text-slate-700">
-                                Hotel Night Discounts {hotelDiscounts.length > 1 && `- Period ${index + 1}`}
-                            </h3>
+                        <div className="bg-gradient-to-r from-blue-50 to-purple-50 px-6 py-3 rounded-2xl">
+                            <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight text-center">
+                                Discount Period #{periodIndex + 1}
+                            </h2>
                         </div>
 
-                        {/* Room Type Discounts */}
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                            <div>
-                                <label className="block text-sm font-medium text-slate-600 mb-2">
-                                    Quint Per Night Discount
-                                </label>
-                                <input
-                                    type="number"
-                                    value={discount.quint_discount}
-                                    onChange={(e) => updateHotelDiscount(index, 'quint_discount', e.target.value)}
-                                    placeholder="0"
-                                    min="0"
-                                    step="0.01"
-                                    className="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-100 outline-none font-medium text-sm"
-                                />
+                        {/* SECTION 1: Discount Amounts */}
+                        <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-6">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center">
+                                    <Tag size={24} />
+                                </div>
+                                <div>
+                                    <h3 className="text-xl font-black text-slate-900 tracking-tight">Discount Amounts</h3>
+                                    <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Fixed Discount Values (PKR)</p>
+                                </div>
                             </div>
-                            <div>
-                                <label className="block text-sm font-medium text-slate-600 mb-2">
-                                    Quad Per Night Discount
-                                </label>
-                                <input
-                                    type="number"
-                                    value={discount.quad_discount}
-                                    onChange={(e) => updateHotelDiscount(index, 'quad_discount', e.target.value)}
-                                    placeholder="0"
-                                    min="0"
-                                    step="0.01"
-                                    className="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-100 outline-none font-medium text-sm"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-slate-600 mb-2">
-                                    Triple Per Night Discount
-                                </label>
-                                <input
-                                    type="number"
-                                    value={discount.triple_discount}
-                                    onChange={(e) => updateHotelDiscount(index, 'triple_discount', e.target.value)}
-                                    placeholder="0"
-                                    min="0"
-                                    step="0.01"
-                                    className="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-100 outline-none font-medium text-sm"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-slate-600 mb-2">
-                                    Double Per Night Discount
-                                </label>
-                                <input
-                                    type="number"
-                                    value={discount.double_discount}
-                                    onChange={(e) => updateHotelDiscount(index, 'double_discount', e.target.value)}
-                                    placeholder="0"
-                                    min="0"
-                                    step="0.01"
-                                    className="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-100 outline-none font-medium text-sm"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-slate-600 mb-2">
-                                    Sharing Per Night Discount
-                                </label>
-                                <input
-                                    type="number"
-                                    value={discount.sharing_discount}
-                                    onChange={(e) => updateHotelDiscount(index, 'sharing_discount', e.target.value)}
-                                    placeholder="0"
-                                    min="0"
-                                    step="0.01"
-                                    className="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-100 outline-none font-medium text-sm"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-slate-600 mb-2">
-                                    Other Per Night Discount
-                                </label>
-                                <input
-                                    type="number"
-                                    value={discount.other_discount}
-                                    onChange={(e) => updateHotelDiscount(index, 'other_discount', e.target.value)}
-                                    placeholder="0"
-                                    min="0"
-                                    step="0.01"
-                                    className="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-100 outline-none font-medium text-sm"
-                                />
-                            </div>
-                        </div>
 
-                        {/* Hotel Selection */}
-                        <div>
-                            <label className="block text-sm font-medium text-slate-600 mb-2">
-                                Discounted Hotels (search by name or city)
-                            </label>
-                            <input
-                                type="text"
-                                value={hotelSearches[index]}
-                                onChange={(e) => setHotelSearches(prev => { const n = [...prev]; n[index] = e.target.value; return n; })}
-                                placeholder="Search hotels by city or name"
-                                className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-100 outline-none font-medium text-sm mb-2"
-                            />
-                            <div className="max-h-40 overflow-auto border border-slate-100 rounded-lg p-2">
-                                {(hotels || []).filter(h => {
-                                    const q = (hotelSearches[index] || '').toLowerCase().trim();
-                                    if (!q) return true;
-                                    const name = (h.name || h.hotel_name || '').toLowerCase();
-                                    const city = (h.city || '').toLowerCase();
-                                    return name.includes(q) || city.includes(q);
-                                }).slice(0, 50).map(h => (
-                                    <label key={h._id} className="flex items-center gap-2 py-1 px-2 hover:bg-slate-50 rounded">
-                                        <input type="checkbox" checked={(discount.hotels || []).includes(h._id)} onChange={() => toggleHotelSelection(index, h._id)} />
-                                        <span className="text-sm">{(h.name || h.hotel_name)} — <span className="text-xs text-slate-400">{h.city}</span></span>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2">
+                                        Ticket Discount (PKR)
                                     </label>
-                                ))}
-                                {hotels.length === 0 && <div className="text-xs text-slate-400">No hotels available</div>}
-                            </div>
-                            <div className="mt-2 flex flex-wrap gap-2">
-                                {(discount.hotels || []).map(hid => {
-                                    const h = hotels.find(x => x._id === hid) || {};
-                                    return (<div key={hid} className="px-3 py-1 bg-purple-50 text-purple-700 rounded-full text-xs font-medium flex items-center gap-2">
-                                        <span>{(h.name || h.hotel_name) || hid}</span>
-                                        <button type="button" onClick={() => toggleHotelSelection(index, hid)} className="text-purple-600">×</button>
-                                    </div>)
-                                })}
+                                    <input
+                                        type="number"
+                                        value={period.ticketDiscount}
+                                        onChange={(e) => updatePeriodField(periodIndex, 'ticketDiscount', Number(e.target.value) || 0)}
+                                        placeholder="0"
+                                        min="0"
+                                        className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none font-bold text-sm"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2">
+                                        Package Discount (PKR)
+                                    </label>
+                                    <input
+                                        type="number"
+                                        value={period.packageDiscount}
+                                        onChange={(e) => updatePeriodField(periodIndex, 'packageDiscount', Number(e.target.value) || 0)}
+                                        placeholder="0"
+                                        min="0"
+                                        className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none font-bold text-sm"
+                                    />
+                                </div>
                             </div>
                         </div>
 
-                        {/* Validity Period */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-slate-100">
-                            <div>
-                                <label className="block text-sm font-medium text-slate-600 mb-2">
-                                    Valid From
-                                </label>
-                                <input
-                                    type="date"
-                                    value={discount.valid_from}
-                                    onChange={(e) => updateHotelDiscount(index, 'valid_from', e.target.value)}
-                                    className="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-100 outline-none font-medium text-sm"
-                                />
+                        {/* SECTION 2: Hotel Groups (Repeatable) */}
+                        <div className="space-y-6">
+                            {period.hotelGroups.map((group, groupIndex) => (
+                                <div key={group.id} className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-6 relative">
+                                    {period.hotelGroups.length > 1 && (
+                                        <button
+                                            type="button"
+                                            onClick={() => removeHotelGroup(periodIndex, groupIndex)}
+                                            className="absolute top-4 right-4 p-2 text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                                            title="Remove this hotel group"
+                                        >
+                                            <X size={20} />
+                                        </button>
+                                    )}
+
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center">
+                                            <Hotel size={24} />
+                                        </div>
+                                        <div>
+                                            <h3 className="text-xl font-black text-slate-900 tracking-tight">Hotel Group #{groupIndex + 1}</h3>
+                                            <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Select Hotels & Set Room Prices</p>
+                                        </div>
+                                    </div>
+
+                                    {/* Hotel Selection Dropdown */}
+                                    <div>
+                                        <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2">
+                                            Add Hotels
+                                        </label>
+                                        <select
+                                            onChange={(e) => {
+                                                if (e.target.value) {
+                                                    addHotelToGroup(periodIndex, groupIndex, e.target.value);
+                                                    e.target.value = ''; // Reset dropdown
+                                                }
+                                            }}
+                                            className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-100 outline-none font-bold text-sm bg-white"
+                                        >
+                                            <option value="">Select a hotel to add...</option>
+                                            {hotels.map(h => (
+                                                <option key={h._id} value={h._id}>
+                                                    {h.hotel_name} - {h.city}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    {/* Selected Hotels as Chips */}
+                                    {group.selectedHotels.length > 0 && (
+                                        <div className="flex flex-wrap gap-2">
+                                            {group.selectedHotels.map(hotel => (
+                                                <div
+                                                    key={hotel._id}
+                                                    className="flex items-center gap-2 px-4 py-2 bg-amber-50 border border-amber-200 rounded-xl text-sm font-bold text-amber-900"
+                                                >
+                                                    <span>{hotel.hotel_name} ({hotel.city})</span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => removeHotelFromGroup(periodIndex, groupIndex, hotel._id)}
+                                                        className="p-1 hover:bg-amber-200 rounded-full transition-all"
+                                                    >
+                                                        <X size={14} />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {/* Room Prices */}
+                                    <div className="pt-4 border-t border-slate-200">
+                                        <p className="text-xs font-black text-slate-500 uppercase tracking-wider mb-3">
+                                            Room Prices (PKR per night) - Applies to all selected hotels
+                                        </p>
+                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                            <div>
+                                                <label className="block text-xs font-bold text-slate-600 mb-2">Double</label>
+                                                <input
+                                                    type="number"
+                                                    value={group.roomPrices.double}
+                                                    onChange={(e) => updateRoomPrice(periodIndex, groupIndex, 'double', e.target.value)}
+                                                    placeholder="0"
+                                                    min="0"
+                                                    className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-100 outline-none font-bold text-sm"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-bold text-slate-600 mb-2">Triple</label>
+                                                <input
+                                                    type="number"
+                                                    value={group.roomPrices.triple}
+                                                    onChange={(e) => updateRoomPrice(periodIndex, groupIndex, 'triple', e.target.value)}
+                                                    placeholder="0"
+                                                    min="0"
+                                                    className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-100 outline-none font-bold text-sm"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-bold text-slate-600 mb-2">Quad</label>
+                                                <input
+                                                    type="number"
+                                                    value={group.roomPrices.quad}
+                                                    onChange={(e) => updateRoomPrice(periodIndex, groupIndex, 'quad', e.target.value)}
+                                                    placeholder="0"
+                                                    min="0"
+                                                    className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-100 outline-none font-bold text-sm"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-bold text-slate-600 mb-2">Quint</label>
+                                                <input
+                                                    type="number"
+                                                    value={group.roomPrices.quint}
+                                                    onChange={(e) => updateRoomPrice(periodIndex, groupIndex, 'quint', e.target.value)}
+                                                    placeholder="0"
+                                                    min="0"
+                                                    className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-100 outline-none font-bold text-sm"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+
+                            {/* Add More Hotel Group Button */}
+                            <button
+                                type="button"
+                                onClick={() => addHotelGroup(periodIndex)}
+                                className="w-full py-2 border border-slate-300 rounded-lg text-slate-600 hover:border-slate-400 hover:bg-slate-50 transition-all text-sm font-semibold flex items-center justify-center gap-2"
+                            >
+                                <Plus size={16} /> Add Hotel Group
+                            </button>
+                        </div>
+
+                        {/* SECTION 3: Validity Period */}
+                        <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-6">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="w-12 h-12 bg-purple-50 text-purple-600 rounded-2xl flex items-center justify-center">
+                                    <Calendar size={24} />
+                                </div>
+                                <div>
+                                    <h3 className="text-xl font-black text-slate-900 tracking-tight">Validity Period</h3>
+                                    <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Discount Price Valid Dates</p>
+                                </div>
                             </div>
-                            <div>
-                                <label className="block text-sm font-medium text-slate-600 mb-2">
-                                    Valid Until
-                                </label>
-                                <input
-                                    type="date"
-                                    value={discount.valid_until}
-                                    onChange={(e) => updateHotelDiscount(index, 'valid_until', e.target.value)}
-                                    className="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-100 outline-none font-medium text-sm"
-                                />
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2">
+                                        Valid From {periodIndex > 0 && <span className="text-purple-600">(Auto-filled from previous period)</span>}
+                                    </label>
+                                    <input
+                                        type="date"
+                                        value={period.validFrom}
+                                        onChange={(e) => updatePeriodField(periodIndex, 'validFrom', e.target.value)}
+                                        className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-100 outline-none font-bold text-sm"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2">
+                                        Valid Until
+                                    </label>
+                                    <input
+                                        type="date"
+                                        value={period.validUntil}
+                                        onChange={(e) => updatePeriodField(periodIndex, 'validUntil', e.target.value)}
+                                        className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-100 outline-none font-bold text-sm"
+                                    />
+                                </div>
                             </div>
                         </div>
                     </div>
                 ))}
 
-                {/* Action Buttons for Hotel Discount Periods */}
-                <div className="flex gap-3">
+                {/* Bottom Action Buttons */}
+                <div className="flex gap-4">
                     <button
                         type="button"
-                        onClick={addHotelDiscountPeriod}
-                        className="px-6 py-2.5 bg-white border-2 border-blue-500 text-blue-600 rounded-xl text-sm font-bold transition-all hover:bg-blue-50 flex items-center gap-2"
+                        onClick={addDiscountPeriod}
+                        className="flex-1 py-3 border border-blue-400 rounded-lg text-blue-600 hover:bg-blue-50 transition-all text-sm font-semibold flex items-center justify-center gap-2"
                     >
-                        <Plus size={18} />
-                        Add Night Discount
+                        <Plus size={18} /> Add Discount Period
                     </button>
-                    {hotelDiscounts.length > 1 && (
-                        <button
-                            type="button"
-                            onClick={() => removeHotelDiscountPeriod(hotelDiscounts.length - 1)}
-                            className="px-6 py-2.5 bg-white border-2 border-red-500 text-red-600 rounded-xl text-sm font-bold transition-all hover:bg-red-50"
-                        >
-                            Remove Last
-                        </button>
-                    )}
-                </div>
-
-                {/* Status Toggle */}
-                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <h4 className="text-sm font-bold text-slate-700 mb-1">Status</h4>
-                            <p className="text-xs text-slate-500">Enable or disable this discount group</p>
-                        </div>
-                        <label className="relative inline-flex items-center cursor-pointer">
-                            <input
-                                type="checkbox"
-                                checked={isActive}
-                                onChange={(e) => setIsActive(e.target.checked)}
-                                className="sr-only peer"
-                            />
-                            <div className="w-14 h-7 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[4px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-blue-600"></div>
-                        </label>
-                    </div>
+                    <button
+                        type="submit"
+                        disabled={saving}
+                        className="flex-1 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        <Save size={18} />
+                        {saving ? 'Saving...' : 'Save Discount'}
+                    </button>
                 </div>
             </form>
         </div>
