@@ -154,7 +154,7 @@ const App = () => {
   const renderView = () => {
     switch (activeTab) {
       case 'Dashboard':
-        return <DashboardView />;
+        return <DashboardView onNavigate={setActiveTab} />;
       case 'Tickets':
       case 'Flights':
         return (
@@ -265,7 +265,7 @@ const App = () => {
         return <FormsView />;
       case 'Order Delivery':
         if (viewingOrder) {
-          if (viewingOrder.type === 'Group Tickets') {
+          if (viewingOrder.booking_type === 'ticket') {
             return (
               <OrderTicketDetailView
                 order={viewingOrder}
@@ -276,7 +276,7 @@ const App = () => {
           if (isOrderConfirmed) {
             return (
               <OrderConfirmationView
-                orderId={viewingOrder.id || viewingOrder}
+                orderId={viewingOrder._id || viewingOrder.id}
                 onBack={() => {
                   setIsOrderConfirmed(false);
                   setViewingOrder(null);
@@ -286,7 +286,7 @@ const App = () => {
           }
           return (
             <OrderDeliveryDetailView
-              orderId={viewingOrder.id || viewingOrder}
+              booking={viewingOrder}
               onBack={() => setViewingOrder(null)}
               onConfirm={() => setIsOrderConfirmed(true)}
             />
