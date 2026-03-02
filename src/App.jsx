@@ -42,6 +42,19 @@ import CommissionsView from './components/views/CommissionsView';
 import AddCommissionView from './components/views/AddCommissionView';
 import ServiceChargesView from './components/views/ServiceChargesView';
 import AddServiceChargeView from './components/views/AddServiceChargeView';
+// Obsolete individual history imports removed
+import BookingHistoryView from './components/views/BookingHistoryView';
+
+// Booking Creation & Selection Views
+import TicketBookingCreationView from './components/views/bookings/TicketBookingCreationView';
+import UmrahBookingCreationView from './components/views/bookings/UmrahBookingCreationView';
+import CustomBookingCreationView from './components/views/bookings/CustomBookingCreationView';
+
+// Multi-step Booking Pages
+import BookingPage from './components/views/bookings/BookingPage';
+import UmrahBookingPage from './components/views/bookings/UmrahBookingPage';
+import CustomBookingPage from './components/views/bookings/CustomBookingPage';
+// BookingHistoryView already imported above
 
 
 // Route mapping: URL path <-> Tab name
@@ -79,6 +92,13 @@ const ROUTES = {
   '/customers': 'Customer Database',
   '/leads': 'Lead Management',
   '/role-groups': 'Roles & Permissions',
+  '/ticket-bookings': 'Booking History',
+  '/umrah-bookings': 'Booking History',
+  '/custom-bookings': 'Booking History',
+  '/book-ticket': 'Ticket',
+  '/book-umrah': 'Umrah Package',
+  '/book-custom': 'Custom Umrah',
+  '/booking-history': 'Booking History',
 };
 
 // Helper: Get URL path for a tab name
@@ -107,6 +127,12 @@ const getTabForPath = (path) => {
   if (path.startsWith('/order-delivery/')) return 'Order Delivery';
   if (path.startsWith('/pax-movement/')) return 'Pax Movement';
   if (path.startsWith('/daily-operations/')) return 'Daily Operations';
+  if (path.startsWith('/ticket-bookings')) return 'Ticket History';
+  if (path.startsWith('/umrah-bookings')) return 'Umrah History';
+  if (path.startsWith('/custom-bookings')) return 'Custom History';
+  if (path.startsWith('/book-ticket') || path.startsWith('/ticket-booking')) return 'Ticket';
+  if (path.startsWith('/book-umrah') || path.startsWith('/umrah-booking')) return 'Umrah Package';
+  if (path.startsWith('/book-custom') || path.startsWith('/custom-booking')) return 'Custom Umrah';
 
 
 
@@ -124,9 +150,6 @@ const getIdFromPath = (path, basePath) => {
 };
 
 const App = () => {
-  // Initialize activeTab from URL
-  const initialTab = getTabForPath(window.location.pathname);
-
   // --- Employee session detection ---
   // If employee_data is in localStorage, skip admin portal entirely
   const isEmployeeSession = !!localStorage.getItem('employee_data') && !!localStorage.getItem('access_token');
@@ -137,7 +160,12 @@ const App = () => {
   // --- Admin session detection ---
   const hasAdminToken = !!localStorage.getItem('access_token');
   const [isLoggedIn, setIsLoggedIn] = useState(hasAdminToken);
-  const [activeTab, setActiveTab] = useState(initialTab);
+  const [activeTab, setActiveTab] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tabParam = params.get('tab');
+    if (tabParam) return tabParam;
+    return getTabForPath(window.location.pathname);
+  });
   const [isSidebarOpen, setSidebarOpen] = useState(true);
   const [isUserMenuOpen, setUserMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -158,6 +186,39 @@ const App = () => {
   const [viewingOrder, setViewingOrder] = useState(initialOrderId);
   const [viewingLead, setViewingLead] = useState(initialLeadId);
   const [editingAccount, setEditingAccount] = useState(null);
+
+  // --- Booking Central State ---
+  const [selectedPackage, setSelectedPackage] = useState(null);
+  const [bookingFlights, setBookingFlights] = useState([]);
+  const [bookingAirlines, setBookingAirlines] = useState([]);
+  const [customBookingData, setCustomBookingData] = useState(null);
+  const [resumeBookingId, setResumeBookingId] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('resume');
+  });
+
+  const handleBookPackage = (pkg, flights = [], airlines = []) => {
+    setSelectedPackage(pkg);
+    setBookingFlights(flights);
+    setBookingAirlines(airlines);
+    setActiveTab('Umrah Package Booking');
+  };
+
+  const handleBookCustomPackage = (data) => {
+    setCustomBookingData(data);
+    setActiveTab('Custom Booking Flow');
+  };
+
+  // Sync state with URL params (for resume flow)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const resumeParam = params.get('resume');
+    if (resumeParam) {
+      setResumeBookingId(resumeParam);
+    } else {
+      setResumeBookingId(null);
+    }
+  }, [activeTab]);
   const [isOrderConfirmed, setIsOrderConfirmed] = useState(false);
 
   // Handle window resize and sidebar state
@@ -203,7 +264,7 @@ const App = () => {
         }
       }
 
-      const isSubPath = currentPath.startsWith(path + '/');
+      const isSubPath = currentPath.startsWith(path + '/') || currentPath.includes('-booking/step-');
 
       // If we are navigating to a base path (like /order-delivery) but current path has a sub-path,
       // it means the user clicked the sidebar to reset the view.
@@ -513,6 +574,39 @@ const App = () => {
             editingAccount={editingAccount}
           />
         );
+
+      case 'Booking History':
+        return <BookingHistoryView />;
+      case 'Ticket':
+        return <TicketBookingCreationView resumeId={resumeBookingId} clearResume={() => setResumeBookingId(null)} />;
+      case 'Umrah Package':
+        return <UmrahBookingCreationView onBookPackage={handleBookPackage} />;
+      case 'Custom Umrah':
+        return <CustomBookingCreationView onBookCustomPackage={handleBookCustomPackage} />;
+      case 'Umrah Package Booking':
+        return (selectedPackage || resumeBookingId) ? (
+          <UmrahBookingPage
+            packageData={selectedPackage}
+            flights={bookingFlights}
+            airlines={bookingAirlines}
+            resumeId={resumeBookingId}
+            onBack={() => {
+              setActiveTab('Umrah Package');
+              setResumeBookingId(null);
+            }}
+          />
+        ) : null;
+      case 'Custom Booking Flow':
+        return (customBookingData || resumeBookingId) ? (
+          <CustomBookingPage
+            calculatorData={customBookingData}
+            resumeId={resumeBookingId}
+            onBack={() => {
+              setActiveTab('Custom Umrah');
+              setResumeBookingId(null);
+            }}
+          />
+        ) : null;
       default:
         return <GenericView tabName={activeTab} />;
     }

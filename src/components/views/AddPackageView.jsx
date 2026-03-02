@@ -47,6 +47,7 @@ const AddPackageView = ({ onBack, initialData }) => {
     const [packageTitle, setPackageTitle] = useState('');
     const [paxCapacity, setPaxCapacity] = useState('');
     const [packageDescription, setPackageDescription] = useState('');
+    const [isPublicActive, setIsPublicActive] = useState(false);
 
     // Modal State
     const [showFlightModal, setShowFlightModal] = useState(false);
@@ -145,6 +146,7 @@ const AddPackageView = ({ onBack, initialData }) => {
             setPackageTitle(initialData.title || '');
             setPaxCapacity(initialData.pax_capacity || '');
             setPackageDescription(initialData.description || '');
+            setIsPublicActive(initialData.public_active || false);
 
             // Restore Flight - Lookup in flights master list
             if (initialData.flight) {
@@ -344,6 +346,7 @@ const AddPackageView = ({ onBack, initialData }) => {
                 title: packageTitle,
                 pax_capacity: paxCapacity,
                 description: packageDescription,
+                public_active: isPublicActive,
 
                 // Flight data (only ID)
                 flight: selectedFlight ? (selectedFlight._id || selectedFlight.id) : null,
@@ -630,40 +633,41 @@ const AddPackageView = ({ onBack, initialData }) => {
                         <button
                             onClick={() => {
                                 if (step === 1) {
-                                    if (!packageTitle.trim() && !paxCapacity.toString().trim()) {
+                                    if (!packageTitle.trim() || !paxCapacity.toString().trim()) {
                                         showToast('Package Title and Pax Capacity are required');
-                                        return;
-                                    }
-                                    if (!packageTitle.trim()) {
-                                        showToast('Package Title is required');
-                                        return;
-                                    }
-                                    if (!paxCapacity.toString().trim()) {
-                                        showToast('Pax Capacity is required');
                                         return;
                                     }
                                     setStep(2);
                                 } else if (step === 2) {
-                                    // Validate Step 2: At least one hotel required
-                                    console.log('Validating Hotels:', hotels);
-                                    // Check if name exists OR if an ID is present (meaning a hotel was selected)
-                                    const validHotels = hotels.filter(h => (h.name && h.name.trim() !== '') || h.hotelId || (h.id && h.id.toString().length > 10));
+                                    // Validate Step 2: Flight selection required
+                                    if (!selectedFlight) {
+                                        showToast('Please select a Flight');
+                                        return;
+                                    }
+
+                                    // Validate Step 2: At least one hotel required with valid dates/name
+                                    const validHotels = hotels.filter(h =>
+                                        (h.name && h.name.trim() !== '') &&
+                                        h.checkIn && h.checkOut
+                                    );
 
                                     if (validHotels.length === 0) {
-                                        // ONE LAST CHECK: If the user has selected room types, maybe the hotel object is malformed but exists?
-                                        // Let's check for ANY hotel with valid room types
-                                        const hotelsWithRooms = hotels.filter(h => h.selected_room_types && Object.values(h.selected_room_types).some(v => v));
-                                        if (hotelsWithRooms.length > 0) {
-                                            console.log('Found hotels with selected rooms but missing names. Allowing pass.', hotelsWithRooms);
-                                            setStep(3);
-                                            return;
-                                        }
-
-                                        showToast('Please select at least one hotel');
+                                        showToast('Please select at least one hotel with check-in and check-out dates');
                                         return;
                                     }
                                     setStep(3);
                                 } else {
+                                    // Validate Step 3: Visa pricing required
+                                    const isVisaPricingValid =
+                                        visaPricing.adult_selling > 0 &&
+                                        visaPricing.child_selling > 0 &&
+                                        visaPricing.infant_selling > 0;
+
+                                    if (!isVisaPricingValid) {
+                                        showToast('Please enter Visa Selling Prices (Adult, Child, Infant)');
+                                        return;
+                                    }
+
                                     handleSavePackage();
                                 }
                             }}
@@ -704,6 +708,24 @@ const AddPackageView = ({ onBack, initialData }) => {
                                         value={packageDescription}
                                         onChange={(e) => setPackageDescription(e.target.value)}
                                     />
+                                </div>
+                                <div className="md:col-span-2">
+                                    <label className="flex items-center gap-3 cursor-pointer p-4 border border-slate-200 rounded-2xl hover:bg-slate-50 transition-all group">
+                                        <div className="relative">
+                                            <input
+                                                type="checkbox"
+                                                className="sr-only"
+                                                checked={isPublicActive}
+                                                onChange={(e) => setIsPublicActive(e.target.checked)}
+                                            />
+                                            <div className={`w-11 h-6 rounded-full transition-colors ${isPublicActive ? 'bg-blue-600' : 'bg-slate-300'}`}></div>
+                                            <div className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform ${isPublicActive ? 'translate-x-5' : 'translate-x-0'}`}></div>
+                                        </div>
+                                        <div>
+                                            <div className="text-sm font-bold text-slate-800">Publicly Listed</div>
+                                            <div className="text-[10px] text-slate-500 font-medium">Allow this package to be visible to customers on the public site and customer app.</div>
+                                        </div>
+                                    </label>
                                 </div>
                             </div>
                         </div>

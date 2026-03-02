@@ -400,7 +400,6 @@ export default function OrderConfirmationView({ onBack, booking: initialBooking,
 
         const transportItem = pkgData.transport ? {
             type: pkgData.transport.title || pkgData.transport.name || pkgData.transport.vehicle_type || '—',
-            type: pkgData.transport.title || pkgData.transport.name || pkgData.transport.vehicle_type || '—',
             sector: pkgData.transport.sector || pkgData.transport.route || '—',
             brn: booking.transport_brn || pkgData.transport.brn || 'N/A',
             voucher_no: booking.transport_voucher_number || pkgData.transport.voucher_no || 'N/A'

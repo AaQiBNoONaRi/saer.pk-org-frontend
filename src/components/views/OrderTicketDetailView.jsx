@@ -543,6 +543,43 @@ export default function OrderTicketDetailView({ onBack, order }) {
                         </div>
                     </div>
 
+                    {/* ── 5. Payment Details Section ── */}
+                    {raw.payment_details && (
+                        <div className="mb-8 p-5 bg-blue-50/30 rounded-2xl border border-blue-100">
+                            <SectionTitle>Payment Details (Sender Information)</SectionTitle>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                                <div>
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Method</p>
+                                    <p className="text-sm font-black text-slate-700 uppercase">{raw.payment_details.payment_method || '—'}</p>
+                                </div>
+                                <div>
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Status</p>
+                                    <StatusPill value={raw.payment_details.payment_status} />
+                                </div>
+                                {raw.payment_details.payment_method === 'transfer' && (
+                                    <>
+                                        <div>
+                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Sender CNIC</p>
+                                            <p className="text-sm font-bold text-slate-700">{raw.payment_details.transfer_cnic || '—'}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Sender Phone</p>
+                                            <p className="text-sm font-bold text-slate-700">{raw.payment_details.transfer_phone || '—'}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Account Name</p>
+                                            <p className="text-sm font-bold text-slate-700">{raw.payment_details.transfer_account_name || '—'}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Account Number</p>
+                                            <p className="text-sm font-bold text-slate-700">{raw.payment_details.transfer_account_number || '—'}</p>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
                     {/* ── 5. Set Infant & Child Fare Button ── */}
                     <div className="mb-8">
                         <ActionBtn label="Set Infant And Child Fare" color="blue" onClick={() => setModal('infant_fare')} />

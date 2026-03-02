@@ -266,6 +266,43 @@ export default function OrderDeliveryDetailView({ onBack, booking: initialBookin
                 <div className="space-y-12">
                     <h2 className="text-xl font-black text-slate-800">Booking Overview</h2>
 
+                    {/* Payment Details Section */}
+                    {booking.payment_details && (
+                        <div className="p-6 bg-blue-50/30 rounded-2xl border border-blue-100">
+                            <SectionHeader title="Payment Details (Sender Information)" />
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+                                <div>
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Payment Method</p>
+                                    <p className="text-sm font-black text-slate-800 uppercase">{booking.payment_details.payment_method || '—'}</p>
+                                </div>
+                                <div>
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Status</p>
+                                    <span className="bg-slate-500 text-white px-3 py-1 rounded text-[10px] uppercase font-bold">{booking.payment_details.payment_status || '—'}</span>
+                                </div>
+                                {booking.payment_details.payment_method === 'transfer' && (
+                                    <>
+                                        <div>
+                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Sender CNIC</p>
+                                            <p className="text-sm font-bold text-slate-700">{booking.payment_details.transfer_cnic || '—'}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Sender Phone</p>
+                                            <p className="text-sm font-bold text-slate-700">{booking.payment_details.transfer_phone || '—'}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Account Name</p>
+                                            <p className="text-sm font-bold text-slate-700">{booking.payment_details.transfer_account_name || '—'}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Account Number</p>
+                                            <p className="text-sm font-bold text-slate-700">{booking.payment_details.transfer_account_number || '—'}</p>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
                     {/* Pax Information */}
                     <div>
                         <SectionHeader title="Pax Information" />

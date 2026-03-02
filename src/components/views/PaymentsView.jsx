@@ -34,13 +34,15 @@ const Badge = ({ status }) => {
 };
 
 const StatusBadge = ({ status }) => {
+    const s = String(status || 'pending').toLowerCase();
     const styles = {
         pending: 'bg-amber-50 text-amber-700 border-amber-200',
-        approved: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+        confirmed: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+        approved: 'bg-blue-50 text-blue-700 border-blue-200',
         rejected: 'bg-red-50 text-red-700 border-red-200',
     };
     return (
-        <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wide border ${styles[status] || styles.pending}`}>
+        <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wide border ${styles[s] || styles.pending}`}>
             {status}
         </span>
     );
@@ -60,14 +62,15 @@ export default function PaymentsView({ onAddAccount, onEditAccount, permissions 
         { key: 'Vouchers', perms: vouchersPerms },
         { key: 'Bank Accounts', perms: bankAccountsPerms },
     ];
-    
+
     const allowedTabs = allTabs.filter(tab => tab.perms.view).map(tab => tab.key);
-    
+
     const [activeTab, setActiveTab] = useState(allowedTabs[0] || 'Add Payment');
     const [accounts, setAccounts] = useState([]);
     const [agencies, setAgencies] = useState([]);
     const [branches, setBranches] = useState([]);
     const [loading, setLoading] = useState(false);
+
 
     // If permissions prop is not provided, assume full access (for org admin)
     const canAdd = permissions ? permissions.add : true;
@@ -160,7 +163,7 @@ export default function PaymentsView({ onAddAccount, onEditAccount, permissions 
                 const payload = JSON.parse(atob(token.split('.')[1]));
 
                 // Try to get additional user data from localStorage
-                const userData = JSON.parse(localStorage.getItem('user_data') || '{}');
+                const userData = JSON.parse(localStorage.getItem('user_data') || localStorage.getItem('admin_data') || '{}');
 
                 // Determine if this is an organization login or user linked to org
                 const orgId = payload.organization_id || (payload.user_type === 'organization' ? payload.sub : null) || (payload.entity_type === 'organization' ? payload.entity_id : null);
@@ -505,6 +508,7 @@ export default function PaymentsView({ onAddAccount, onEditAccount, permissions 
                                 key={tab}
                                 label={tab === 'Pending Payments' ? `Pending Payments ${pendingPayments.length > 0 ? `(${pendingPayments.length})` : ''}` : tab}
                                 active={activeTab === tab}
+                                active={activeTab === tab}
                                 onClick={() => setActiveTab(tab)}
                             />
                         ))}
@@ -567,6 +571,7 @@ export default function PaymentsView({ onAddAccount, onEditAccount, permissions 
                                                 className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:bg-white focus:border-blue-500 focus:outline-none transition-all appearance-none">
                                                 <option value="bank">Bank Transfer</option>
                                                 <option value="cash">Cash</option>
+                                                <option value="transfer">Transfer</option>
                                                 <option value="cheque">Cheque</option>
                                                 <option value="credit">Credit</option>
                                             </select>
@@ -666,7 +671,7 @@ export default function PaymentsView({ onAddAccount, onEditAccount, permissions 
                                             <table className="w-full">
                                                 <thead>
                                                     <tr className="bg-slate-50 border-b border-slate-200">
-                                                        {['Date', 'Transaction', 'Trans Type', 'Beneficiary Ac', 'Account #', 'Agent Account', 'Agent Ac #', 'Amount', 'Status', 'Slip', 'Actions'].map((h, i) => (
+                                                        {['Date', 'Booking #', 'Sender', 'Sender Role', 'Trans Type', 'Beneficiary Ac', 'Account #', 'Agent Account', 'Amount', 'Status', 'Slip', 'Actions'].map((h, i) => (
                                                             <th key={i} className="px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-wider text-left whitespace-nowrap">{h}</th>
                                                         ))}
                                                     </tr>
@@ -681,12 +686,39 @@ export default function PaymentsView({ onAddAccount, onEditAccount, permissions 
                                                             return (
                                                                 <tr key={p._id} className="hover:bg-slate-50 transition-colors">
                                                                     <td className="px-4 py-3 text-xs font-medium text-slate-600 whitespace-nowrap">{p.payment_date || p.created_at?.split('T')[0]}</td>
-                                                                    <td className="px-4 py-3 text-xs font-mono text-slate-500">{(p._id || '').slice(-8).toUpperCase()}</td>
+                                                                    <td className="px-4 py-3">
+                                                                        <p className="text-xs font-black text-blue-600 truncate max-w-[100px]" title={p.booking_reference || p.booking_id}>
+                                                                            {p.booking_reference || (p.booking_id || '').slice(-8).toUpperCase()}
+                                                                        </p>
+                                                                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">{p.booking_type || 'Manual'}</span>
+                                                                    </td>
+                                                                    <td className="px-4 py-3">
+                                                                        <p className="text-xs font-bold text-slate-700 truncate max-w-[120px]" title={p.agent_name}>{p.agent_name || '-'}</p>
+                                                                        <p className="text-[9px] text-slate-400 truncate max-w-[120px]">{p.created_by}</p>
+                                                                    </td>
+                                                                    <td className="px-4 py-3">
+                                                                        <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full border ${p.sender_role === 'agency' ? 'bg-purple-50 text-purple-600 border-purple-100' :
+                                                                            p.sender_role === 'branch' ? 'bg-indigo-50 text-indigo-600 border-indigo-100' :
+                                                                                'bg-slate-50 text-slate-500 border-slate-100'
+                                                                            }`}>
+                                                                            {p.sender_role || 'Employee'}
+                                                                        </span>
+                                                                    </td>
                                                                     <td className="px-4 py-3"><span className="text-[10px] font-black uppercase bg-blue-50 text-blue-700 px-2 py-1 rounded">{p.payment_method}</span></td>
-                                                                    <td className="px-4 py-3 text-xs font-medium text-slate-600 whitespace-nowrap">{baParts[0] || '-'}</td>
-                                                                    <td className="px-4 py-3 text-xs font-mono text-slate-500">{baParts[1] || '-'}</td>
-                                                                    <td className="px-4 py-3 text-xs font-medium text-slate-600 whitespace-nowrap">{agParts[0] || p.agent_name || '-'}</td>
-                                                                    <td className="px-4 py-3 text-xs font-mono text-slate-500">{agParts[1] || '-'}</td>
+                                                                    <td className="px-4 py-3 text-xs font-medium text-slate-600 whitespace-nowrap">
+                                                                        {p.payment_method === 'transfer' ? (
+                                                                            <div className="space-y-0.5">
+                                                                                <p className="font-bold text-slate-800">{p.transfer_account_name || '-'}</p>
+                                                                                <p className="text-[10px] text-slate-500">Client Acc: {p.transfer_account_number || '-'}</p>
+                                                                            </div>
+                                                                        ) : (baParts[0] || '-')}
+                                                                    </td>
+                                                                    <td className="px-4 py-3 text-xs font-mono text-slate-500">
+                                                                        {p.payment_method === 'transfer' ? (p.transfer_account || '-') : (baParts[1] || '-')}
+                                                                    </td>
+                                                                    <td className="px-4 py-3 text-xs font-medium text-slate-600 whitespace-nowrap">
+                                                                        {p.payment_method === 'transfer' ? (p.transfer_phone || '-') : (agParts[0] || '-')}
+                                                                    </td>
                                                                     <td className="px-4 py-3 text-sm font-black text-slate-900">PKR {Number(p.amount || 0).toLocaleString()}</td>
                                                                     <td className="px-4 py-3"><StatusBadge status={p.status} /></td>
                                                                     <td className="px-4 py-3">
@@ -871,350 +903,448 @@ export default function PaymentsView({ onAddAccount, onEditAccount, permissions 
                                                 </tbody>
                                             </table>
                                         </div>
+                                        <div className="space-y-4">
+                                            <div className="flex items-center gap-3">
+                                                <Clock size={18} className="text-amber-500" />
+                                                <h3 className="text-base font-black text-slate-900">Pending Payment Requests</h3>
+                                                {pendingPayments.length > 0 && (
+                                                    <span className="px-2.5 py-1 bg-amber-50 border border-amber-200 text-amber-700 text-xs font-black rounded-full">{pendingPayments.length} pending</span>
+                                                )}
+                                            </div>
+                                            <div className="border border-slate-200 rounded-2xl overflow-hidden">
+                                                <div className="overflow-x-auto">
+                                                    <table className="w-full">
+                                                        <thead>
+                                                            <tr className="bg-amber-50/60 border-b border-slate-200">
+                                                                {['Date', 'Booking #', 'Sender Identity', 'Trans Type', 'Beneficiary Account', 'Agent Account', 'Amount', 'Note', 'Slip', 'Actions'].map((h, i) => (
+                                                                    <th key={i} className="px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-wider text-left whitespace-nowrap">{h}</th>
+                                                                ))}
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody className="divide-y divide-slate-100">
+                                                            {pendingPayments.length === 0 ? (
+                                                                <tr><td colSpan={9} className="px-6 py-12 text-center">
+                                                                    <div className="flex flex-col items-center gap-3">
+                                                                        <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center"><CheckCircle size={24} className="text-emerald-500" /></div>
+                                                                        <p className="text-sm font-bold text-slate-500">No pending payments</p>
+                                                                        <p className="text-xs text-slate-400">All payments have been processed.</p>
+                                                                    </div>
+                                                                </td></tr>
+                                                            ) : (
+                                                                pendingPayments.map(p => (
+                                                                    <tr key={p._id} className="hover:bg-amber-50/30 transition-colors">
+                                                                        <td className="px-4 py-4 text-xs font-medium text-slate-600 whitespace-nowrap">{p.payment_date || p.created_at?.split('T')[0]}</td>
+                                                                        <td className="px-4 py-4">
+                                                                            <p className="text-sm font-black text-blue-700">{p.booking_reference || (p.booking_id || '').slice(-8).toUpperCase()}</p>
+                                                                            <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full border ${p.booking_type === 'ticket' ? 'bg-blue-50 text-blue-600 border-blue-100' :
+                                                                                p.booking_type === 'umrah' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                                                                                    p.booking_type === 'custom' ? 'bg-amber-50 text-amber-600 border-amber-100' :
+                                                                                        'bg-slate-50 text-slate-500 border-slate-100'
+                                                                                }`}>
+                                                                                {p.booking_type === 'custom' ? 'Custom Umrah' : p.booking_type || 'Manual'}
+                                                                            </span>
+                                                                        </td>
+                                                                        <td className="px-4 py-4">
+                                                                            <div className="flex items-center gap-2 mb-1">
+                                                                                <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full border ${p.sender_role === 'agency' ? 'bg-purple-100 text-purple-700 border-purple-200' :
+                                                                                    p.sender_role === 'branch' ? 'bg-indigo-100 text-indigo-700 border-indigo-200' :
+                                                                                        'bg-slate-100 text-slate-600 border-slate-200'
+                                                                                    }`}>
+                                                                                    {p.sender_role || 'Employee'}
+                                                                                </span>
+                                                                                <p className="text-sm font-bold text-slate-800">{p.agent_name || 'Unknown'}</p>
+                                                                            </div>
+                                                                            <p className="text-[10px] text-slate-400 font-medium">{p.created_by}</p>
+                                                                        </td>
+                                                                        <td className="px-4 py-4"><span className="text-[10px] font-black uppercase bg-blue-50 text-blue-700 px-2 py-1 rounded">{p.payment_method}</span></td>
+                                                                        <td className="px-4 py-4 text-xs font-medium text-slate-600">
+                                                                            {p.payment_method === 'transfer' ? (
+                                                                                <div className="space-y-1">
+                                                                                    <p className="font-bold">{p.transfer_account_name || '—'}</p>
+                                                                                    <p className="text-[10px] text-blue-600 font-bold">Client Acc: {p.transfer_account_number || '—'}</p>
+                                                                                    <p className="text-[10px] font-mono opacity-60 text-slate-500">{p.transfer_account || '—'}</p>
+                                                                                </div>
+                                                                            ) : (p.beneficiary_account || '—')}
+                                                                        </td>
+                                                                        <td className="px-4 py-4 text-xs font-medium text-slate-600">
+                                                                            {p.payment_method === 'transfer' ? (
+                                                                                <div className="space-y-1">
+                                                                                    <p className="font-bold">{p.transfer_phone || '—'}</p>
+                                                                                    <p className="text-[10px]">{p.transfer_cnic || '—'}</p>
+                                                                                </div>
+                                                                            ) : (p.agent_account || '—')}
+                                                                        </td>
+                                                                        <td className="px-4 py-4 text-sm font-black text-slate-900">PKR {Number(p.amount || 0).toLocaleString()}</td>
+                                                                        <td className="px-4 py-4 text-xs text-slate-500 max-w-[150px] truncate">{p.note || '—'}</td>
+                                                                        <td className="px-4 py-4">
+                                                                            {p.slip_url ? (
+                                                                                <a href={`${API}${p.slip_url}`} target="_blank" rel="noreferrer"
+                                                                                    className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:underline bg-blue-50 px-2 py-1 rounded-lg">
+                                                                                    <FileText size={12} /> View Slip
+                                                                                </a>
+                                                                            ) : <span className="text-slate-300 text-xs">No slip</span>}
+                                                                        </td>
+                                                                        <td className="px-4 py-4">
+                                                                            <div className="flex items-center gap-2">
+                                                                                <button onClick={() => handleApprove(p._id)}
+                                                                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-black transition-all">
+                                                                                    <CheckCircle size={12} /> Accept
+                                                                                </button>
+                                                                                <button onClick={() => handleReject(p._id)}
+                                                                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-lg text-xs font-black transition-all">
+                                                                                    <XCircle size={12} /> Reject
+                                                                                </button>
+                                                                            </div>
+                                                                        </td>
+                                                                    </tr>
+                                                                ))
+                                                            )}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </div>
+                        )}
+
+                                        {/* VOUCHERS TAB */}
+                                        {activeTab === 'Vouchers' && (
+                                            <>
+                                                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                                    {/* Voucher Generation Form */}
+                                                    <div className="lg:col-span-1 bg-gradient-to-br from-blue-50 to-white border border-blue-100 rounded-2xl p-6 shadow-sm">
+                                                        <div className="flex items-center gap-3 mb-6">
+                                                            <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center">
+                                                                <Receipt size={20} />
+                                                            </div>
+                                                            <div>
+                                                                <h3 className="text-sm font-bold text-slate-900">Generate Voucher</h3>
+                                                                <p className="text-xs text-slate-500">Create payment voucher</p>
+                                                            </div>
+                                                        </div>
+
+                                                        <form onSubmit={generateVoucher} className="space-y-4">
+                                                            <div>
+                                                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide ml-1 block mb-1.5">Name</label>
+                                                                <input
+                                                                    type="text"
+                                                                    name="userName"
+                                                                    value={voucherForm.userName}
+                                                                    onChange={handleVoucherInputChange}
+                                                                    placeholder="User name"
+                                                                    readOnly
+                                                                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-600 cursor-not-allowed"
+                                                                />
+                                                            </div>
+
+                                                            <div>
+                                                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide ml-1 block mb-1.5">Email Address</label>
+                                                                <input
+                                                                    type="email"
+                                                                    name="userEmail"
+                                                                    value={voucherForm.userEmail}
+                                                                    onChange={handleVoucherInputChange}
+                                                                    placeholder="user@example.com"
+                                                                    readOnly
+                                                                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-600 cursor-not-allowed"
+                                                                />
+                                                            </div>
+
+                                                            <div>
+                                                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide ml-1 block mb-1.5">Contact Number *</label>
+                                                                <input
+                                                                    type="tel"
+                                                                    name="contactNumber"
+                                                                    value={voucherForm.contactNumber}
+                                                                    onChange={handleVoucherInputChange}
+                                                                    placeholder="03000000000"
+                                                                    readOnly
+                                                                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-600 cursor-not-allowed"
+                                                                />
+                                                                <p className="text-[9px] text-slate-400 mt-1 ml-1">Enter the contact number for this bill</p>
+                                                            </div>
+
+                                                            <div>
+                                                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide ml-1 block mb-1.5">Reason *</label>
+                                                                <textarea
+                                                                    name="reason"
+                                                                    value={voucherForm.reason}
+                                                                    onChange={handleVoucherInputChange}
+                                                                    placeholder="Enter reason for bill"
+                                                                    rows="3"
+                                                                    required
+                                                                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:bg-white focus:border-blue-500 transition-all resize-none"
+                                                                />
+                                                            </div>
+
+                                                            <div>
+                                                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide ml-1 block mb-1.5">Amount *</label>
+                                                                <input
+                                                                    type="number"
+                                                                    name="amount"
+                                                                    value={voucherForm.amount}
+                                                                    onChange={handleVoucherInputChange}
+                                                                    placeholder="Enter amount"
+                                                                    step="0.01"
+                                                                    required
+                                                                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:bg-white focus:border-blue-500 transition-all"
+                                                                />
+                                                            </div>
+
+                                                            <div>
+                                                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide ml-1 block mb-1.5">Expiry Date *</label>
+                                                                <input
+                                                                    type="date"
+                                                                    name="expiryDate"
+                                                                    value={voucherForm.expiryDate}
+                                                                    onChange={handleVoucherInputChange}
+                                                                    required
+                                                                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:bg-white focus:border-blue-500 transition-all"
+                                                                />
+                                                                <p className="text-[9px] text-slate-400 mt-1 ml-1">Bill will be blocked when expiry date passes</p>
+                                                            </div>
+
+                                                            <div>
+                                                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide ml-1 block mb-1.5">Currency</label>
+                                                                <select
+                                                                    name="currency"
+                                                                    value={voucherForm.currency}
+                                                                    onChange={handleVoucherInputChange}
+                                                                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:bg-white focus:border-blue-500 transition-all"
+                                                                >
+                                                                    <option value="PKR">PKR</option>
+                                                                    <option value="USD">USD</option>
+                                                                    <option value="SAR">SAR</option>
+                                                                </select>
+                                                            </div>
+
+                                                            <div>
+                                                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide ml-1 block mb-1.5">Payment Method</label>
+                                                                <select
+                                                                    name="paymentMethod"
+                                                                    value={voucherForm.paymentMethod}
+                                                                    onChange={handleVoucherInputChange}
+                                                                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:bg-white focus:border-blue-500 transition-all"
+                                                                >
+                                                                    <option value="wallet">Wallet</option>
+                                                                    <option value="bank_transfer">Bank Transfer</option>
+                                                                    <option value="card">Card</option>
+                                                                </select>
+                                                            </div>
+
+                                                            {vouchersPerms.add && (
+                                                                <button
+                                                                    type="submit"
+                                                                    disabled={isGeneratingVoucher}
+                                                                    className="w-full px-6 py-3 bg-blue-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-blue-600/20 hover:bg-blue-700 transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                                >
+                                                                    {isGeneratingVoucher ? (
+                                                                        <>
+                                                                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                                                            Generating...
+                                                                        </>
+                                                                    ) : (
+                                                                        <>
+                                                                            <Receipt size={18} />
+                                                                            Generate Voucher
+                                                                        </>
+                                                                    )}
+                                                                </button>
+                                                            )}
+                                                            {!vouchersPerms.add && (
+                                                                <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-center">
+                                                                    <p className="text-xs font-bold text-slate-500">You do not have permission to generate vouchers</p>
+                                                                </div>
+                                                            )}
+                                                        </form>
+                                                    </div>
+
+                                                    {/* Voucher List */}
+                                                    <div className="lg:col-span-2">
+                                                        <div className="flex items-center justify-between mb-4">
+                                                            <h3 className="text-sm font-bold text-slate-900">Recent Vouchers</h3>
+                                                            <div className="flex items-center gap-2">
+                                                                <button className="px-3 py-1.5 bg-slate-50 hover:bg-slate-100 rounded-lg text-xs font-bold text-slate-600 transition-all">
+                                                                    <Filter size={14} className="inline mr-1" />
+                                                                    Filter
+                                                                </button>
+                                                            </div>
+                                                        </div>
+
+                                                        {loading ? (
+                                                            <div className="flex justify-center items-center h-64 bg-white rounded-2xl border border-slate-200">
+                                                                <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                                                            </div>
+                                                        ) : vouchers.length === 0 ? (
+                                                            <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
+                                                                <Receipt size={48} className="mx-auto text-slate-300 mb-3" />
+                                                                <p className="text-sm font-bold text-slate-400">No vouchers yet</p>
+                                                                <p className="text-xs text-slate-400 mt-1">Generate your first voucher to get started</p>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="space-y-3">
+                                                                {vouchers.map((voucher) => (
+                                                                    <div
+                                                                        key={voucher._id || voucher.id}
+                                                                        className="bg-white border border-slate-200 rounded-2xl p-5 hover:shadow-lg transition-all group"
+                                                                    >
+                                                                        <div className="flex items-start justify-between mb-3">
+                                                                            <div className="flex items-start gap-3">
+                                                                                <div className="w-12 h-12 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-lg">
+                                                                                    <Receipt size={24} />
+                                                                                </div>
+                                                                                <div>
+                                                                                    <h4 className="text-sm font-bold text-slate-800">{voucher.user_name || voucher.recipient}</h4>
+                                                                                    <p className="text-xs text-slate-500 mt-0.5">{voucher.user_email}</p>
+                                                                                    <p className="text-xs text-slate-600 mt-1 font-medium">{voucher.reason || voucher.description || 'No reason'}</p>
+                                                                                    <p className="text-xs text-slate-400 mt-1 font-mono">Voucher #{voucher.consumer_number || voucher.voucher_number || voucher._id?.slice(-8) || voucher.id?.slice(-8)}</p>
+                                                                                </div>
+                                                                            </div>
+                                                                            <div className="text-right">
+                                                                                <p className="text-lg font-bold text-slate-900">{voucher.currency} {parseFloat(voucher.amount).toLocaleString()}</p>
+                                                                                {getVoucherStatusBadge(voucher.status || 'pending')}
+                                                                            </div>
+                                                                        </div>
+
+                                                                        <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+                                                                            <div className="flex items-center gap-4 text-xs text-slate-500">
+                                                                                <span>Contact: <strong className="text-slate-700">{voucher.contact_number || 'N/A'}</strong></span>
+                                                                                <span>Expiry: <strong className="text-slate-700">{
+                                                                                    voucher.expiry_date ? (
+                                                                                        voucher.expiry_date.length === 8
+                                                                                            ? `${voucher.expiry_date.substring(0, 4)}-${voucher.expiry_date.substring(4, 6)}-${voucher.expiry_date.substring(6, 8)}`
+                                                                                            : new Date(voucher.expiry_date).toLocaleDateString()
+                                                                                    ) : 'N/A'
+                                                                                }</strong></span>
+                                                                                <span>Created: <strong className="text-slate-700">{new Date(voucher.created_at || Date.now()).toLocaleDateString()}</strong></span>
+                                                                            </div>
+                                                                            <div className="flex items-center gap-2">
+                                                                                {voucher.status === 'pending' && (
+                                                                                    <button
+                                                                                        onClick={() => initiatePayment(voucher)}
+                                                                                        className="px-4 py-2 bg-green-600 text-white rounded-lg text-xs font-bold hover:bg-green-700 transition-all flex items-center gap-1.5"
+                                                                                    >
+                                                                                        <DollarSign size={14} />
+                                                                                        Pay Now
+                                                                                    </button>
+                                                                                )}
+                                                                                <button className="p-2 bg-slate-50 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors">
+                                                                                    <Eye size={16} />
+                                                                                </button>
+                                                                                <button className="p-2 bg-slate-50 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors">
+                                                                                    <Download size={16} />
+                                                                                </button>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </>
+                                        )}
+
+                                        {activeTab === 'Bank Accounts' && (
+                                            <>
+                                                <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full flex-1">
+                                                        <div className="space-y-1.5">
+                                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide ml-1">Bank Name</label>
+                                                            <input type="text" placeholder="e.g. Meezan Bank" className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:bg-white focus:border-blue-500 focus:outline-none transition-all" />
+                                                        </div>
+                                                        <div className="flex items-end gap-2">
+                                                            <button className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-100 transition-all flex items-center justify-center gap-2">
+                                                                <Filter size={16} /> Filter
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                    {bankAccountsPerms.add && (
+                                                        <button onClick={onAddAccount}
+                                                            className="w-full md:w-auto px-6 py-3 bg-blue-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-blue-600/20 hover:bg-blue-700 transition-all flex items-center justify-center gap-2 active:scale-95">
+                                                            <Plus size={18} strokeWidth={2.5} /> Add Bank Account
+                                                        </button>
+                                                    )}
+                                                </div>
+
+                                                <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                                                    <div className="overflow-x-auto">
+                                                        <table className="w-full">
+                                                            <thead>
+                                                                <tr className="bg-slate-50/80 border-b border-slate-200">
+                                                                    {['Bank Name', 'Account Title', 'Account Number', 'IBAN', 'Owner', 'Type', 'Actions'].map((h, i) => (
+                                                                        <th key={i} className={`px-6 py-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider text-left whitespace-nowrap ${i === 6 ? 'text-right' : ''}`}>{h}</th>
+                                                                    ))}
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody className="divide-y divide-slate-100">
+                                                                {accounts.map((acc) => (
+                                                                    <tr key={acc._id} className="hover:bg-blue-50/30 transition-colors group">
+                                                                        <td className="px-6 py-4">
+                                                                            <div className="flex items-center gap-3">
+                                                                                <div className="w-10 h-10 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center font-bold">
+                                                                                    {acc.bank_name?.charAt(0)}
+                                                                                </div>
+                                                                                <span className="text-sm font-bold text-slate-800">{acc.bank_name}</span>
+                                                                            </div>
+                                                                        </td>
+                                                                        <td className="px-6 py-4 text-sm font-medium text-slate-600">{acc.account_title}</td>
+                                                                        <td className="px-6 py-4 text-sm font-mono font-medium text-slate-600">{acc.account_number}</td>
+                                                                        <td className="px-6 py-4">
+                                                                            <div className="flex items-center gap-2 text-sm font-mono font-medium text-slate-600">
+                                                                                {acc.iban}
+                                                                                <button className="text-slate-300 hover:text-blue-600 transition-colors" title="Copy IBAN">
+                                                                                    <Copy size={14} />
+                                                                                </button>
+                                                                            </div>
+                                                                        </td>
+                                                                        <td className="px-6 py-4 text-sm font-medium text-slate-800">
+                                                                            {acc.owner_name || (acc.account_type === 'Agency' ? getAgencyName(acc.agency_id) :
+                                                                                (acc.account_type === 'Branch' ? getBranchName(acc.branch_id) : '-'))}
+                                                                        </td>
+                                                                        <td className="px-6 py-4">
+                                                                            {acc.account_type === 'Organization' && (
+                                                                                <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 px-2 py-1 rounded text-xs font-bold border border-blue-100">
+                                                                                    <Building2 size={12} /> Company
+                                                                                </span>
+                                                                            )}
+                                                                            {acc.account_type === 'Agency' && (
+                                                                                <span className="inline-flex items-center gap-1 bg-purple-50 text-purple-700 px-2 py-1 rounded text-xs font-bold border border-purple-100">
+                                                                                    <User size={12} /> Agent
+                                                                                </span>
+                                                                            )}
+                                                                            {acc.account_type === 'Branch' && (
+                                                                                <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 px-2 py-1 rounded text-xs font-bold border border-emerald-100">
+                                                                                    <Building2 size={12} /> Branch
+                                                                                </span>
+                                                                            )}
+                                                                        </td>
+                                                                        <td className="px-6 py-4 text-right">
+                                                                            <div className="flex items-center justify-end gap-2">
+                                                                                <Badge status={acc.status} />
+                                                                                {canUpdate && (
+                                                                                    <button onClick={() => onEditAccount(acc)} className="p-2 bg-slate-50 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors border border-transparent hover:border-blue-100">
+                                                                                        <Edit3 size={16} />
+                                                                                    </button>
+                                                                                )}
+                                                                                {canDelete && (
+                                                                                    <button onClick={() => handleDeleteAccount(acc._id)} className="p-2 bg-slate-50 hover:bg-rose-50 hover:text-rose-600 rounded-lg transition-colors border border-transparent hover:border-rose-100">
+                                                                                        <Trash2 size={16} />
+                                                                                    </button>
+                                                                                )}
+                                                                            </div>
+                                                                        </td>
+                                                                    </tr>
+                                                                ))}
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </div>
+                                            </>
+                                        )}
+
                                     </div>
                                 </div>
                             </div>
-                        )}
-
-                        {/* VOUCHERS TAB */}
-                        {activeTab === 'Vouchers' && (
-                            <>
-                                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                                    {/* Voucher Generation Form */}
-                                    <div className="lg:col-span-1 bg-gradient-to-br from-blue-50 to-white border border-blue-100 rounded-2xl p-6 shadow-sm">
-                                        <div className="flex items-center gap-3 mb-6">
-                                            <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center">
-                                                <Receipt size={20} />
-                                            </div>
-                                            <div>
-                                                <h3 className="text-sm font-bold text-slate-900">Generate Voucher</h3>
-                                                <p className="text-xs text-slate-500">Create payment voucher</p>
-                                            </div>
-                                        </div>
-
-                                        <form onSubmit={generateVoucher} className="space-y-4">
-                                            <div>
-                                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide ml-1 block mb-1.5">Name</label>
-                                                <input
-                                                    type="text"
-                                                    name="userName"
-                                                    value={voucherForm.userName}
-                                                    onChange={handleVoucherInputChange}
-                                                    placeholder="User name"
-                                                    readOnly
-                                                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-600 cursor-not-allowed"
-                                                />
-                                            </div>
-
-                                            <div>
-                                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide ml-1 block mb-1.5">Email Address</label>
-                                                <input
-                                                    type="email"
-                                                    name="userEmail"
-                                                    value={voucherForm.userEmail}
-                                                    onChange={handleVoucherInputChange}
-                                                    placeholder="user@example.com"
-                                                    readOnly
-                                                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-600 cursor-not-allowed"
-                                                />
-                                            </div>
-
-                                            <div>
-                                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide ml-1 block mb-1.5">Contact Number *</label>
-                                                <input
-                                                    type="tel"
-                                                    name="contactNumber"
-                                                    value={voucherForm.contactNumber}
-                                                    onChange={handleVoucherInputChange}
-                                                    placeholder="03000000000"
-                                                    readOnly
-                                                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-600 cursor-not-allowed"
-                                                />
-                                                <p className="text-[9px] text-slate-400 mt-1 ml-1">Enter the contact number for this bill</p>
-                                            </div>
-
-                                            <div>
-                                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide ml-1 block mb-1.5">Reason *</label>
-                                                <textarea
-                                                    name="reason"
-                                                    value={voucherForm.reason}
-                                                    onChange={handleVoucherInputChange}
-                                                    placeholder="Enter reason for bill"
-                                                    rows="3"
-                                                    required
-                                                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:bg-white focus:border-blue-500 transition-all resize-none"
-                                                />
-                                            </div>
-
-                                            <div>
-                                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide ml-1 block mb-1.5">Amount *</label>
-                                                <input
-                                                    type="number"
-                                                    name="amount"
-                                                    value={voucherForm.amount}
-                                                    onChange={handleVoucherInputChange}
-                                                    placeholder="Enter amount"
-                                                    step="0.01"
-                                                    required
-                                                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:bg-white focus:border-blue-500 transition-all"
-                                                />
-                                            </div>
-
-                                            <div>
-                                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide ml-1 block mb-1.5">Expiry Date *</label>
-                                                <input
-                                                    type="date"
-                                                    name="expiryDate"
-                                                    value={voucherForm.expiryDate}
-                                                    onChange={handleVoucherInputChange}
-                                                    required
-                                                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:bg-white focus:border-blue-500 transition-all"
-                                                />
-                                                <p className="text-[9px] text-slate-400 mt-1 ml-1">Bill will be blocked when expiry date passes</p>
-                                            </div>
-
-                                            <div>
-                                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide ml-1 block mb-1.5">Currency</label>
-                                                <select
-                                                    name="currency"
-                                                    value={voucherForm.currency}
-                                                    onChange={handleVoucherInputChange}
-                                                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:bg-white focus:border-blue-500 transition-all"
-                                                >
-                                                    <option value="PKR">PKR</option>
-                                                    <option value="USD">USD</option>
-                                                    <option value="SAR">SAR</option>
-                                                </select>
-                                            </div>
-
-                                            <div>
-                                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide ml-1 block mb-1.5">Payment Method</label>
-                                                <select
-                                                    name="paymentMethod"
-                                                    value={voucherForm.paymentMethod}
-                                                    onChange={handleVoucherInputChange}
-                                                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:bg-white focus:border-blue-500 transition-all"
-                                                >
-                                                    <option value="wallet">Wallet</option>
-                                                    <option value="bank_transfer">Bank Transfer</option>
-                                                    <option value="card">Card</option>
-                                                </select>
-                                            </div>
-
-                                            {vouchersPerms.add && (
-                                                <button
-                                                    type="submit"
-                                                    disabled={isGeneratingVoucher}
-                                                    className="w-full px-6 py-3 bg-blue-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-blue-600/20 hover:bg-blue-700 transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                >
-                                                    {isGeneratingVoucher ? (
-                                                        <>
-                                                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                                            Generating...
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <Receipt size={18} />
-                                                            Generate Voucher
-                                                        </>
-                                                    )}
-                                                </button>
-                                            )}
-                                            {!vouchersPerms.add && (
-                                                <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-center">
-                                                    <p className="text-xs font-bold text-slate-500">You do not have permission to generate vouchers</p>
-                                                </div>
-                                            )}
-                                        </form>
-                                    </div>
-
-                                    {/* Voucher List */}
-                                    <div className="lg:col-span-2">
-                                        <div className="flex items-center justify-between mb-4">
-                                            <h3 className="text-sm font-bold text-slate-900">Recent Vouchers</h3>
-                                            <div className="flex items-center gap-2">
-                                                <button className="px-3 py-1.5 bg-slate-50 hover:bg-slate-100 rounded-lg text-xs font-bold text-slate-600 transition-all">
-                                                    <Filter size={14} className="inline mr-1" />
-                                                    Filter
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        {loading ? (
-                                            <div className="flex justify-center items-center h-64 bg-white rounded-2xl border border-slate-200">
-                                                <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
-                                            </div>
-                                        ) : vouchers.length === 0 ? (
-                                            <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
-                                                <Receipt size={48} className="mx-auto text-slate-300 mb-3" />
-                                                <p className="text-sm font-bold text-slate-400">No vouchers yet</p>
-                                                <p className="text-xs text-slate-400 mt-1">Generate your first voucher to get started</p>
-                                            </div>
-                                        ) : (
-                                            <div className="space-y-3">
-                                                {vouchers.map((voucher) => (
-                                                    <div
-                                                        key={voucher._id || voucher.id}
-                                                        className="bg-white border border-slate-200 rounded-2xl p-5 hover:shadow-lg transition-all group"
-                                                    >
-                                                        <div className="flex items-start justify-between mb-3">
-                                                            <div className="flex items-start gap-3">
-                                                                <div className="w-12 h-12 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-lg">
-                                                                    <Receipt size={24} />
-                                                                </div>
-                                                                <div>
-                                                                    <h4 className="text-sm font-bold text-slate-800">{voucher.user_name || voucher.recipient}</h4>
-                                                                    <p className="text-xs text-slate-500 mt-0.5">{voucher.user_email}</p>
-                                                                    <p className="text-xs text-slate-600 mt-1 font-medium">{voucher.reason || voucher.description || 'No reason'}</p>
-                                                                    <p className="text-xs text-slate-400 mt-1 font-mono">Voucher #{voucher.consumer_number || voucher.voucher_number || voucher._id?.slice(-8) || voucher.id?.slice(-8)}</p>
-                                                                </div>
-                                                            </div>
-                                                            <div className="text-right">
-                                                                <p className="text-lg font-bold text-slate-900">{voucher.currency} {parseFloat(voucher.amount).toLocaleString()}</p>
-                                                                {getVoucherStatusBadge(voucher.status || 'pending')}
-                                                            </div>
-                                                        </div>
-
-                                                        <div className="flex items-center justify-between pt-3 border-t border-slate-100">
-                                                            <div className="flex items-center gap-4 text-xs text-slate-500">
-                                                                <span>Contact: <strong className="text-slate-700">{voucher.contact_number || 'N/A'}</strong></span>
-                                                                <span>Expiry: <strong className="text-slate-700">{
-                                                                    voucher.expiry_date ? (
-                                                                        voucher.expiry_date.length === 8
-                                                                            ? `${voucher.expiry_date.substring(0, 4)}-${voucher.expiry_date.substring(4, 6)}-${voucher.expiry_date.substring(6, 8)}`
-                                                                            : new Date(voucher.expiry_date).toLocaleDateString()
-                                                                    ) : 'N/A'
-                                                                }</strong></span>
-                                                                <span>Created: <strong className="text-slate-700">{new Date(voucher.created_at || Date.now()).toLocaleDateString()}</strong></span>
-                                                            </div>
-                                                            <div className="flex items-center gap-2">
-                                                                {voucher.status === 'pending' && (
-                                                                    <button
-                                                                        onClick={() => initiatePayment(voucher)}
-                                                                        className="px-4 py-2 bg-green-600 text-white rounded-lg text-xs font-bold hover:bg-green-700 transition-all flex items-center gap-1.5"
-                                                                    >
-                                                                        <DollarSign size={14} />
-                                                                        Pay Now
-                                                                    </button>
-                                                                )}
-                                                                <button className="p-2 bg-slate-50 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors">
-                                                                    <Eye size={16} />
-                                                                </button>
-                                                                <button className="p-2 bg-slate-50 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors">
-                                                                    <Download size={16} />
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            </>
-                        )}
-
-                        {activeTab === 'Bank Accounts' && (
-                            <>
-                                <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full flex-1">
-                                        <div className="space-y-1.5">
-                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide ml-1">Bank Name</label>
-                                            <input type="text" placeholder="e.g. Meezan Bank" className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:bg-white focus:border-blue-500 focus:outline-none transition-all" />
-                                        </div>
-                                        <div className="flex items-end gap-2">
-                                            <button className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-100 transition-all flex items-center justify-center gap-2">
-                                                <Filter size={16} /> Filter
-                                            </button>
-                                        </div>
-                                    </div>
-                                    {bankAccountsPerms.add && (
-                                        <button onClick={onAddAccount}
-                                            className="w-full md:w-auto px-6 py-3 bg-blue-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-blue-600/20 hover:bg-blue-700 transition-all flex items-center justify-center gap-2 active:scale-95">
-                                            <Plus size={18} strokeWidth={2.5} /> Add Bank Account
-                                        </button>
-                                    )}
-                                </div>
-
-                                <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-                                    <div className="overflow-x-auto">
-                                        <table className="w-full">
-                                            <thead>
-                                                <tr className="bg-slate-50/80 border-b border-slate-200">
-                                                    {['Bank Name', 'Account Title', 'Account Number', 'IBAN', 'Owner', 'Type', 'Actions'].map((h, i) => (
-                                                        <th key={i} className={`px-6 py-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider text-left whitespace-nowrap ${i === 6 ? 'text-right' : ''}`}>{h}</th>
-                                                    ))}
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-slate-100">
-                                                {accounts.map((acc) => (
-                                                    <tr key={acc._id} className="hover:bg-blue-50/30 transition-colors group">
-                                                        <td className="px-6 py-4">
-                                                            <div className="flex items-center gap-3">
-                                                                <div className="w-10 h-10 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center font-bold">
-                                                                    {acc.bank_name?.charAt(0)}
-                                                                </div>
-                                                                <span className="text-sm font-bold text-slate-800">{acc.bank_name}</span>
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-6 py-4 text-sm font-medium text-slate-600">{acc.account_title}</td>
-                                                        <td className="px-6 py-4 text-sm font-mono font-medium text-slate-600">{acc.account_number}</td>
-                                                        <td className="px-6 py-4">
-                                                            <div className="flex items-center gap-2 text-sm font-mono font-medium text-slate-600">
-                                                                {acc.iban}
-                                                                <button className="text-slate-300 hover:text-blue-600 transition-colors" title="Copy IBAN">
-                                                                    <Copy size={14} />
-                                                                </button>
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-6 py-4 text-sm font-medium text-slate-800">
-                                                            {acc.owner_name || (acc.account_type === 'Agency' ? getAgencyName(acc.agency_id) :
-                                                                (acc.account_type === 'Branch' ? getBranchName(acc.branch_id) : '-'))}
-                                                        </td>
-                                                        <td className="px-6 py-4">
-                                                            {acc.account_type === 'Organization' && (
-                                                                <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 px-2 py-1 rounded text-xs font-bold border border-blue-100">
-                                                                    <Building2 size={12} /> Company
-                                                                </span>
-                                                            )}
-                                                            {acc.account_type === 'Agency' && (
-                                                                <span className="inline-flex items-center gap-1 bg-purple-50 text-purple-700 px-2 py-1 rounded text-xs font-bold border border-purple-100">
-                                                                    <User size={12} /> Agent
-                                                                </span>
-                                                            )}
-                                                            {acc.account_type === 'Branch' && (
-                                                                <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 px-2 py-1 rounded text-xs font-bold border border-emerald-100">
-                                                                    <Building2 size={12} /> Branch
-                                                                </span>
-                                                            )}
-                                                        </td>
-                                                        <td className="px-6 py-4 text-right">
-                                                            <div className="flex items-center justify-end gap-2">
-                                                                <Badge status={acc.status} />
-                                                                {canUpdate && (
-                                                                    <button onClick={() => onEditAccount(acc)} className="p-2 bg-slate-50 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors border border-transparent hover:border-blue-100">
-                                                                        <Edit3 size={16} />
-                                                                    </button>
-                                                                )}
-                                                                {canDelete && (
-                                                                    <button onClick={() => handleDeleteAccount(acc._id)} className="p-2 bg-slate-50 hover:bg-rose-50 hover:text-rose-600 rounded-lg transition-colors border border-transparent hover:border-rose-100">
-                                                                        <Trash2 size={16} />
-                                                                    </button>
-                                                                )}
-                                                            </div>
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            </>
-                        )}
-
-                    </div>
-                </div>
-            </div>
         </div>
-    );
+                    );
 }

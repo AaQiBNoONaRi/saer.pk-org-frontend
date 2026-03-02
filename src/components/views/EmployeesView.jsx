@@ -13,6 +13,7 @@ const EmployeesView = () => {
     const [branches, setBranches] = useState([]);
     const [agencies, setAgencies] = useState([]);
     const [groups, setGroups] = useState([]);
+    const [commissionGroups, setCommissionGroups] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedEmployee, setSelectedEmployee] = useState(null);
     const [viewMode, setViewMode] = useState('list'); // 'list', 'detail', 'add', 'edit'
@@ -41,8 +42,10 @@ const EmployeesView = () => {
         portal_access_enabled: true,
         username: '',
         password: '',
+        password: '',
         permissions: ['crm'],
-        group_id: ''
+        group_id: '',
+        commission_group_id: ''
     });
 
     useEffect(() => {
@@ -51,6 +54,7 @@ const EmployeesView = () => {
         fetchBranches();
         fetchAgencies();
         fetchGroups();
+        fetchCommissionGroups();
     }, []);
 
     const fetchGroups = async () => {
@@ -63,6 +67,21 @@ const EmployeesView = () => {
             if (res.ok) setGroups(await res.json());
         } catch (e) {
             console.error('Failed to fetch groups', e);
+        }
+    };
+
+    const fetchCommissionGroups = async () => {
+        try {
+            const token = localStorage.getItem('access_token');
+            const res = await fetch(`http://localhost:8000/api/commissions/?applied_to=employee`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setCommissionGroups(data.filter(c => c.is_active));
+            }
+        } catch (e) {
+            console.error('Failed to fetch commission groups', e);
         }
     };
 
@@ -232,7 +251,8 @@ const EmployeesView = () => {
             username: '',
             password: '',
             permissions: ['crm'],
-            group_id: ''
+            group_id: '',
+            commission_group_id: ''
         });
         setError('');
         setViewMode('add');
@@ -256,7 +276,8 @@ const EmployeesView = () => {
             username: employee.username || '',
             password: '',
             permissions: employee.permissions || ['crm'],
-            group_id: employee.group_id || ''
+            group_id: employee.group_id || '',
+            commission_group_id: employee.commission_group_id || ''
         });
         setSelectedEmployee(employee);
         setError('');
@@ -286,6 +307,9 @@ const EmployeesView = () => {
 
             if (viewMode === 'edit' && !payload.password) {
                 delete payload.password;
+            }
+            if (!payload.commission_group_id) {
+                delete payload.commission_group_id;
             }
 
             const url = viewMode === 'edit'
@@ -614,6 +638,17 @@ const EmployeesView = () => {
                             className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100">
                             <option value="ORGANIZATION_ADMIN">Organization Admin</option>
                             <option value="ORGANIZATION_EMPLOYEE">Organization Employee</option>
+                        </select>
+                    </div>
+
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Commission Group</label>
+                        <select name="commission_group_id" value={formData.commission_group_id || ''} onChange={handleInputChange}
+                            className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100">
+                            <option value="">No Commission Group</option>
+                            {commissionGroups.map(group => (
+                                <option key={group._id || group.id} value={group._id || group.id}>{group.name}</option>
+                            ))}
                         </select>
                     </div>
 
