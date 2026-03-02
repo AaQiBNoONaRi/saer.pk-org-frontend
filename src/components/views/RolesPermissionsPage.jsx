@@ -65,7 +65,16 @@ const buildPermCode = (category, subLabel, action) => {
         'Payments:Pending Payments': 'payments.pending',
         'Payments:Vouchers': 'payments.vouchers',
         'Payments:Bank Accounts': 'payments.bank_accounts',
-        // Operations modules  
+        // HR special mappings
+        'HR:Dashboard': 'hr.dashboard',
+        'HR:Employees': 'hr.employees',
+        'HR:Attendance': 'hr.attendance',
+        'HR:Movements': 'hr.movements',
+        'HR:Commissions': 'hr.commissions',
+        'HR:Punctuality': 'hr.punctuality',
+        'HR:Approvals': 'hr.approvals',
+        'HR:Payments': 'hr.payments',
+        // Operations modules
         'Content & Operations:Pax Movement': 'operations.pax_movement',
         'Content & Operations:Daily Operations': 'operations.daily',
         'Content & Operations:Order Delivery': 'operations.order_delivery',
@@ -90,7 +99,7 @@ const ActionBadge = ({ action, active }) => (
 );
 
 // ─── Permission row in the matrix ─────────────────────────────────────────────
-const PermissionRow = ({ category, subLabel, perms, onChange, availableActions = ACTIONS }) => {
+const PermissionRow = ({ category, subLabel, perms, onChange, availableActions = ACTIONS, locked = false }) => {
     const toggle = (action) => {
         const next = { ...perms, [action]: !perms[action] };
         // If enabling "all", enable everything that's available
@@ -122,6 +131,7 @@ const PermissionRow = ({ category, subLabel, perms, onChange, availableActions =
                 const isAvailable = availableActions.includes(action);
                 const isView = action === 'view';
                 const autoGranted = isView && isAvailable && (perms.add || perms.update || perms.delete || perms.all);
+                const lockedView = locked && isView;
                 const isAll = action === 'all';
                 
                 if (!isAvailable) {
@@ -138,15 +148,15 @@ const PermissionRow = ({ category, subLabel, perms, onChange, availableActions =
                     <td key={action} className="py-3 px-4 text-center">
                         <button
                             type="button"
-                            onClick={() => !autoGranted && toggle(action)}
-                            title={autoGranted ? 'Auto-granted' : (isAll ? 'Grant all available permissions' : `Toggle ${action}`)}
+                            onClick={() => !(autoGranted || lockedView) && toggle(action)}
+                            title={lockedView ? 'Locked by HR sub-permissions' : (autoGranted ? 'Auto-granted' : (isAll ? 'Grant all available permissions' : `Toggle ${action}`))}
                             className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center mx-auto transition-all ${
-                                perms[action]
+                                (perms[action] || lockedView)
                                     ? `${ACTION_COLORS[action]} border-current`
                                     : 'bg-white border-slate-200 hover:border-slate-300'
-                            } ${autoGranted ? 'cursor-default opacity-70' : 'cursor-pointer'}`}
+                            } ${autoGranted || lockedView ? 'cursor-default opacity-70' : 'cursor-pointer'}`}
                         >
-                            {perms[action] && <Check size={12} strokeWidth={3} />}
+                            {(perms[action] || lockedView) && <Check size={12} strokeWidth={3} />}
                         </button>
                     </td>
                 );
@@ -161,6 +171,7 @@ const GroupForm = ({ group, onSave, onCancel }) => {
     const [desc, setDesc] = useState(group?.description || '');
     const [catalogue, setCatalogue] = useState([]);
     const [perms, setPerms] = useState({});
+    const [lockedKeys, setLockedKeys] = useState({});
     const [saving, setSaving] = useState(false);
     const [loading, setLoading] = useState(true);
     const [err, setErr] = useState('');
@@ -193,6 +204,13 @@ const GroupForm = ({ group, onSave, onCancel }) => {
                             }
                         });
                     });
+                    // If any HR sub-permission is present, auto-enable and lock HR:Dashboard.view
+                    const anyHR = Object.keys(initialPerms).some(k => k.startsWith('HR:') && k !== 'HR:Dashboard' && Object.values(initialPerms[k]).some(Boolean));
+                    if (anyHR) {
+                        initialPerms['HR:Dashboard'] = initialPerms['HR:Dashboard'] || { view: false, add: false, update: false, delete: false, all: false };
+                        initialPerms['HR:Dashboard'].view = true;
+                        setLockedKeys({ 'HR:Dashboard': true });
+                    }
                     setPerms(initialPerms);
                 }
             } catch (e) {
@@ -216,7 +234,11 @@ const GroupForm = ({ group, onSave, onCancel }) => {
                 const key = `${cat.category}:${sub.label}`;
                 const p = perms[key] || {};
                 // Get available actions from catalogue
-                const availableActions = sub.permissions?.map(perm => perm.code.split('.').pop()) || ACTIONS;
+                let availableActions = sub.permissions?.map(perm => perm.code.split('.').pop()) || ACTIONS;
+                // Enforce that HR:Employees only exposes view/add
+                if (cat.category === 'HR' && sub.label === 'Employees') {
+                    availableActions = ['view', 'add'];
+                }
                 availableActions.forEach(action => {
                     if (p[action]) {
                         permCodes.push(buildPermCode(cat.category, sub.label, action));
@@ -224,6 +246,11 @@ const GroupForm = ({ group, onSave, onCancel }) => {
                 });
             });
         });
+
+        // Auto-add HR dashboard permission if any HR sub-permission is present
+        if (permCodes.some(pc => pc.startsWith('hr.')) && !permCodes.includes('hr.dashboard.view')) {
+            permCodes.push('hr.dashboard.view');
+        }
 
         const payload = { name: name.trim(), description: desc.trim(), permissions: permCodes };
         
@@ -254,6 +281,24 @@ const GroupForm = ({ group, onSave, onCancel }) => {
             ...p,
             [key]: { view: value, add: value, update: value, delete: value, all: value }
         }));
+    };
+
+    // Handler wrapper to update perms and maintain HR dashboard lock state
+    const handlePermChange = (key, next) => {
+        setPerms(prev => {
+            const updated = { ...prev, [key]: next };
+            // Determine if any HR sub-permissions (excluding dashboard) are enabled
+            const anyHR = Object.keys(updated).some(k => k.startsWith('HR:') && k !== 'HR:Dashboard' && Object.values(updated[k]).some(Boolean));
+            if (anyHR) {
+                updated['HR:Dashboard'] = updated['HR:Dashboard'] || { view: false, add: false, update: false, delete: false, all: false };
+                updated['HR:Dashboard'].view = true;
+                setLockedKeys(k => ({ ...k, 'HR:Dashboard': true }));
+            } else {
+                // unlock dashboard if no HR sub perms
+                setLockedKeys(k => ({ ...k, 'HR:Dashboard': false }));
+            }
+            return updated;
+        });
     };
 
     return (
@@ -343,7 +388,14 @@ const GroupForm = ({ group, onSave, onCancel }) => {
                                             const key = `${cat.category}:${sub.label}`;
                                             const p = perms[key] || { view: false, add: false, update: false, delete: false, all: false };
                                             // Extract available actions from backend catalogue
-                                            const availableActions = sub.permissions?.map(perm => perm.code.split('.').pop()) || ACTIONS;
+                                            let availableActions = sub.permissions?.map(perm => perm.code.split('.').pop()) || ACTIONS;
+                                            // Enforce that HR:Employees only exposes view/add
+                                            if (cat.category === 'HR' && sub.label === 'Employees') {
+                                                availableActions = ['view', 'add'];
+                                            }
+                                            const isLocked = !!lockedKeys[key];
+                                            // Dashboard special-case: lock if lockedKeys set
+                                            const dashboardLock = key === 'HR:Dashboard' && !!lockedKeys['HR:Dashboard'];
                                             return (
                                                 <PermissionRow
                                                     key={subIdx}
@@ -351,7 +403,8 @@ const GroupForm = ({ group, onSave, onCancel }) => {
                                                     subLabel={sub.label}
                                                     perms={p}
                                                     availableActions={availableActions}
-                                                    onChange={(next) => setPerms(prev => ({ ...prev, [key]: next }))}
+                                                    onChange={(next) => handlePermChange(key, next)}
+                                                    locked={dashboardLock}
                                                 />
                                             );
                                         })}

@@ -9,6 +9,7 @@ import {
     PersonStanding, RefreshCw, ArrowLeft, AlarmClock, ClipboardList, ClipboardSignature
 } from 'lucide-react';
 import * as hrService from '../../services/hrService';
+import { getModulePermissions } from '../../utils/permissions';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
 const statusBadge = (s, map) => {
@@ -172,7 +173,39 @@ const Modal = ({ isOpen, onClose, title, children, size = 'md' }) => {
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function HRManagementView() {
     const [activeTab, setActiveTab] = useState('dashboard');
-    
+
+    // Permission flags
+    const empPerms        = getModulePermissions('hr.employees');
+    const attendPerms     = getModulePermissions('hr.attendance');
+    const movPerms        = getModulePermissions('hr.movements');
+    const commPerms       = getModulePermissions('hr.commissions');
+    const punctPerms      = getModulePermissions('hr.punctuality');
+    const approvPerms     = getModulePermissions('hr.approvals');
+    const payPerms        = getModulePermissions('hr.payments');
+    const dashPerms       = getModulePermissions('hr.dashboard');
+
+    const hasFlag = (p) => Object.values(p || {}).some(Boolean);
+    const canSeeEmployees   = hasFlag(empPerms);
+    const canSeeAttendance  = hasFlag(attendPerms);
+    const canSeeMovements   = hasFlag(movPerms);
+    const canSeeCommissions = hasFlag(commPerms);
+    const canSeePunctuality = hasFlag(punctPerms);
+    const canSeeApprovals   = hasFlag(approvPerms);
+    const canSeePayments    = hasFlag(payPerms);
+    const canAttendanceAdd  = !!attendPerms?.add;
+    const canMovementsAdd   = !!movPerms?.add;
+
+    const ALL_TABS = [
+        { id: 'dashboard',   label: 'Dashboard',   icon: LayoutDashboard, visible: true },
+        { id: 'employees',   label: 'Employees',   icon: Users,          visible: canSeeEmployees },
+        { id: 'attendance',  label: 'Attendance',  icon: Calendar,       visible: canSeeAttendance },
+        { id: 'movements',   label: 'Movements',   icon: MapPin,         visible: canSeeMovements },
+        { id: 'approvals',   label: 'Approvals',   icon: CheckSquare,    visible: canSeeApprovals },
+        { id: 'punctuality', label: 'Punctuality', icon: BarChart2,      visible: canSeePunctuality },
+        { id: 'payments',    label: 'Payments',    icon: DollarSign,     visible: canSeePayments },
+    ];
+    const visibleTabs = ALL_TABS.filter(t => t.visible);
+
     useEffect(() => {
         // Listen for navigation events from quick actions
         const handleNavigate = (event) => {
@@ -181,21 +214,13 @@ export default function HRManagementView() {
         window.addEventListener('navigate-hr-tab', handleNavigate);
         return () => window.removeEventListener('navigate-hr-tab', handleNavigate);
     }, []);
-    
+
     return (
         <div className="h-full flex flex-col bg-slate-50">
             {/* Header Tabs */}
             <div className="bg-white border-b border-slate-200 px-8 pt-6 shrink-0">
                 <div className="flex items-center gap-1">
-                    {[
-                        { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-                        { id: 'employees', label: 'Employees', icon: Users },
-                        { id: 'attendance', label: 'Attendance', icon: Calendar },
-                        { id: 'movements', label: 'Movements', icon: MapPin },
-                        { id: 'approvals', label: 'Approvals', icon: CheckSquare },
-                        { id: 'punctuality', label: 'Punctuality', icon: BarChart2 },
-                        { id: 'payments', label: 'Payments', icon: DollarSign },
-                    ].map(tab => (
+                    {visibleTabs.map(tab => (
                         <button
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
@@ -214,13 +239,13 @@ export default function HRManagementView() {
 
             {/* Content Area */}
             <div className="flex-1 overflow-y-auto p-8">
-                {activeTab === 'dashboard' && <DashboardTab />}
-                {activeTab === 'employees' && <EmployeesTab />}
-                {activeTab === 'attendance' && <AttendanceTab />}
-                {activeTab === 'movements' && <MovementsTab />}
-                {activeTab === 'approvals' && <ApprovalsTab />}
+                {activeTab === 'dashboard'   && <DashboardTab />}
+                {activeTab === 'employees'   && <EmployeesTab canAttendanceAdd={canAttendanceAdd} />}
+                {activeTab === 'attendance'  && <AttendanceTab />}
+                {activeTab === 'movements'   && <MovementsTab canMovementsAdd={canMovementsAdd} />}
+                {activeTab === 'approvals'   && <ApprovalsTab />}
                 {activeTab === 'punctuality' && <PunctualityTab />}
-                {activeTab === 'payments' && <PaymentsTab />}
+                {activeTab === 'payments'    && <PaymentsTab />}
             </div>
         </div>
     );
@@ -446,7 +471,7 @@ function DashboardTab() {
 }
 
 // ② Employees ────────────────────────────────────────────────────────────────
-function EmployeesTab() {
+function EmployeesTab({ canAttendanceAdd = false }) {
     const [employees, setEmployees] = useState([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
@@ -622,6 +647,7 @@ function EmployeesTab() {
         <section>
             <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-black text-slate-800">Employees</h2>
+                {canAttendanceAdd && (
                 <div className="flex gap-2">
                     <button 
                         onClick={() => setShowCheckInModal(true)}
@@ -638,6 +664,7 @@ function EmployeesTab() {
                         Check Out
                     </button>
                 </div>
+                )}
             </div>
 
             <Toolbar search={search} setSearch={setSearch} placeholder="Search employees...">
@@ -1060,7 +1087,7 @@ function AttendanceTab() {
 }
 
 // ④ Movements ─────────────────────────────────────────────────────────────────
-function MovementsTab() {
+function MovementsTab({ canMovementsAdd = false }) {
     const [movements, setMovements] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchMovements, setSearchMovements] = useState('');
@@ -1244,12 +1271,16 @@ function MovementsTab() {
                                             <td className="px-6 py-4">{m.reason}</td>
                                             <td className="px-6 py-4 text-right">
                                                 {m.status === 'active' ? (
+                                                    canMovementsAdd ? (
                                                     <button 
                                                         onClick={() => handleEndMovement(m._id)}
                                                         className="px-4 py-1.5 border border-rose-500 text-rose-500 rounded-lg text-xs font-bold hover:bg-rose-50 transition-colors"
                                                     >
                                                         End Movement
                                                     </button>
+                                                    ) : (
+                                                    <span className="text-slate-500 font-medium">Active</span>
+                                                    )
                                                 ) : (
                                                     <span className="text-slate-500 font-medium">Completed</span>
                                                 )}
@@ -1264,7 +1295,7 @@ function MovementsTab() {
             </div>
 
             {/* Start Movement Section */}
-            <div>
+            {canMovementsAdd && <div>
                 <div className="mb-4">
                     <h2 className="text-base font-extrabold text-slate-800">Start Movement for Employees</h2>
                 </div>
@@ -1324,7 +1355,7 @@ function MovementsTab() {
                         </table>
                     </div>
                 </div>
-            </div>
+            </div>}
 
             {/* Start Movement Modal */}
             <Modal isOpen={showReasonModal} onClose={() => setShowReasonModal(false)} title="Start Movement" size="sm">

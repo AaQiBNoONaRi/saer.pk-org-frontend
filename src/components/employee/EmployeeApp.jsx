@@ -3,6 +3,7 @@ import { Menu } from 'lucide-react';
 import EmployeeSidebar from './EmployeeSidebar';
 import EmployeeDashboard from './EmployeeDashboard';
 import EmployeeHRView from './EmployeeHRView';
+import HRManagementView from '../views/HRManagementView';
 import EmployeeProfilePage from './EmployeeProfilePage';
 import LeadDetailView from '../views/LeadDetailView';
 import PackagesView from '../views/PackagesView';
@@ -19,6 +20,10 @@ import AddCommissionView from '../views/AddCommissionView';
 import AddServiceChargeView from '../views/AddServiceChargeView';
 import PaymentsView from '../views/PaymentsView';
 import FinanceHub from '../views/finance/FinanceHub';
+import OrganizationView from '../views/OrganizationView';
+import BranchesView from '../views/BranchesView';
+import AgenciesView from '../views/AgenciesView';
+import EmployeesView from '../views/EmployeesView';
 import { getModulePermissions } from '../../utils/permissions';
 
 export default function EmployeeApp() {
@@ -79,6 +84,10 @@ export default function EmployeeApp() {
         const serviceChargesPerms = getModulePermissions('pricing.service_charges');
         const discountedHotelsPerms = getModulePermissions('hotels.discounted');
         const paymentsPerms = getModulePermissions('payments');
+        const entitiesOrgPerms = getModulePermissions('entities.organization');
+        const entitiesBranchPerms = getModulePermissions('entities.branch');
+        const entitiesAgenciesPerms = getModulePermissions('entities.agencies');
+        const entitiesEmployeesPerms = getModulePermissions('entities.employees');
         
         switch (activeTab) {
             // Inventory modules
@@ -256,13 +265,28 @@ export default function EmployeeApp() {
             case 'Entities':
                 if (hasEntities) return <ComingSoonView module="Entities" />;
                 return <NoAccessView />;
+            case 'Entities:Organization':
+                if (entitiesOrgPerms.view) return <OrganizationView />;
+                return <NoAccessView />;
+            case 'Entities:Branch':
+                if (entitiesBranchPerms.view) return <BranchesView />;
+                return <NoAccessView />;
+            case 'Entities:Agencies':
+                if (entitiesAgenciesPerms.view) return <AgenciesView />;
+                return <NoAccessView />;
+            case 'Entities:Employees':
+                if (entitiesEmployeesPerms.view) return <EmployeesView />;
+                return <NoAccessView />;
             case 'Operations':
                 if (hasContent) return <ComingSoonView module="Operations" />;
                 return <NoAccessView />;
             
             // HR/Employees
             case 'Employees':
-                if (hasEmployees || hasHR) return <EmployeeHRView />;
+                // If the employee has full HR permissions (org-level HR access), show the full HR management UI
+                if (hasHR) return <HRManagementView />;
+                // Otherwise, if this user has employee-scoped employees permission, show the personal HR view
+                if (hasEmployees) return <EmployeeHRView />;
                 return <NoAccessView />;
             
             // CRM/Customers

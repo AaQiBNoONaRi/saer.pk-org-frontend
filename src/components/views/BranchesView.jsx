@@ -4,8 +4,11 @@ import {
     Edit2, Trash2, Loader2, AlertCircle, User, Check,
     ShieldCheck, Eye, EyeOff
 } from 'lucide-react';
+import { getModulePermissions } from '../../utils/permissions';
 
 const BranchesView = () => {
+    // Check permissions for entities.branch module
+    const branchPerms = getModulePermissions('entities.branch');
     const [branches, setBranches] = useState([]);
     const [organizations, setOrganizations] = useState([]);
     const [agencies, setAgencies] = useState([]);
@@ -302,13 +305,15 @@ const BranchesView = () => {
                             Manage organization branches
                         </p>
                     </div>
-                    <button
-                        onClick={openAddForm}
-                        className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors"
-                    >
-                        <Plus size={18} />
-                        <span>Add Branch</span>
-                    </button>
+                    {branchPerms.add && (
+                        <button
+                            onClick={openAddForm}
+                            className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors"
+                        >
+                            <Plus size={18} />
+                            <span>Add Branch</span>
+                        </button>
+                    )}
                 </div>
 
                 <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
@@ -411,18 +416,22 @@ const BranchesView = () => {
                             </div>
                         </div>
                         <div className="flex gap-2">
-                            <button
-                                onClick={() => openEditForm(selectedBranch)}
-                                className="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition-all flex items-center gap-2"
-                            >
-                                <Edit2 size={14} /> EDIT
-                            </button>
-                            <button
-                                onClick={() => handleDelete(selectedBranch)}
-                                className="px-4 py-2 bg-red-50 text-red-600 rounded-lg text-xs font-bold hover:bg-red-100 transition-all flex items-center gap-2"
-                            >
-                                <Trash2 size={14} />
-                            </button>
+                            {branchPerms.update && (
+                                <button
+                                    onClick={() => openEditForm(selectedBranch)}
+                                    className="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition-all flex items-center gap-2"
+                                >
+                                    <Edit2 size={14} /> EDIT
+                                </button>
+                            )}
+                            {branchPerms.delete && (
+                                <button
+                                    onClick={() => handleDelete(selectedBranch)}
+                                    className="px-4 py-2 bg-red-50 text-red-600 rounded-lg text-xs font-bold hover:bg-red-100 transition-all flex items-center gap-2"
+                                >
+                                    <Trash2 size={14} />
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>

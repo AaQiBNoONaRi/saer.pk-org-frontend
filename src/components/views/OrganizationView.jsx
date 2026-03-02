@@ -3,8 +3,11 @@ import {
     Building2, Plus, Search, Mail, Phone, ArrowLeft,
     Edit2, Trash2, Loader2, AlertCircle, MapPin
 } from 'lucide-react';
+import { getModulePermissions } from '../../utils/permissions';
 
 const OrganizationView = () => {
+    // Check permissions for entities.organization module
+    const organizationPerms = getModulePermissions('entities.organization');
     const [organizations, setOrganizations] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedOrganization, setSelectedOrganization] = useState(null);
@@ -197,13 +200,15 @@ const OrganizationView = () => {
                             Manage organization accounts
                         </p>
                     </div>
-                    <button
-                        onClick={openAddForm}
-                        className="flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-blue-100 hover:scale-105 transition-all"
-                    >
-                        <Plus size={16} />
-                        <span>Add New Organization</span>
-                    </button>
+                    {organizationPerms.add && (
+                        <button
+                            onClick={openAddForm}
+                            className="flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-blue-100 hover:scale-105 transition-all"
+                        >
+                            <Plus size={16} />
+                            <span>Add New Organization</span>
+                        </button>
+                    )}
                 </div>
 
                 <div className="bg-white rounded-[32px] p-6 border border-slate-100 shadow-sm">
@@ -288,18 +293,22 @@ const OrganizationView = () => {
                             </div>
                         </div>
                         <div className="flex gap-2">
-                            <button
-                                onClick={() => openEditForm(selectedOrganization)}
-                                className="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition-all flex items-center gap-2"
-                            >
-                                <Edit2 size={14} /> EDIT
-                            </button>
-                            <button
-                                onClick={() => handleDelete(selectedOrganization)}
-                                className="px-4 py-2 bg-red-50 text-red-600 rounded-lg text-xs font-bold hover:bg-red-100 transition-all flex items-center gap-2"
-                            >
-                                <Trash2 size={14} />
-                            </button>
+                            {organizationPerms.update && (
+                                <button
+                                    onClick={() => openEditForm(selectedOrganization)}
+                                    className="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition-all flex items-center gap-2"
+                                >
+                                    <Edit2 size={14} /> EDIT
+                                </button>
+                            )}
+                            {organizationPerms.delete && (
+                                <button
+                                    onClick={() => handleDelete(selectedOrganization)}
+                                    className="px-4 py-2 bg-red-50 text-red-600 rounded-lg text-xs font-bold hover:bg-red-100 transition-all flex items-center gap-2"
+                                >
+                                    <Trash2 size={14} />
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>

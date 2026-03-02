@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MapPin, Search, MoveRight, Plane, Calendar, Users, DollarSign } from 'lucide-react';
+import { MapPin, Search, MoveRight, Plane, Calendar, Users, DollarSign, Share2 } from 'lucide-react';
 
 const TicketsView = ({ onAddTicket, onEditTicket, onDeleteTicket, permissions = null }) => {
     const [tickets, setTickets] = useState([]);
@@ -10,7 +10,7 @@ const TicketsView = ({ onAddTicket, onEditTicket, onDeleteTicket, permissions = 
         departureCity: '',
         arrivalCity: ''
     });
-    
+
     // If permissions prop is not provided, assume full access (for org admin)
     const canAdd = permissions ? permissions.add : true;
     const canUpdate = permissions ? permissions.update : true;
@@ -258,14 +258,30 @@ const TicketCard = ({ ticket, airlines, onEditTicket, onDeleteTicket, canUpdate 
 
             {/* Flight Information Section */}
             <div className="flex-1 p-5 lg:p-7 space-y-2">
-                {/* Trip Type Badge */}
+                {/* Trip Type Badge & Reselling Indicator */}
                 <div className="flex items-center justify-between mb-4">
-                    <span className="inline-block px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-black uppercase tracking-wider">
-                        {trip_type}
-                    </span>
-                    <div className="text-right">
-                        <p className="text-xs text-slate-400 font-medium">Available Seats</p>
-                        <p className="text-sm font-black text-slate-900">{available_seats}/{total_seats}</p>
+                    <div className="flex items-center gap-3">
+                        <span className="inline-block px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-black uppercase tracking-wider">
+                            {trip_type}
+                        </span>
+                        {ticket.is_shared && (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-full text-xs font-black uppercase tracking-wider shadow-sm">
+                                <Share2 size={12} className="text-amber-500" />
+                                Reselling
+                            </span>
+                        )}
+                    </div>
+                    <div className="text-right flex items-center gap-6">
+                        {ticket.pnr ? (
+                            <div className="text-right">
+                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">PNR</p>
+                                <p className="text-sm font-black text-slate-900 uppercase">{ticket.pnr}</p>
+                            </div>
+                        ) : null}
+                        <div className="text-right">
+                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Available Seats</p>
+                            <p className="text-sm font-black text-slate-900">{available_seats}/{total_seats}</p>
+                        </div>
                     </div>
                 </div>
 

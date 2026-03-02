@@ -3,8 +3,11 @@ import {
     Users, Plus, Search, Mail, Phone, ArrowLeft,
     Edit2, Trash2, Loader2, AlertCircle, User, Eye, EyeOff
 } from 'lucide-react';
+import { getModulePermissions } from '../../utils/permissions';
 
 const EmployeesView = () => {
+    // Check permissions for entities.employees module
+    const employeesPerms = getModulePermissions('entities.employees');
     const [employees, setEmployees] = useState([]);
     const [organizations, setOrganizations] = useState([]);
     const [branches, setBranches] = useState([]);
@@ -73,6 +76,9 @@ const EmployeesView = () => {
 
             if (response.ok) {
                 const data = await response.json();
+                console.debug('fetchEmployees: got', Array.isArray(data) ? data.length : typeof data, 'employees');
+                // keep a shallow copy for debugging if needed
+                window.__debug_employees = data;
                 setEmployees(data);
             }
         } catch (err) {
@@ -88,9 +94,30 @@ const EmployeesView = () => {
             const response = await fetch('http://localhost:8000/api/organizations/', {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
+
             if (response.ok) {
                 const data = await response.json();
+                console.debug('fetchOrganizations: got', data?.length ?? 0, 'organizations', data);
+                window.__debug_organizations = data;
                 setOrganizations(data);
+                console.debug('fetchOrganizations: state updated, organizations.length =', data?.length);
+            } else {
+                console.warn('fetchOrganizations: primary request failed', response.status);
+                // Fallback: try without auth headers (useful in local dev if token missing)
+                try {
+                    const fallback = await fetch('http://localhost:8000/api/organizations/');
+                    if (fallback.ok) {
+                        const data = await fallback.json();
+                        console.debug('fetchOrganizations: fallback got', data?.length ?? 0, 'organizations', data);
+                        window.__debug_organizations = data;
+                        setOrganizations(data);
+                        console.debug('fetchOrganizations: fallback state updated');
+                        return;
+                    }
+                    console.warn('fetchOrganizations: fallback also failed', fallback.status);
+                } catch (fbErr) {
+                    console.error('fetchOrganizations fallback error', fbErr);
+                }
             }
         } catch (error) {
             console.error('Error fetching organizations:', error);
@@ -320,13 +347,15 @@ const EmployeesView = () => {
                             Manage employee accounts
                         </p>
                     </div>
-                    <button
-                        onClick={openAddForm}
-                        className="flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-blue-100 hover:scale-105 transition-all"
-                    >
-                        <Plus size={16} />
-                        <span>Add New Employee</span>
-                    </button>
+                    {employeesPerms.add && (
+                        <button
+                            onClick={openAddForm}
+                            className="flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-blue-100 hover:scale-105 transition-all"
+                        >
+                            <Plus size={16} />
+                            <span>Add New Employee</span>
+                        </button>
+                    )}
                 </div>
 
                 <div className="bg-white rounded-[32px] p-6 border border-slate-100 shadow-sm">
@@ -348,6 +377,9 @@ const EmployeesView = () => {
                                 className="px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold text-slate-600 outline-none"
                             >
                                 <option value="">All Organizations</option>
+                                {organizations.length === 0 && (
+                                    <option disabled>Loading organizations... (check console)</option>
+                                )}
                                 {organizations.map(org => (
                                     <option key={org.id || org._id} value={org.id || org._id}>
                                         {org.name}
@@ -430,18 +462,22 @@ const EmployeesView = () => {
                             </div>
                         </div>
                         <div className="flex gap-2">
-                            <button
-                                onClick={() => openEditForm(selectedEmployee)}
-                                className="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition-all flex items-center gap-2"
-                            >
-                                <Edit2 size={14} /> EDIT
-                            </button>
-                            <button
-                                onClick={() => handleDelete(selectedEmployee)}
-                                className="px-4 py-2 bg-red-50 text-red-600 rounded-lg text-xs font-bold hover:bg-red-100 transition-all flex items-center gap-2"
-                            >
-                                <Trash2 size={14} />
-                            </button>
+                            {employeesPerms.update && (
+                                <button
+                                    onClick={() => openEditForm(selectedEmployee)}
+                                    className="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition-all flex items-center gap-2"
+                                >
+                                    <Edit2 size={14} /> EDIT
+                                </button>
+                            )}
+                            {employeesPerms.delete && (
+                                <button
+                                    onClick={() => handleDelete(selectedEmployee)}
+                                    className="px-4 py-2 bg-red-50 text-red-600 rounded-lg text-xs font-bold hover:bg-red-100 transition-all flex items-center gap-2"
+                                >
+                                    <Trash2 size={14} />
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -485,7 +521,19 @@ const EmployeesView = () => {
                             </div>
                             <div>
                                 <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Organization</p>
-                                <p className="font-medium text-slate-900">{getEntityName(organizations, selectedEmployee.entity_id || selectedEmployee.organization_id || selectedEmployee.organization?._id)}</p>
+                                {(() => {
+                                    const orgName = selectedEmployee.organization?.name || selectedEmployee.organization_name || getEntityName(organizations, selectedEmployee.entity_id || selectedEmployee.organization_id || selectedEmployee.organization?._id);
+                                    if (orgName && orgName !== 'N/A') {
+                                        return <p className="font-medium text-slate-900">{orgName}</p>;
+                                    }
+                                    // Show brief debug info to help diagnose missing link
+                                    return (
+                                        <div className="text-xs text-rose-500">
+                                            <p className="font-medium">Not linked</p>
+                                            <pre className="mt-2 text-[10px] text-slate-400 bg-slate-50 p-2 rounded-md overflow-x-auto">{JSON.stringify({ orgLookupCount: organizations?.length ?? 0, selectedOrganization: selectedEmployee.organization || null, entity_id: selectedEmployee.entity_id || selectedEmployee.organization_id || null }, null, 2)}</pre>
+                                        </div>
+                                    );
+                                })()}
                             </div>
                         </div>
                     </div>

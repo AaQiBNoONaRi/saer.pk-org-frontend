@@ -37,18 +37,16 @@ export default function EmployeeSidebar({ activeTab, setActiveTab, isSidebarOpen
     const pkgPerms = getModulePermissions('inventory.packages');
     const hotelsPerms = getModulePermissions('inventory.hotels');
     const ticketsPerms = getModulePermissions('inventory.tickets');
-    const flightsPerms = getModulePermissions('inventory.flights');
     const othersPerms = getModulePermissions('inventory.others');
     const sharePerms = getModulePermissions('inventory.share');
 
     const hasInventoryPackages = hasFlag(pkgPerms);
     const hasInventoryHotels = hasFlag(hotelsPerms);
     const hasInventoryTickets = hasFlag(ticketsPerms);
-    const hasInventoryFlights = hasFlag(flightsPerms);
     const hasInventoryOthers = hasFlag(othersPerms);
     const hasInventoryShare = hasFlag(sharePerms);
 
-    const hasAnyInventory = hasInventoryPackages || hasInventoryHotels || hasInventoryTickets || hasInventoryFlights || hasInventoryOthers || hasInventoryShare;
+    const hasAnyInventory = hasInventoryPackages || hasInventoryHotels || hasInventoryTickets || hasInventoryOthers || hasInventoryShare;
 
     // Pricing
     const discountsPerms = getModulePermissions('pricing.discounts');
@@ -72,13 +70,14 @@ export default function EmployeeSidebar({ activeTab, setActiveTab, isSidebarOpen
 
     // HR / Employees
     const employeesPerms = getModulePermissions('hr.employees');
+    const legacyEmployeesPerms = getModulePermissions('employees');
     const attendancePerms = getModulePermissions('hr.attendance');
     const movementsPerms = getModulePermissions('hr.movements');
     const hrCommissionsPerms = getModulePermissions('hr.commissions');
     const punctualityPerms = getModulePermissions('hr.punctuality');
     const approvalsPerms = getModulePermissions('hr.approvals');
 
-    const hasEmployees = hasFlag(employeesPerms);
+    const hasEmployees = hasFlag(employeesPerms) || hasFlag(legacyEmployeesPerms);
     const hasAttendance = hasFlag(attendancePerms);
     const hasMovements = hasFlag(movementsPerms);
     const hasHRCommissions = hasFlag(hrCommissionsPerms);
@@ -89,9 +88,16 @@ export default function EmployeeSidebar({ activeTab, setActiveTab, isSidebarOpen
     const hasHR = hasEmployees || hasAttendance || hasMovements || hasHRCommissions || hasPunctuality || hasApprovals;
 
     // Entities & Content
-    const entitiesPerms = getModulePermissions('entities');
+    const entitiesOrgPerms = getModulePermissions('entities.organization');
+    const entitiesBranchPerms = getModulePermissions('entities.branch');
+    const entitiesAgenciesPerms = getModulePermissions('entities.agencies');
+    const entitiesEmployeesPerms = getModulePermissions('entities.employees');
     const contentPerms = getModulePermissions('content');
-    const hasEntities = hasFlag(entitiesPerms);
+    const hasEntitiesOrg = hasFlag(entitiesOrgPerms);
+    const hasEntitiesBranch = hasFlag(entitiesBranchPerms);
+    const hasEntitiesAgencies = hasFlag(entitiesAgenciesPerms);
+    const hasEntitiesEmployees = hasFlag(entitiesEmployeesPerms);
+    const hasEntities = hasEntitiesOrg || hasEntitiesBranch || hasEntitiesAgencies || hasEntitiesEmployees;
     const hasContent = hasFlag(contentPerms);
 
     // UI helpers
@@ -184,7 +190,7 @@ export default function EmployeeSidebar({ activeTab, setActiveTab, isSidebarOpen
                                 </p>
                             )}
                             {!isSidebarOpen && <div className="h-4" />}
-                            
+
                             {hasInventoryPackages && (
                                 <NavItem
                                     icon={<Package size={20} />}
@@ -194,7 +200,7 @@ export default function EmployeeSidebar({ activeTab, setActiveTab, isSidebarOpen
                                     isOpen={isSidebarOpen}
                                 />
                             )}
-                            
+
                             {hasInventoryHotels && (
                                 <NavItem
                                     icon={<Hotel size={20} />}
@@ -205,7 +211,7 @@ export default function EmployeeSidebar({ activeTab, setActiveTab, isSidebarOpen
                                 />
                             )}
 
-                            
+
                             {hasInventoryTickets && (
                                 <NavItem
                                     icon={<Ticket size={20} />}
@@ -215,9 +221,7 @@ export default function EmployeeSidebar({ activeTab, setActiveTab, isSidebarOpen
                                     isOpen={isSidebarOpen}
                                 />
                             )}
-                            
-                            {/* Flights and Discounted Hotels removed for Employee sidebar */}
-                            
+
                             {hasInventoryOthers && (
                                 <NavItem
                                     icon={<Box size={20} />}
@@ -248,7 +252,7 @@ export default function EmployeeSidebar({ activeTab, setActiveTab, isSidebarOpen
                                 </p>
                             )}
                             {!isSidebarOpen && <div className="h-4" />}
-                            
+
                             {hasPricingDiscounts && (
                                 <NavItem
                                     icon={<DollarSign size={20} />}
@@ -258,7 +262,7 @@ export default function EmployeeSidebar({ activeTab, setActiveTab, isSidebarOpen
                                     isOpen={isSidebarOpen}
                                 />
                             )}
-                            
+
                             {hasPricingCommissions && (
                                 <NavItem
                                     icon={<TrendingUp size={20} />}
@@ -268,7 +272,7 @@ export default function EmployeeSidebar({ activeTab, setActiveTab, isSidebarOpen
                                     isOpen={isSidebarOpen}
                                 />
                             )}
-                            
+
                             {hasPricingServiceCharges && (
                                 <NavItem
                                     icon={<Receipt size={20} />}
@@ -366,13 +370,46 @@ export default function EmployeeSidebar({ activeTab, setActiveTab, isSidebarOpen
                                 </p>
                             )}
                             {!isSidebarOpen && <div className="h-4" />}
-                            <NavItem
-                                icon={<Building2 size={20} />}
-                                label="Entities"
-                                active={activeTab === 'Entities'}
-                                onClick={() => handleNavClick('Entities')}
-                                isOpen={isSidebarOpen}
-                            />
+
+                            {hasEntitiesOrg && (
+                                <NavItem
+                                    icon={<Building2 size={20} />}
+                                    label="Organization"
+                                    active={activeTab === 'Entities:Organization'}
+                                    onClick={() => handleNavClick('Entities:Organization')}
+                                    isOpen={isSidebarOpen}
+                                />
+                            )}
+
+                            {hasEntitiesBranch && (
+                                <NavItem
+                                    icon={<Building2 size={20} />}
+                                    label="Branch"
+                                    active={activeTab === 'Entities:Branch'}
+                                    onClick={() => handleNavClick('Entities:Branch')}
+                                    isOpen={isSidebarOpen}
+                                />
+                            )}
+
+                            {hasEntitiesAgencies && (
+                                <NavItem
+                                    icon={<Briefcase size={20} />}
+                                    label="Agencies"
+                                    active={activeTab === 'Entities:Agencies'}
+                                    onClick={() => handleNavClick('Entities:Agencies')}
+                                    isOpen={isSidebarOpen}
+                                />
+                            )}
+
+                            {hasEntitiesEmployees && (
+                                <NavItem
+                                    icon={<Users size={20} />}
+                                    label="Entity Employees"
+                                    active={activeTab === 'Entities:Employees'}
+                                    onClick={() => handleNavClick('Entities:Employees')}
+                                    isOpen={isSidebarOpen}
+                                />
+                            )}
                         </>
                     )}
 

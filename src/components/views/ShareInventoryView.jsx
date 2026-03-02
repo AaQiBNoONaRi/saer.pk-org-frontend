@@ -123,7 +123,7 @@ export default function ShareInventoryView() {
         setLoading(true);
         try {
             const [orgsRes, linksRes, sharesRes] = await Promise.all([
-                fetch(`${API_BASE}/organizations/`, { headers: authHeaders() }),
+                fetch(`${API_BASE}/organizations/directory`, { headers: authHeaders() }),
                 fetch(`${API_BASE}/org-links/`, { headers: authHeaders() }),
                 fetch(`${API_BASE}/inventory-shares/`, { headers: authHeaders() }),
             ]);
@@ -429,8 +429,8 @@ export default function ShareInventoryView() {
                                                         key={type}
                                                         onClick={() => toggleShareType(type)}
                                                         className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border-2 transition-all ${shareForm.types.includes(type)
-                                                                ? 'border-blue-600 bg-blue-600 text-white'
-                                                                : 'border-slate-200 bg-white text-slate-600 hover:border-blue-300'
+                                                            ? 'border-blue-600 bg-blue-600 text-white'
+                                                            : 'border-slate-200 bg-white text-slate-600 hover:border-blue-300'
                                                             }`}
                                                     >
                                                         {type === 'tickets' && <Ticket size={12} />}
