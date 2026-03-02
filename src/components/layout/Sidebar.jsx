@@ -11,7 +11,6 @@ import {
 export default function Sidebar({ activeTab, setActiveTab, getPathForTab, isSidebarOpen, setSidebarOpen, setIsLoggedIn }) {
     const [isInventoryOpen, setInventoryOpen] = useState(false);
     const [isCoreBusinessOpen, setCoreBusinessOpen] = useState(false);
-    const [isBookingsOpen, setBookingsOpen] = useState(false);
     const [isPartnersOpen, setPartnersOpen] = useState(false);
     const [isUserMenuOpen, setUserMenuOpen] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
@@ -98,20 +97,6 @@ export default function Sidebar({ activeTab, setActiveTab, getPathForTab, isSide
                             <DropdownItem label="Tickets" active={activeTab === 'Tickets'} onClick={() => handleNavClick('Tickets')} href={getPathForTab ? getPathForTab('Tickets') : '#'} />
                             <DropdownItem label="Others" active={activeTab === 'Others'} onClick={() => handleNavClick('Other')} href={getPathForTab ? getPathForTab('Other') : '#'} />
                             <DropdownItem label="Share Inventory" active={activeTab === 'Share Inventory'} onClick={() => handleNavClick('Share Inventory')} href={getPathForTab ? getPathForTab('Share Inventory') : '#'} />
-                        </NavDropdown>
-
-                        <NavDropdown
-                            icon={<ClipboardList size={20} />}
-                            label="Bookings"
-                            isOpen={isSidebarOpen}
-                            isExpanded={isBookingsOpen}
-                            onClick={() => setBookingsOpen(!isBookingsOpen)}
-                            active={['Ticket', 'Umrah Package', 'Custom Umrah', 'Booking History'].includes(activeTab)}
-                        >
-                            <DropdownItem label="Booking History" active={activeTab === 'Booking History'} onClick={() => handleNavClick('Booking History')} href={getPathForTab ? getPathForTab('Booking History') : '#'} />
-                            <DropdownItem label="Custom Umrah" active={activeTab === 'Custom Umrah'} onClick={() => handleNavClick('Custom Umrah')} href={getPathForTab ? getPathForTab('Custom Umrah') : '#'} />
-                            <DropdownItem label="Umrah Package" active={activeTab === 'Umrah Package'} onClick={() => handleNavClick('Umrah Package')} href={getPathForTab ? getPathForTab('Umrah Package') : '#'} />
-                            <DropdownItem label="Ticket" active={activeTab === 'Ticket'} onClick={() => handleNavClick('Ticket')} href={getPathForTab ? getPathForTab('Ticket') : '#'} />
                         </NavDropdown>
 
                         <NavDropdown

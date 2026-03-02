@@ -4,7 +4,7 @@ import { ArrowLeft, Save, TrendingUp, Hotel, X, Plus } from 'lucide-react';
 const AddCommissionView = ({ onBack, initialData }) => {
     const [saving, setSaving] = useState(false);
     const [hotels, setHotels] = useState([]);
-
+    
     const [name, setName] = useState('');
     const [ticketCommission, setTicketCommission] = useState('');
     const [ticketCommissionType, setTicketCommissionType] = useState('fixed');
@@ -22,7 +22,6 @@ const AddCommissionView = ({ onBack, initialData }) => {
         valid_until: ''
     }]);
     const [isActive, setIsActive] = useState(true);
-    const [appliedTo, setAppliedTo] = useState('employee');
     const [hotelSearches, setHotelSearches] = useState(hotelCommissions.map(() => ''));
 
     useEffect(() => {
@@ -50,7 +49,6 @@ const AddCommissionView = ({ onBack, initialData }) => {
             setTicketCommissionType(initialData.ticket_commission_type || 'fixed');
             setPackageCommission(initialData.package_commission?.toString() || '');
             setIsActive(initialData.is_active ?? true);
-            setAppliedTo(initialData.applied_to || 'employee');
             if (initialData.hotel_commissions && initialData.hotel_commissions.length > 0) {
                 setHotelCommissions(initialData.hotel_commissions.map((hc, idx) => ({
                     id: Date.now() + idx,
@@ -101,16 +99,15 @@ const AddCommissionView = ({ onBack, initialData }) => {
                     valid_from: hc.valid_from || undefined,
                     valid_until: hc.valid_until || undefined
                 })),
-                applied_to: appliedTo,
                 is_active: isActive
             };
 
             const url = initialData
                 ? `http://localhost:8000/api/commissions/${initialData._id}`
                 : 'http://localhost:8000/api/commissions/';
-
+            
             const method = initialData ? 'PUT' : 'POST';
-
+            
             const response = await fetch(url, {
                 method,
                 headers: {
@@ -188,7 +185,6 @@ const AddCommissionView = ({ onBack, initialData }) => {
             valid_from: '',
             valid_until: ''
         }]);
-        setAppliedTo('employee');
         setIsActive(true);
     };
 
@@ -236,29 +232,6 @@ const AddCommissionView = ({ onBack, initialData }) => {
                         required
                         className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus: ring-2 focus:ring-blue-100 outline-none font-medium text-sm"
                     />
-                </div>
-
-                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-                    <h3 className="text-sm font-bold text-slate-700 mb-4 text-blue-600 uppercase tracking-wider">Categorization</h3>
-                    <div className="space-y-3">
-                        <label className="block text-sm font-bold text-slate-700">
-                            Apply To Entity Type
-                        </label>
-                        <select
-                            value={appliedTo}
-                            onChange={(e) => setAppliedTo(e.target.value)}
-                            className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none font-medium text-sm bg-white"
-                        >
-                            <option value="employee">Employee (Org/Branch)</option>
-                            <option value="branch">Branch (Parent Cut)</option>
-                            <option value="agency">Agency (Area Agency Only)</option>
-                        </select>
-                        <p className="text-xs text-slate-500 font-medium italic">
-                            {appliedTo === 'employee' && "* This group will be assigned to individual Employees."}
-                            {appliedTo === 'branch' && "* This group will be assigned to Branches for their overall commission."}
-                            {appliedTo === 'agency' && "* This group will be assigned to Area Agencies."}
-                        </p>
-                    </div>
                 </div>
 
                 <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
