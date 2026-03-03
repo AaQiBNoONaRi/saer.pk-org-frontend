@@ -155,8 +155,13 @@ export default function OrderDeliveryDetailView({ onBack, booking: initialBookin
     }, 0);
 
     const isApproved = booking.booking_status?.toLowerCase() === 'approved';
+    const isConfirmed = ['confirmed', 'approved'].includes(booking.booking_status?.toLowerCase());
+    const isUnderprocess = ['underprocess', 'pending', 'processing'].includes(booking.booking_status?.toLowerCase());
 
-    const getEndpoint = () => isUmrah ? 'umrah-bookings' : 'custom-bookings';
+    const getEndpoint = () => {
+        if (booking.source === 'customer') return 'customer-bookings';
+        return booking.booking_type === 'umrah_package' ? 'umrah-bookings' : 'custom-bookings';
+    };
     const getToken = () => localStorage.getItem('access_token');
 
     const updateBooking = async (payload) => {
@@ -176,8 +181,14 @@ export default function OrderDeliveryDetailView({ onBack, booking: initialBookin
         }
     };
 
+    const handleMarkConfirmed = async () => {
+        await updateBooking({ booking_status: 'confirmed', order_status: 'confirmed' });
+        setSuccessMsg('Order confirmed!');
+        setTimeout(() => setSuccessMsg(''), 3000);
+    };
+
     const handleConfirm = async () => {
-        const updated = await updateBooking({ booking_status: 'approved', voucher_status: 'Approved' });
+        const updated = await updateBooking({ booking_status: 'approved', order_status: 'approved', voucher_status: 'Approved' });
         setSuccessMsg('Order approved successfully!');
         if (onConfirm) onConfirm(updated);
     };
@@ -547,13 +558,28 @@ export default function OrderDeliveryDetailView({ onBack, booking: initialBookin
 
                     {/* Actions */}
                     <div className="flex gap-3 pt-6 pb-12">
+                        {/* For underprocess orders: show both Confirm and Approve */}
+                        {isUnderprocess && (
+                            <button
+                                onClick={handleMarkConfirmed}
+                                disabled={saving}
+                                className="px-10 py-3 bg-amber-500 text-white rounded-lg text-sm font-bold shadow-xl shadow-amber-500/30 hover:bg-amber-600 transition-all flex items-center justify-center min-w-[130px]"
+                            >
+                                {saving ? <Loader2 size={16} className="animate-spin" /> : 'Confirm'}
+                            </button>
+                        )}
+                        {/* Approve: visible for both underprocess and confirmed, hidden only when already approved */}
                         {!isApproved && (
-                            <button onClick={handleConfirm} disabled={saving} className="px-12 py-3 bg-blue-600 text-white rounded-lg text-sm font-bold shadow-xl shadow-blue-600/30 hover:bg-blue-700 transition-all flex items-center justify-center min-w-[140px]">
+                            <button
+                                onClick={handleConfirm}
+                                disabled={saving}
+                                className="px-10 py-3 bg-blue-600 text-white rounded-lg text-sm font-bold shadow-xl shadow-blue-600/30 hover:bg-blue-700 transition-all flex items-center justify-center min-w-[130px]"
+                            >
                                 {saving ? <Loader2 size={16} className="animate-spin" /> : 'Approve'}
                             </button>
                         )}
-                        <button onClick={() => setIsRejectModalOpen(true)} className="px-12 py-3 bg-white border border-rose-600 text-rose-600 rounded-lg text-sm font-bold hover:bg-rose-50 transition-all">Reject With Note</button>
-                        <button onClick={onBack} className="px-12 py-3 bg-white border border-slate-300 text-slate-500 rounded-lg text-sm font-bold hover:bg-slate-50 transition-all">Close</button>
+                        <button onClick={() => setIsRejectModalOpen(true)} className="px-10 py-3 bg-white border border-rose-600 text-rose-600 rounded-lg text-sm font-bold hover:bg-rose-50 transition-all">Reject With Note</button>
+                        <button onClick={onBack} className="px-10 py-3 bg-white border border-slate-300 text-slate-500 rounded-lg text-sm font-bold hover:bg-slate-50 transition-all">Close</button>
                     </div>
 
                 </div>
