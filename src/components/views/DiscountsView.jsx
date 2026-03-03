@@ -1,19 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Search, Edit2, Trash2, Percent } from 'lucide-react';
-import { getModulePermissions } from '../../utils/permissions';
 
-const DiscountsView = ({ onAddDiscount, onEditDiscount, permissions = null }) => {
+const DiscountsView = ({ onAddDiscount, onEditDiscount }) => {
     const [discounts, setDiscounts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
-    
-    // If permissions prop is not provided or empty, fallback to module permissions
-    const fallbackPerms = getModulePermissions('pricing.discounts');
-    const effectivePerms = permissions && Object.values(permissions).some(Boolean) ? permissions : fallbackPerms;
-    const canAdd = effectivePerms.add;
-    const canUpdate = effectivePerms.update;
-    const canDelete = effectivePerms.delete;
-
     useEffect(() => {
         fetchDiscounts();
     }, []);
@@ -82,16 +73,14 @@ const DiscountsView = ({ onAddDiscount, onEditDiscount, permissions = null }) =>
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
                 <div>
                     <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tight">Discounts</h2>
-                    <p className="text-slate-500 font-medium">Manage discount groups for tickets, packages and hotels</p>
+                    <p className="text-slate-500 font-medium">Manage price reductions for customers</p>
                 </div>
-                {canAdd && (
-                    <button
-                        onClick={onAddDiscount}
-                        className="w-full sm:w-auto px-6 py-3 bg-blue-600 text-white rounded-xl text-xs font-bold transition-all hover:scale-105 shadow-lg shadow-blue-100 flex items-center justify-center gap-2"
-                    >
-                        <Plus size={16} /> Add Discount
-                    </button>
-                )}
+                <button
+                    onClick={onAddDiscount}
+                    className="w-full sm:w-auto px-6 py-3 bg-blue-600 text-white rounded-xl text-xs font-bold transition-all hover:scale-105 shadow-lg shadow-blue-100 flex items-center justify-center gap-2"
+                >
+                    <Plus size={16} /> Add Discount
+                </button>
             </div>
 
             {/* Search */}
@@ -126,6 +115,7 @@ const DiscountsView = ({ onAddDiscount, onEditDiscount, permissions = null }) =>
                                     <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight mb-1">
                                         {discount.name}
                                     </h3>
+                                    <p className="text-xs text-slate-500">{discount.description}</p>
                                 </div>
                                 <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
                                     discount.is_active
@@ -138,45 +128,38 @@ const DiscountsView = ({ onAddDiscount, onEditDiscount, permissions = null }) =>
 
                             <div className="space-y-2 mb-4">
                                 <div className="flex items-center justify-between text-sm">
-                                    <span className="font-bold text-slate-600">Ticket Discount:</span>
+                                    <span className="font-bold text-slate-600">Value:</span>
                                     <span className="font-black text-blue-600">
-                                        {discount.ticket_discount_type === 'percentage'
-                                            ? `${discount.ticket_discount}%`
-                                            : `PKR ${Number(discount.ticket_discount || 0).toLocaleString()}`
-                                        }
+                                        {discount.discount_type === 'percentage' 
+                                            ? `${discount.value}%` 
+                                            : `PKR ${Number(discount.value || 0).toLocaleString()}`}
                                     </span>
                                 </div>
                                 <div className="flex items-center justify-between text-sm">
-                                    <span className="font-bold text-slate-600">Package Discount:</span>
-                                    <span className="font-black text-blue-600">
-                                        PKR {Number(discount.package_discount || 0).toLocaleString()}
-                                    </span>
+                                    <span className="font-bold text-slate-600">Applies To:</span>
+                                    <span className="capitalize text-slate-900 font-bold">{discount.applies_to}</span>
                                 </div>
-                                {discount.hotel_discounts && discount.hotel_discounts.length > 0 && (
+                                {discount.room_type && (
                                     <div className="flex items-center justify-between text-sm">
-                                        <span className="font-bold text-slate-600">Hotel Periods:</span>
-                                        <span className="capitalize text-slate-900 font-bold">{discount.hotel_discounts.length}</span>
+                                        <span className="font-bold text-slate-600">Room Type:</span>
+                                        <span className="capitalize text-slate-900 font-bold">{discount.room_type}</span>
                                     </div>
                                 )}
                             </div>
 
                             <div className="flex gap-2">
-                                {canUpdate && (
-                                    <button
-                                        onClick={() => onEditDiscount(discount)}
-                                        className="flex-1 py-2 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition-all flex items-center justify-center gap-1"
-                                    >
-                                        <Edit2 size={14} /> Edit
-                                    </button>
-                                )}
-                                {canDelete && (
-                                    <button
-                                        onClick={() => handleDelete(discount._id)}
-                                        className="flex-1 py-2 bg-red-50 text-red-600 rounded-lg text-xs font-bold hover:bg-red-100 transition-all flex items-center justify-center gap-1"
-                                    >
-                                        <Trash2 size={14} /> Delete
-                                    </button>
-                                )}
+                                <button
+                                    onClick={() => onEditDiscount(discount)}
+                                    className="flex-1 py-2 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition-all flex items-center justify-center gap-1"
+                                >
+                                    <Edit2 size={14} /> Edit
+                                </button>
+                                <button
+                                    onClick={() => handleDelete(discount._id)}
+                                    className="flex-1 py-2 bg-red-50 text-red-600 rounded-lg text-xs font-bold hover:bg-red-100 transition-all flex items-center justify-center gap-1"
+                                >
+                                    <Trash2 size={14} /> Delete
+                                </button>
                             </div>
                         </div>
                     ))

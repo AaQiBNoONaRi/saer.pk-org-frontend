@@ -66,6 +66,14 @@ export const updateEmployee = async (empId, data) => {
 };
 
 // ===================== Attendance =====================
+// employeeMongoId = the employee's MongoDB _id (not humanoid emp_id like EMP001)
+export const getEmployeeCommissions = async (employeeMongoId) => {
+    const response = await fetch(`${API_BASE_URL}/commission-records?earner_id=${employeeMongoId}&limit=200`, {
+        headers: getAuthHeader()
+    });
+    if (!response.ok) throw new Error('Failed to fetch employee commissions');
+    return response.json();
+};
 export const checkIn = async (empId, checkInTime = null) => {
     const response = await fetch(`${API_BASE_URL}/hr/attendance/check-in`, {
         method: 'POST',

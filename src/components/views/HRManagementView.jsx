@@ -9,11 +9,10 @@ import {
     PersonStanding, RefreshCw, ArrowLeft, AlarmClock, ClipboardList, ClipboardSignature
 } from 'lucide-react';
 import * as hrService from '../../services/hrService';
-import { getModulePermissions } from '../../utils/permissions';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
 const statusBadge = (s, map) => {
-    const { label, cls} = map[s] || { label: s, cls: 'bg-slate-100 text-slate-600' };
+    const { label, cls } = map[s] || { label: s, cls: 'bg-slate-100 text-slate-600' };
     return <span className={`inline-flex items-center px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider ${cls}`}>{label}</span>;
 };
 
@@ -25,18 +24,18 @@ const ATTEND_STATUS_MAP = {
     present: { label: 'Present', cls: 'bg-blue-100 text-blue-700' },
     half_day: { label: 'Half Day', cls: 'bg-purple-100 text-purple-700' },
 };
-const MOVE_STATUS_MAP = { 
+const MOVE_STATUS_MAP = {
     active: { label: 'Active', cls: 'bg-blue-100 text-blue-700' },
-    completed: { label: 'Completed', cls: 'bg-green-100 text-green-700' }, 
+    completed: { label: 'Completed', cls: 'bg-green-100 text-green-700' },
     cancelled: { label: 'Cancelled', cls: 'bg-red-100 text-red-700' }
 };
-const LEAVE_STATUS_MAP = { 
-    approved: { label: 'Approved', cls: 'bg-green-100 text-green-700' }, 
-    pending: { label: 'Pending', cls: 'bg-yellow-100 text-yellow-700' }, 
-    rejected: { label: 'Rejected', cls: 'bg-red-100 text-red-700' } 
+const LEAVE_STATUS_MAP = {
+    approved: { label: 'Approved', cls: 'bg-green-100 text-green-700' },
+    pending: { label: 'Pending', cls: 'bg-yellow-100 text-yellow-700' },
+    rejected: { label: 'Rejected', cls: 'bg-red-100 text-red-700' }
 };
-const PAY_STATUS_MAP = { 
-    paid: { label: 'Paid', cls: 'bg-green-100 text-green-700' }, 
+const PAY_STATUS_MAP = {
+    paid: { label: 'Paid', cls: 'bg-green-100 text-green-700' },
     pending: { label: 'Pending', cls: 'bg-yellow-100 text-yellow-700' },
     cancelled: { label: 'Cancelled', cls: 'bg-red-100 text-red-700' }
 };
@@ -145,14 +144,14 @@ const Td = ({ children, className = '' }) => (
 // ─── Modal Component ──────────────────────────────────────────────────────────
 const Modal = ({ isOpen, onClose, title, children, size = 'md' }) => {
     if (!isOpen) return null;
-    
+
     const sizeClasses = {
         sm: 'max-w-md',
         md: 'max-w-2xl',
         lg: 'max-w-4xl',
         xl: 'max-w-6xl'
     };
-    
+
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm" onClick={onClose}>
             <div className={`bg-white rounded-2xl shadow-2xl w-full ${sizeClasses[size]} max-h-[90vh] overflow-hidden flex flex-col`} onClick={(e) => e.stopPropagation()}>
@@ -174,38 +173,6 @@ const Modal = ({ isOpen, onClose, title, children, size = 'md' }) => {
 export default function HRManagementView() {
     const [activeTab, setActiveTab] = useState('dashboard');
 
-    // Permission flags
-    const empPerms        = getModulePermissions('hr.employees');
-    const attendPerms     = getModulePermissions('hr.attendance');
-    const movPerms        = getModulePermissions('hr.movements');
-    const commPerms       = getModulePermissions('hr.commissions');
-    const punctPerms      = getModulePermissions('hr.punctuality');
-    const approvPerms     = getModulePermissions('hr.approvals');
-    const payPerms        = getModulePermissions('hr.payments');
-    const dashPerms       = getModulePermissions('hr.dashboard');
-
-    const hasFlag = (p) => Object.values(p || {}).some(Boolean);
-    const canSeeEmployees   = hasFlag(empPerms);
-    const canSeeAttendance  = hasFlag(attendPerms);
-    const canSeeMovements   = hasFlag(movPerms);
-    const canSeeCommissions = hasFlag(commPerms);
-    const canSeePunctuality = hasFlag(punctPerms);
-    const canSeeApprovals   = hasFlag(approvPerms);
-    const canSeePayments    = hasFlag(payPerms);
-    const canAttendanceAdd  = !!attendPerms?.add;
-    const canMovementsAdd   = !!movPerms?.add;
-
-    const ALL_TABS = [
-        { id: 'dashboard',   label: 'Dashboard',   icon: LayoutDashboard, visible: true },
-        { id: 'employees',   label: 'Employees',   icon: Users,          visible: canSeeEmployees },
-        { id: 'attendance',  label: 'Attendance',  icon: Calendar,       visible: canSeeAttendance },
-        { id: 'movements',   label: 'Movements',   icon: MapPin,         visible: canSeeMovements },
-        { id: 'approvals',   label: 'Approvals',   icon: CheckSquare,    visible: canSeeApprovals },
-        { id: 'punctuality', label: 'Punctuality', icon: BarChart2,      visible: canSeePunctuality },
-        { id: 'payments',    label: 'Payments',    icon: DollarSign,     visible: canSeePayments },
-    ];
-    const visibleTabs = ALL_TABS.filter(t => t.visible);
-
     useEffect(() => {
         // Listen for navigation events from quick actions
         const handleNavigate = (event) => {
@@ -220,15 +187,22 @@ export default function HRManagementView() {
             {/* Header Tabs */}
             <div className="bg-white border-b border-slate-200 px-8 pt-6 shrink-0">
                 <div className="flex items-center gap-1">
-                    {visibleTabs.map(tab => (
+                    {[
+                        { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+                        { id: 'employees', label: 'Employees', icon: Users },
+                        { id: 'attendance', label: 'Attendance', icon: Calendar },
+                        { id: 'movements', label: 'Movements', icon: MapPin },
+                        { id: 'approvals', label: 'Approvals', icon: CheckSquare },
+                        { id: 'punctuality', label: 'Punctuality', icon: BarChart2 },
+                        { id: 'payments', label: 'Payments', icon: DollarSign },
+                    ].map(tab => (
                         <button
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
-                            className={`flex items-center gap-2 pb-3 px-4 border-b-2 transition-all ${
-                                activeTab === tab.id
-                                    ? 'border-blue-600 text-blue-600'
-                                    : 'border-transparent text-slate-500 hover:text-slate-700'
-                            }`}
+                            className={`flex items-center gap-2 pb-3 px-4 border-b-2 transition-all ${activeTab === tab.id
+                                ? 'border-blue-600 text-blue-600'
+                                : 'border-transparent text-slate-500 hover:text-slate-700'
+                                }`}
                         >
                             <tab.icon size={18} />
                             <span className="font-black text-xs uppercase tracking-wider">{tab.label}</span>
@@ -239,13 +213,13 @@ export default function HRManagementView() {
 
             {/* Content Area */}
             <div className="flex-1 overflow-y-auto p-8">
-                {activeTab === 'dashboard'   && <DashboardTab />}
-                {activeTab === 'employees'   && <EmployeesTab canAttendanceAdd={canAttendanceAdd} />}
-                {activeTab === 'attendance'  && <AttendanceTab />}
-                {activeTab === 'movements'   && <MovementsTab canMovementsAdd={canMovementsAdd} />}
-                {activeTab === 'approvals'   && <ApprovalsTab />}
+                {activeTab === 'dashboard' && <DashboardTab />}
+                {activeTab === 'employees' && <EmployeesTab />}
+                {activeTab === 'attendance' && <AttendanceTab />}
+                {activeTab === 'movements' && <MovementsTab />}
+                {activeTab === 'approvals' && <ApprovalsTab />}
                 {activeTab === 'punctuality' && <PunctualityTab />}
-                {activeTab === 'payments'    && <PaymentsTab />}
+                {activeTab === 'payments' && <PaymentsTab />}
             </div>
         </div>
     );
@@ -276,46 +250,46 @@ function DashboardTab() {
     if (loading) return <div className="text-center py-12">Loading...</div>;
     if (!stats) return <div className="text-center py-12">Failed to load dashboard</div>;
 
-    const attendancePercent = stats.total_employees > 0 
-        ? Math.round((stats.present_today / stats.total_employees) * 100) 
+    const attendancePercent = stats.total_employees > 0
+        ? Math.round((stats.present_today / stats.total_employees) * 100)
         : 0;
 
     return (
         <section className="space-y-6">
             <h2 className="text-2xl font-black text-slate-800">HR Dashboard</h2>
-            
+
             {/* Row 1: Main Stats */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <StatCard 
-                    title="Total Employees" 
-                    value={stats.total_employees} 
-                    subtitle="Active workforce" 
-                    icon={Users} 
+                <StatCard
+                    title="Total Employees"
+                    value={stats.total_employees}
+                    subtitle="Active workforce"
+                    icon={Users}
                     iconColor="text-indigo-600 bg-indigo-50 p-1.5 rounded-lg"
                     valueColor="text-slate-800"
                 />
-                <StatCard 
-                    title="Present Today" 
-                    value={stats.present_today} 
+                <StatCard
+                    title="Present Today"
+                    value={stats.present_today}
                     subtitle={`${attendancePercent}% attendance`}
-                    icon={CheckSquare} 
+                    icon={CheckSquare}
                     iconColor="text-emerald-500 bg-emerald-50 p-1.5 rounded-lg"
                     valueColor="text-slate-800"
                 />
-                <StatCard 
-                    title="Late Today" 
-                    value={stats.late_today} 
-                    subtitle="After grace period" 
-                    icon={AlertCircle} 
+                <StatCard
+                    title="Late Today"
+                    value={stats.late_today}
+                    subtitle="After grace period"
+                    icon={AlertCircle}
                     iconColor="text-amber-500 bg-amber-50 p-1.5 rounded-lg"
                     valueColor="text-amber-500"
                     borderColor="border-amber-400"
                 />
-                <StatCard 
-                    title="Absent Today" 
-                    value={stats.absent_today} 
-                    subtitle="No check-in" 
-                    icon={XCircle} 
+                <StatCard
+                    title="Absent Today"
+                    value={stats.absent_today}
+                    subtitle="No check-in"
+                    icon={XCircle}
                     iconColor="text-rose-500 bg-rose-50 p-1.5 rounded-lg"
                     valueColor="text-rose-500"
                     borderColor="border-rose-400"
@@ -324,35 +298,35 @@ function DashboardTab() {
 
             {/* Row 2: Financial & Movements */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <StatCard 
-                    title="Salaries Paid (Month)" 
-                    value={pkr(stats.salaries_paid_this_month)} 
-                    subtitle="Successfully processed" 
-                    icon={BadgeDollarSign} 
+                <StatCard
+                    title="Salaries Paid (Month)"
+                    value={pkr(stats.salaries_paid_this_month)}
+                    subtitle="Successfully processed"
+                    icon={BadgeDollarSign}
                     iconColor="text-amber-600 bg-amber-50 p-1.5 rounded-lg"
                     valueColor="text-emerald-500"
                 />
-                <StatCard 
-                    title="Pending Salaries" 
-                    value={pkr(stats.pending_salaries)} 
-                    subtitle="Due this month" 
-                    icon={Clock} 
+                <StatCard
+                    title="Pending Salaries"
+                    value={pkr(stats.pending_salaries)}
+                    subtitle="Due this month"
+                    icon={Clock}
                     iconColor="text-slate-400 bg-slate-100 p-1.5 rounded-lg"
                     valueColor="text-amber-500"
                 />
-                <StatCard 
-                    title="Total Commissions" 
-                    value={pkr(stats.total_commissions_this_month || 0)} 
-                    subtitle="This month" 
-                    icon={BadgeDollarSign} 
+                <StatCard
+                    title="Total Commissions"
+                    value={pkr(stats.total_commissions_this_month || 0)}
+                    subtitle="This month"
+                    icon={BadgeDollarSign}
                     iconColor="text-emerald-500 bg-emerald-50 p-1.5 rounded-lg"
                     valueColor="text-cyan-500"
                 />
-                <StatCard 
-                    title="Total Movements" 
-                    value={stats.total_movements_today || 0} 
-                    subtitle="Today" 
-                    icon={PersonStanding} 
+                <StatCard
+                    title="Total Movements"
+                    value={stats.total_movements_today || 0}
+                    subtitle="Today"
+                    icon={PersonStanding}
                     iconColor="text-rose-500 bg-rose-50 p-1.5 rounded-lg"
                     valueColor="text-slate-800"
                 />
@@ -360,29 +334,29 @@ function DashboardTab() {
 
             {/* Row 3: Metrics */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                <StatCard 
-                    title="Avg Check-in Time" 
-                    value={stats.avg_checkin_time || '--:--'} 
-                    subtitle="Company wide average" 
-                    icon={AlarmClock} 
+                <StatCard
+                    title="Avg Check-in Time"
+                    value={stats.avg_checkin_time || '--:--'}
+                    subtitle="Company wide average"
+                    icon={AlarmClock}
                     iconColor="text-rose-400 bg-rose-50 p-1.5 rounded-lg"
                 />
-                <StatCard 
-                    title="Pending Approvals" 
-                    value={stats.pending_leave_requests} 
-                    subtitle="Requires attention" 
-                    icon={ClipboardList} 
+                <StatCard
+                    title="Pending Approvals"
+                    value={stats.pending_leave_requests}
+                    subtitle="Requires attention"
+                    icon={ClipboardList}
                     iconColor="text-amber-600 bg-amber-50 p-1.5 rounded-lg"
                     valueColor="text-blue-500"
                     borderColor="border-blue-400"
                 />
-                
+
                 {/* Punctuality Score Card */}
                 <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
                     <p className="text-xs font-bold text-slate-600 mb-4">Punctuality Score</p>
                     <div className="w-full bg-slate-100 rounded-full h-6 mb-2 relative overflow-hidden">
-                        <div 
-                            className="bg-emerald-600 h-6 rounded-full flex items-center justify-center transition-all duration-500" 
+                        <div
+                            className="bg-emerald-600 h-6 rounded-full flex items-center justify-center transition-all duration-500"
                             style={{ width: `${stats.punctuality_score || 0}%` }}
                         >
                             <span className="text-[10px] font-bold text-white tracking-widest">
@@ -396,33 +370,71 @@ function DashboardTab() {
 
             {/* Row 4: Complex Areas */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 pb-8">
-                
+
                 {/* Recent Activity (Spans 2 columns) */}
                 <div className="lg:col-span-2 bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col min-h-[300px]">
                     <p className="text-xs font-bold text-slate-600 mb-4">Recent Activity</p>
-                    <div className="flex-1 flex flex-col items-center justify-center text-center">
-                        <div className="bg-amber-50 p-3 rounded-full mb-3">
-                            <ClipboardList size={24} className="text-amber-600/50" />
+
+                    {stats.recent_activities && stats.recent_activities.length > 0 ? (
+                        <div className="flex-1 flex flex-col gap-3">
+                            {stats.recent_activities.map((activity, i) => (
+                                <div key={i} className="flex items-start gap-3 p-3 rounded-xl border border-slate-100 hover:bg-slate-50 transition-colors">
+                                    <div className={`p-2 rounded-lg ${activity.type === 'attendance' ? 'bg-blue-50 text-blue-600' :
+                                        activity.type === 'movement' ? 'bg-purple-50 text-purple-600' :
+                                            'bg-amber-50 text-amber-600'
+                                        }`}>
+                                        {activity.type === 'attendance' ? <Calendar size={16} /> :
+                                            activity.type === 'movement' ? <PersonStanding size={16} /> :
+                                                <ClipboardList size={16} />}
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="text-xs font-bold text-slate-800">{activity.emp_name || activity.emp_id}</p>
+                                        <p className="text-[11px] text-slate-500 font-medium">{activity.action}</p>
+                                    </div>
+                                    <span className="text-[10px] font-bold text-slate-400">
+                                        {activity.time ? new Date(activity.time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : ''}
+                                    </span>
+                                </div>
+                            ))}
                         </div>
-                        <p className="text-sm font-bold text-slate-700">No recent activity</p>
-                        <p className="text-[11px] font-medium text-slate-400 mt-1">Check-ins, movements, and approvals will appear here</p>
-                    </div>
+                    ) : (
+                        <div className="flex-1 flex flex-col items-center justify-center text-center">
+                            <div className="bg-amber-50 p-3 rounded-full mb-3">
+                                <ClipboardList size={24} className="text-amber-600/50" />
+                            </div>
+                            <p className="text-sm font-bold text-slate-700">No recent activity</p>
+                            <p className="text-[11px] font-medium text-slate-400 mt-1">Check-ins, movements, and approvals will appear here</p>
+                        </div>
+                    )}
                 </div>
 
                 {/* Right Side Column (Notifications & Quick Actions) */}
                 <div className="flex flex-col gap-4">
-                    
+
                     {/* Notifications */}
                     <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex-1">
-                        <p className="text-xs font-bold text-slate-600 mb-4">Notifications</p>
-                        {stats.pending_leave_requests > 0 ? (
-                            <div className="text-xs text-slate-600">
-                                <span className="inline-flex items-center px-2 py-1 rounded-lg bg-amber-50 text-amber-700 font-bold">
-                                    {stats.pending_leave_requests} pending approval{stats.pending_leave_requests > 1 ? 's' : ''}
-                                </span>
+                        <p className="text-xs font-bold text-slate-600 mb-4">Approval Notifications</p>
+
+                        {stats.approval_notifications && stats.approval_notifications.length > 0 ? (
+                            <div className="space-y-3">
+                                {stats.approval_notifications.map(req => (
+                                    <div
+                                        key={req._id}
+                                        onClick={() => window.dispatchEvent(new CustomEvent('navigate-hr-tab', { detail: 'approvals' }))}
+                                        className="cursor-pointer group flex items-start gap-3 p-3 rounded-xl bg-orange-50 border border-orange-100 hover:bg-orange-100 transition-colors"
+                                    >
+                                        <div className="p-1.5 bg-orange-200 text-orange-700 rounded-lg">
+                                            <AlertCircle size={14} />
+                                        </div>
+                                        <div>
+                                            <p className="text-[11px] font-bold text-orange-800">New {req.request_type.replace('_', ' ')} logic</p>
+                                            <p className="text-[10px] text-orange-600/80 font-medium">{req.emp_name}</p>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         ) : (
-                            <p className="text-[11px] font-medium text-slate-400">No pending notifications</p>
+                            <p className="text-[11px] font-medium text-slate-400 text-center py-4">No pending approvals</p>
                         )}
                     </div>
 
@@ -430,31 +442,31 @@ function DashboardTab() {
                     <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
                         <p className="text-xs font-bold text-slate-600 mb-4">Quick Actions</p>
                         <div className="space-y-2">
-                            <button 
+                            <button
                                 onClick={() => window.dispatchEvent(new CustomEvent('navigate-hr-tab', { detail: 'employees' }))}
                                 className="w-full py-2 bg-white border border-blue-400 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-50 transition-colors flex items-center justify-center gap-2"
                             >
                                 <Users size={14} /> View All Employees
                             </button>
-                            <button 
+                            <button
                                 onClick={() => window.dispatchEvent(new CustomEvent('navigate-hr-tab', { detail: 'attendance' }))}
                                 className="w-full py-2 bg-white border border-blue-400 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-50 transition-colors flex items-center justify-center gap-2"
                             >
                                 <Calendar size={14} /> Open Attendance
                             </button>
-                            <button 
+                            <button
                                 onClick={() => window.dispatchEvent(new CustomEvent('navigate-hr-tab', { detail: 'movements' }))}
                                 className="w-full py-2 bg-white border border-blue-400 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-50 transition-colors flex items-center justify-center gap-2"
                             >
                                 <PersonStanding size={14} /> Track Movements
                             </button>
-                            <button 
+                            <button
                                 onClick={() => window.dispatchEvent(new CustomEvent('navigate-hr-tab', { detail: 'payments' }))}
                                 className="w-full py-2 bg-white border border-emerald-500 text-emerald-600 rounded-lg text-xs font-bold hover:bg-emerald-50 transition-colors flex items-center justify-center gap-2"
                             >
                                 <BadgeDollarSign size={14} /> Manage Payments
                             </button>
-                            <button 
+                            <button
                                 onClick={() => window.dispatchEvent(new CustomEvent('navigate-hr-tab', { detail: 'approvals' }))}
                                 className="w-full py-2 bg-white border border-amber-400 text-amber-500 rounded-lg text-xs font-bold hover:bg-amber-50 transition-colors flex items-center justify-center gap-2"
                             >
@@ -471,7 +483,7 @@ function DashboardTab() {
 }
 
 // ② Employees ────────────────────────────────────────────────────────────────
-function EmployeesTab({ canAttendanceAdd = false }) {
+function EmployeesTab() {
     const [employees, setEmployees] = useState([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
@@ -522,7 +534,7 @@ function EmployeesTab({ canAttendanceAdd = false }) {
     const handleCheckOut = async (emp) => {
         try {
             const result = await hrService.checkOut(emp.emp_id, null, checkOutReason || null);
-            
+
             // Check if approval is required/pending
             if (result.status === 'approval_required') {
                 alert(`✓ Early checkout request submitted for approval!\n\n${result.message}\n\nPlease wait for manager approval.`);
@@ -546,7 +558,7 @@ function EmployeesTab({ canAttendanceAdd = false }) {
                 // Extract minutes from error message
                 const minutesMatch = error.message.match(/(\d+)\s*min\s*early/);
                 const minutes = minutesMatch ? minutesMatch[1] : 'several';
-                
+
                 // Show custom modal to enter reason
                 setEarlyCheckoutInfo({ employee: emp, minutes: minutes });
                 setEarlyCheckoutReasonInput('');
@@ -631,14 +643,14 @@ function EmployeesTab({ canAttendanceAdd = false }) {
     };
 
     const filteredEmployees = useMemo(() => employees.filter(e => {
-        const matchSearch = !search || 
+        const matchSearch = !search ||
             (e.full_name || e.name || '').toLowerCase().includes(search.toLowerCase()) ||
             (e.emp_id || '').toLowerCase().includes(search.toLowerCase());
         return matchSearch;
     }), [employees, search]);
 
     if (loading) return <div className="text-center py-12">Loading...</div>;
-    
+
     if (viewingEmployee) {
         return <EmployeeProfileView employee={viewingEmployee} onBack={() => setViewingEmployee(null)} onRefresh={loadEmployees} />;
     }
@@ -647,16 +659,15 @@ function EmployeesTab({ canAttendanceAdd = false }) {
         <section>
             <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-black text-slate-800">Employees</h2>
-                {canAttendanceAdd && (
                 <div className="flex gap-2">
-                    <button 
+                    <button
                         onClick={() => setShowCheckInModal(true)}
                         className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl text-sm font-black transition-all"
                     >
                         <Plus size={16} className="inline mr-1" />
                         Check In
                     </button>
-                    <button 
+                    <button
                         onClick={() => setShowCheckOutModal(true)}
                         className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-black transition-all"
                     >
@@ -664,7 +675,6 @@ function EmployeesTab({ canAttendanceAdd = false }) {
                         Check Out
                     </button>
                 </div>
-                )}
             </div>
 
             <Toolbar search={search} setSearch={setSearch} placeholder="Search employees...">
@@ -693,9 +703,9 @@ function EmployeesTab({ canAttendanceAdd = false }) {
                         <Td><span className="text-xs font-bold text-slate-600">{e.phone || '—'}</span></Td>
                         <Td><span className="text-xs font-black text-slate-800">{pkr(e.base_salary || e.salary || 0)}</span></Td>
                         <Td><span className="text-xs font-bold text-slate-500">{formatDate(e.join_date)}</span></Td>
-                        <Td>{statusBadge(e.is_active ? 'active' : 'inactive', { 
-                            active: { label: 'Active', cls: 'bg-green-100 text-green-700' }, 
-                            inactive: { label: 'Inactive', cls: 'bg-red-100 text-red-600' } 
+                        <Td>{statusBadge(e.is_active ? 'active' : 'inactive', {
+                            active: { label: 'Active', cls: 'bg-green-100 text-green-700' },
+                            inactive: { label: 'Inactive', cls: 'bg-red-100 text-red-600' }
                         })}</Td>
                         <Td>
                             <div className="relative">
@@ -748,8 +758,8 @@ function EmployeesTab({ canAttendanceAdd = false }) {
             {/* Check In Modal */}
             <Modal isOpen={showCheckInModal} onClose={() => setShowCheckInModal(false)} title="Check In Employee">
                 <div className="space-y-4">
-                    <Select 
-                        value={selectedEmployee?.emp_id || ''} 
+                    <Select
+                        value={selectedEmployee?.emp_id || ''}
                         onChange={(empId) => setSelectedEmployee(employees.find(e => e.emp_id === empId))}
                         label="Select Employee"
                         options={employees.map(e => ({ value: e.emp_id, label: `${e.full_name || e.name} (${e.emp_id})` }))}
@@ -768,8 +778,8 @@ function EmployeesTab({ canAttendanceAdd = false }) {
             {/* Check Out Modal */}
             <Modal isOpen={showCheckOutModal} onClose={() => { setShowCheckOutModal(false); setCheckOutReason(''); }} title="Check Out Employee">
                 <div className="space-y-4">
-                    <Select 
-                        value={selectedEmployee?.emp_id || ''} 
+                    <Select
+                        value={selectedEmployee?.emp_id || ''}
                         onChange={(empId) => setSelectedEmployee(employees.find(e => e.emp_id === empId))}
                         label="Select Employee"
                         options={employees.map(e => ({ value: e.emp_id, label: `${e.full_name || e.name} (${e.emp_id})` }))}
@@ -803,9 +813,9 @@ function EmployeesTab({ canAttendanceAdd = false }) {
             </Modal>
 
             {/* Early Checkout Reason Modal */}
-            <Modal 
-                isOpen={showEarlyCheckoutReasonModal} 
-                onClose={() => { setShowEarlyCheckoutReasonModal(false); setEarlyCheckoutReasonInput(''); }} 
+            <Modal
+                isOpen={showEarlyCheckoutReasonModal}
+                onClose={() => { setShowEarlyCheckoutReasonModal(false); setEarlyCheckoutReasonInput(''); }}
                 title="Early Checkout Detected"
             >
                 <div className="space-y-4">
@@ -866,7 +876,7 @@ function EmployeesTab({ canAttendanceAdd = false }) {
                         <input
                             type="number"
                             value={editFormData.base_salary || 0}
-                            onChange={(e) => setEditFormData({...editFormData, base_salary: e.target.value})}
+                            onChange={(e) => setEditFormData({ ...editFormData, base_salary: e.target.value })}
                             className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         />
                     </div>
@@ -897,7 +907,7 @@ function EmployeesTab({ canAttendanceAdd = false }) {
                         <input
                             type="time"
                             value={editFormData.office_check_in_time || '09:00'}
-                            onChange={(e) => setEditFormData({...editFormData, office_check_in_time: e.target.value})}
+                            onChange={(e) => setEditFormData({ ...editFormData, office_check_in_time: e.target.value })}
                             className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         />
                     </div>
@@ -906,7 +916,7 @@ function EmployeesTab({ canAttendanceAdd = false }) {
                         <input
                             type="time"
                             value={editFormData.office_check_out_time || '18:00'}
-                            onChange={(e) => setEditFormData({...editFormData, office_check_out_time: e.target.value})}
+                            onChange={(e) => setEditFormData({ ...editFormData, office_check_out_time: e.target.value })}
                             className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         />
                     </div>
@@ -915,7 +925,7 @@ function EmployeesTab({ canAttendanceAdd = false }) {
                         <input
                             type="number"
                             value={editFormData.grace_period_minutes || 15}
-                            onChange={(e) => setEditFormData({...editFormData, grace_period_minutes: e.target.value})}
+                            onChange={(e) => setEditFormData({ ...editFormData, grace_period_minutes: e.target.value })}
                             className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         />
                     </div>
@@ -936,7 +946,7 @@ function EmployeesTab({ canAttendanceAdd = false }) {
                         <input
                             type="text"
                             value={editFormData.full_name || ''}
-                            onChange={(e) => setEditFormData({...editFormData, full_name: e.target.value})}
+                            onChange={(e) => setEditFormData({ ...editFormData, full_name: e.target.value })}
                             className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         />
                     </div>
@@ -946,7 +956,7 @@ function EmployeesTab({ canAttendanceAdd = false }) {
                             <input
                                 type="email"
                                 value={editFormData.email || ''}
-                                onChange={(e) => setEditFormData({...editFormData, email: e.target.value})}
+                                onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
                                 className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                             />
                         </div>
@@ -955,7 +965,7 @@ function EmployeesTab({ canAttendanceAdd = false }) {
                             <input
                                 type="text"
                                 value={editFormData.phone || ''}
-                                onChange={(e) => setEditFormData({...editFormData, phone: e.target.value})}
+                                onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
                                 className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                             />
                         </div>
@@ -966,7 +976,7 @@ function EmployeesTab({ canAttendanceAdd = false }) {
                             <input
                                 type="text"
                                 value={editFormData.department || ''}
-                                onChange={(e) => setEditFormData({...editFormData, department: e.target.value})}
+                                onChange={(e) => setEditFormData({ ...editFormData, department: e.target.value })}
                                 className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                             />
                         </div>
@@ -975,7 +985,7 @@ function EmployeesTab({ canAttendanceAdd = false }) {
                             <input
                                 type="text"
                                 value={editFormData.designation || ''}
-                                onChange={(e) => setEditFormData({...editFormData, designation: e.target.value})}
+                                onChange={(e) => setEditFormData({ ...editFormData, designation: e.target.value })}
                                 className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                             />
                         </div>
@@ -985,7 +995,7 @@ function EmployeesTab({ canAttendanceAdd = false }) {
                         <input
                             type="text"
                             value={editFormData.cnic || ''}
-                            onChange={(e) => setEditFormData({...editFormData, cnic: e.target.value})}
+                            onChange={(e) => setEditFormData({ ...editFormData, cnic: e.target.value })}
                             className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                             placeholder="12345-1234567-1"
                         />
@@ -994,7 +1004,7 @@ function EmployeesTab({ canAttendanceAdd = false }) {
                         <label className="block text-xs font-bold text-slate-600 mb-1">Address</label>
                         <textarea
                             value={editFormData.address || ''}
-                            onChange={(e) => setEditFormData({...editFormData, address: e.target.value})}
+                            onChange={(e) => setEditFormData({ ...editFormData, address: e.target.value })}
                             className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                             rows="2"
                         />
@@ -1013,47 +1023,79 @@ function EmployeesTab({ canAttendanceAdd = false }) {
 
 // ③ Attendance ─────────────────────────────────────────────────────────────────
 function AttendanceTab() {
+    const todayStr = new Date().toISOString().split('T')[0];
     const [attendance, setAttendance] = useState([]);
+    const [employees, setEmployees] = useState([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('');
-    const [dateFilter, setDateFilter] = useState(new Date().toISOString().split('T')[0]);
+    const [dateFilter, setDateFilter] = useState(todayStr);
 
     useEffect(() => {
         loadAttendance();
     }, [statusFilter, dateFilter]);
+
+    useEffect(() => {
+        hrService.getEmployees().then(setEmployees).catch(console.error);
+    }, []);
+
+    const empMap = useMemo(() => {
+        const m = {};
+        employees.forEach(e => { m[e.emp_id] = e.full_name || e.name || e.emp_id; });
+        return m;
+    }, [employees]);
 
     const loadAttendance = async () => {
         try {
             setLoading(true);
             const filters = {};
             if (statusFilter) filters.status = statusFilter;
-            if (dateFilter) {
-                filters.start_date = dateFilter;
-                filters.end_date = dateFilter;
-            }
+            // Always send today if no date picked
+            const d = dateFilter || todayStr;
+            filters.start_date = d;
+            filters.end_date = d;
             const data = await hrService.getAttendance(filters);
-            setAttendance(data);
+            setAttendance(Array.isArray(data) ? data : []);
         } catch (error) {
             console.error('Failed to load attendance:', error);
+            setAttendance([]);
         } finally {
             setLoading(false);
         }
     };
 
     const filteredAttendance = useMemo(() => attendance.filter(a => {
-        const matchSearch = !search || 
+        const name = empMap[a.emp_id] || a.emp_id || '';
+        return !search || name.toLowerCase().includes(search.toLowerCase()) ||
             (a.emp_id || '').toLowerCase().includes(search.toLowerCase());
-        return matchSearch;
-    }), [attendance, search]);
+    }), [attendance, search, empMap]);
 
-    if (loading) return <div className="text-center py-12">Loading...</div>;
+    if (loading) return <div className="text-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-3" /><p className="text-sm text-slate-500">Loading attendance…</p></div>;
 
     return (
         <section>
-            <h2 className="text-2xl font-black text-slate-800 mb-6">Attendance</h2>
+            <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-black text-slate-800">Attendance</h2>
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => setDateFilter(todayStr)}
+                        className={`px-4 py-2 rounded-xl text-xs font-black transition-all ${dateFilter === todayStr ? 'bg-blue-600 text-white shadow-md shadow-blue-200' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                    >
+                        Today
+                    </button>
+                    <input
+                        type="date"
+                        value={dateFilter}
+                        onChange={e => setDateFilter(e.target.value)}
+                        className="px-3 py-2 bg-slate-50 border border-slate-100 rounded-xl text-xs font-black text-slate-600 outline-none focus:ring-2 focus:ring-blue-100"
+                    />
+                    <button onClick={loadAttendance} className="p-2 hover:bg-slate-100 rounded-xl transition-colors" title="Refresh">
+                        <RefreshCw size={16} className="text-slate-500" />
+                    </button>
+                </div>
+            </div>
 
-            <Toolbar search={search} setSearch={setSearch} placeholder="Search by employee ID...">
+            <Toolbar search={search} setSearch={setSearch} placeholder="Search by name or employee ID…">
                 <Select value={statusFilter} onChange={setStatusFilter} label="All Status"
                     options={[
                         { value: 'on_time', label: 'On Time' },
@@ -1062,32 +1104,37 @@ function AttendanceTab() {
                         { value: 'absent', label: 'Absent' },
                         { value: 'half_day', label: 'Half Day' }
                     ]} />
-                <input 
-                    type="date" 
-                    value={dateFilter} 
-                    onChange={e => setDateFilter(e.target.value)}
-                    className="px-3 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-xs font-black text-slate-600 outline-none focus:ring-2 focus:ring-blue-100" 
-                />
             </Toolbar>
 
-            <Table cols={['Employee', 'Date', 'Check In', 'Check Out', 'Hours', 'Status']}>
-                {filteredAttendance.map(a => (
-                    <tr key={a._id} className="hover:bg-slate-50/50 transition-colors">
-                        <Td><span className="font-bold text-slate-800 text-xs">{a.emp_id}</span></Td>
-                        <Td><span className="text-xs font-bold text-slate-600">{formatDate(a.date)}</span></Td>
-                        <Td><span className={`text-xs font-black ${a.check_in ? 'text-green-600' : 'text-slate-400'}`}>{formatTime(a.check_in)}</span></Td>
-                        <Td><span className={`text-xs font-black ${a.check_out ? 'text-blue-600' : 'text-slate-400'}`}>{formatTime(a.check_out)}</span></Td>
-                        <Td><span className="text-xs font-bold text-slate-600">{a.working_hours ? `${a.working_hours.toFixed(1)}h` : '—'}</span></Td>
-                        <Td>{statusBadge(a.status, ATTEND_STATUS_MAP)}</Td>
-                    </tr>
-                ))}
-            </Table>
+            {filteredAttendance.length === 0 ? (
+                <div className="text-center py-16 bg-white rounded-2xl border border-slate-200">
+                    <Calendar size={40} className="mx-auto text-slate-300 mb-3" />
+                    <p className="text-sm font-black text-slate-600">No attendance records for {dateFilter === todayStr ? 'today' : dateFilter}</p>
+                    <p className="text-xs text-slate-400 mt-1">Records appear here when employees check in</p>
+                </div>
+            ) : (
+                <Table cols={['Employee', 'Emp ID', 'Date', 'Check In', 'Check Out', 'Hours', 'Status']}>
+                    {filteredAttendance.map(a => (
+                        <tr key={a._id} className="hover:bg-slate-50/50 transition-colors">
+                            <Td><span className="font-black text-slate-800 text-xs">{empMap[a.emp_id] || a.emp_id}</span></Td>
+                            <Td><span className="text-[10px] font-bold text-slate-400">{a.emp_id}</span></Td>
+                            <Td><span className="text-xs font-bold text-slate-600">{formatDate(a.date)}</span></Td>
+                            <Td><span className={`text-xs font-black ${a.check_in ? 'text-green-600' : 'text-slate-400'}`}>{formatTime(a.check_in)}</span></Td>
+                            <Td><span className={`text-xs font-black ${a.check_out ? 'text-blue-600' : 'text-slate-400'}`}>{formatTime(a.check_out)}</span></Td>
+                            <Td><span className="text-xs font-bold text-slate-600">{a.working_hours ? `${a.working_hours.toFixed(1)}h` : '—'}</span></Td>
+                            <Td>{statusBadge(a.status, ATTEND_STATUS_MAP)}</Td>
+                        </tr>
+                    ))}
+                </Table>
+            )}
         </section>
     );
 }
 
+
+
 // ④ Movements ─────────────────────────────────────────────────────────────────
-function MovementsTab({ canMovementsAdd = false }) {
+function MovementsTab() {
     const [movements, setMovements] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchMovements, setSearchMovements] = useState('');
@@ -1166,7 +1213,7 @@ function MovementsTab({ canMovementsAdd = false }) {
         const end = new Date(endTime);
         const diffMs = end - start;
         const diffMins = Math.floor(diffMs / 60000);
-        
+
         if (diffMins < 60) return `${diffMins}m`;
         const hours = Math.floor(diffMins / 60);
         const mins = diffMins % 60;
@@ -1174,7 +1221,7 @@ function MovementsTab({ canMovementsAdd = false }) {
     };
 
     const filteredMovements = useMemo(() => movements.filter(m => {
-        const matchSearch = !searchMovements || 
+        const matchSearch = !searchMovements ||
             (m.emp_id || '').toLowerCase().includes(searchMovements.toLowerCase()) ||
             (m.employee?.full_name || m.employee?.name || '').toLowerCase().includes(searchMovements.toLowerCase()) ||
             (m.employee?.phone || '').includes(searchMovements);
@@ -1182,7 +1229,7 @@ function MovementsTab({ canMovementsAdd = false }) {
     }), [movements, searchMovements]);
 
     const filteredEmployees = useMemo(() => employees.filter(e => {
-        const matchSearch = !searchEmployees || 
+        const matchSearch = !searchEmployees ||
             (e.emp_id || '').toLowerCase().includes(searchEmployees.toLowerCase()) ||
             (e.full_name || e.name || '').toLowerCase().includes(searchEmployees.toLowerCase()) ||
             (e.phone || '').includes(searchEmployees);
@@ -1203,16 +1250,16 @@ function MovementsTab({ canMovementsAdd = false }) {
                 {/* Filters for Movement Logs */}
                 <div className="flex flex-col sm:flex-row gap-4 mb-6">
                     <div className="relative w-full sm:w-80">
-                        <input 
-                            type="text" 
-                            placeholder="Search by ID, name, or phone..." 
+                        <input
+                            type="text"
+                            placeholder="Search by ID, name, or phone..."
                             value={searchMovements}
                             onChange={e => setSearchMovements(e.target.value)}
                             className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-600 placeholder:text-slate-400 shadow-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-all"
                         />
                     </div>
                     <div className="relative w-full sm:w-48">
-                        <select 
+                        <select
                             value={statusFilter}
                             onChange={e => setStatusFilter(e.target.value)}
                             className="w-full pl-4 pr-10 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-600 shadow-sm appearance-none cursor-pointer focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-all"
@@ -1224,7 +1271,7 @@ function MovementsTab({ canMovementsAdd = false }) {
                         <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
                     </div>
                     {(searchMovements || statusFilter) && (
-                        <button 
+                        <button
                             onClick={() => {
                                 setSearchMovements('');
                                 setStatusFilter('');
@@ -1271,16 +1318,12 @@ function MovementsTab({ canMovementsAdd = false }) {
                                             <td className="px-6 py-4">{m.reason}</td>
                                             <td className="px-6 py-4 text-right">
                                                 {m.status === 'active' ? (
-                                                    canMovementsAdd ? (
-                                                    <button 
+                                                    <button
                                                         onClick={() => handleEndMovement(m._id)}
                                                         className="px-4 py-1.5 border border-rose-500 text-rose-500 rounded-lg text-xs font-bold hover:bg-rose-50 transition-colors"
                                                     >
                                                         End Movement
                                                     </button>
-                                                    ) : (
-                                                    <span className="text-slate-500 font-medium">Active</span>
-                                                    )
                                                 ) : (
                                                     <span className="text-slate-500 font-medium">Completed</span>
                                                 )}
@@ -1295,7 +1338,7 @@ function MovementsTab({ canMovementsAdd = false }) {
             </div>
 
             {/* Start Movement Section */}
-            {canMovementsAdd && <div>
+            <div>
                 <div className="mb-4">
                     <h2 className="text-base font-extrabold text-slate-800">Start Movement for Employees</h2>
                 </div>
@@ -1303,9 +1346,9 @@ function MovementsTab({ canMovementsAdd = false }) {
                 {/* Search for Employees */}
                 <div className="mb-6">
                     <div className="relative w-full sm:w-80">
-                        <input 
-                            type="text" 
-                            placeholder="Search by ID, name, or phone..." 
+                        <input
+                            type="text"
+                            placeholder="Search by ID, name, or phone..."
                             value={searchEmployees}
                             onChange={e => setSearchEmployees(e.target.value)}
                             className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-600 placeholder:text-slate-400 shadow-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-all"
@@ -1341,7 +1384,7 @@ function MovementsTab({ canMovementsAdd = false }) {
                                             <td className="px-6 py-4 uppercase">{e.designation || e.role || '—'}</td>
                                             <td className="px-6 py-4">{e.phone || '—'}</td>
                                             <td className="px-6 py-4 text-right">
-                                                <button 
+                                                <button
                                                     onClick={() => handleOpenStartModal(e)}
                                                     className="px-4 py-1.5 border border-blue-600 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-50 transition-colors"
                                                 >
@@ -1355,7 +1398,7 @@ function MovementsTab({ canMovementsAdd = false }) {
                         </table>
                     </div>
                 </div>
-            </div>}
+            </div>
 
             {/* Start Movement Modal */}
             <Modal isOpen={showReasonModal} onClose={() => setShowReasonModal(false)} title="Start Movement" size="sm">
@@ -1470,11 +1513,10 @@ function ApprovalsTab() {
                                 </div>
                             </Td>
                             <Td>
-                                <span className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase ${
-                                    r.request_type === 'early_checkout' 
-                                        ? 'bg-orange-100 text-orange-700' 
-                                        : 'bg-blue-100 text-blue-700'
-                                }`}>
+                                <span className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase ${r.request_type === 'early_checkout'
+                                    ? 'bg-orange-100 text-orange-700'
+                                    : 'bg-blue-100 text-blue-700'
+                                    }`}>
                                     {r.request_type.replace('_', ' ')}
                                 </span>
                             </Td>
@@ -1642,31 +1684,28 @@ function PaymentsTab() {
             <div className="flex flex-wrap items-center gap-4 mb-6">
                 <button
                     onClick={() => setActiveSubTab('salaries')}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold transition-all border ${
-                        activeSubTab === 'salaries'
-                            ? 'bg-slate-100 text-slate-800 border-slate-200'
-                            : 'text-blue-500 hover:bg-blue-50 border-transparent'
-                    }`}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold transition-all border ${activeSubTab === 'salaries'
+                        ? 'bg-slate-100 text-slate-800 border-slate-200'
+                        : 'text-blue-500 hover:bg-blue-50 border-transparent'
+                        }`}
                 >
                     💰 Salaries
                 </button>
                 <button
                     onClick={() => setActiveSubTab('commissions')}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold transition-all border ${
-                        activeSubTab === 'commissions'
-                            ? 'bg-slate-100 text-slate-800 border-slate-200'
-                            : 'text-blue-500 hover:bg-blue-50 border-transparent'
-                    }`}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold transition-all border ${activeSubTab === 'commissions'
+                        ? 'bg-slate-100 text-slate-800 border-slate-200'
+                        : 'text-blue-500 hover:bg-blue-50 border-transparent'
+                        }`}
                 >
                     💵 Commissions
                 </button>
                 <button
                     onClick={() => setActiveSubTab('history')}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold transition-all border ${
-                        activeSubTab === 'history'
-                            ? 'bg-slate-100 text-slate-800 border-slate-200'
-                            : 'text-blue-500 hover:bg-blue-50 border-transparent'
-                    }`}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold transition-all border ${activeSubTab === 'history'
+                        ? 'bg-slate-100 text-slate-800 border-slate-200'
+                        : 'text-blue-500 hover:bg-blue-50 border-transparent'
+                        }`}
                 >
                     📊 Salary History
                 </button>
@@ -1842,11 +1881,11 @@ function PaymentsTab() {
                                                     </td>
                                                     <td className="px-6 py-4">
                                                         <span className="text-xs text-slate-600">
-                                                            {salary.actual_payment_date 
+                                                            {salary.actual_payment_date
                                                                 ? formatDate(salary.actual_payment_date)
                                                                 : salary.status === 'pending'
-                                                                ? `Due: ${formatDate(salary.expected_payment_date)}`
-                                                                : '—'
+                                                                    ? `Due: ${formatDate(salary.expected_payment_date)}`
+                                                                    : '—'
                                                             }
                                                         </span>
                                                         {salary.status === 'paid' && salary.days_late > 0 && (
@@ -1869,7 +1908,7 @@ function PaymentsTab() {
             {activeSubTab === 'commissions' && (
                 <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6 min-h-100">
                     <h3 className="text-lg font-black text-slate-800 mb-6">My Commissions</h3>
-                    
+
                     {/* Commission Stats Cards */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                         {/* Total Earned */}
@@ -1877,20 +1916,20 @@ function PaymentsTab() {
                             <p className="text-sm font-bold text-slate-500 mb-2">Total Earned</p>
                             <p className="text-2xl font-black text-slate-800">PKR 0</p>
                         </div>
-                        
+
                         {/* Paid */}
                         <div className="bg-emerald-600 p-6 rounded-2xl">
                             <p className="text-sm font-bold text-white/80 mb-2">Paid</p>
                             <p className="text-2xl font-black text-white">PKR 0</p>
                         </div>
-                        
+
                         {/* Unpaid */}
                         <div className="bg-amber-400 p-6 rounded-2xl">
                             <p className="text-sm font-bold text-amber-900/70 mb-2">Unpaid</p>
                             <p className="text-2xl font-black text-amber-900">PKR 0</p>
                         </div>
                     </div>
-                    
+
                     {/* Empty State */}
                     <div className="flex items-center justify-center py-16 text-center">
                         <p className="text-sm font-medium text-slate-500">No commission records found</p>
@@ -1963,12 +2002,12 @@ function PunctualityTab() {
         const today = new Date();
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(today.getDate() - 30);
-        
+
         setStartDate(thirtyDaysAgo.toISOString().split('T')[0]);
         setEndDate(today.toISOString().split('T')[0]);
         setEmpFilter('');
         setSearch('');
-        
+
         // Reload with default filters
         setTimeout(() => loadPunctualityData(), 100);
     };
@@ -1978,8 +2017,8 @@ function PunctualityTab() {
         return data.employees.filter(emp => {
             const searchStr = search.toLowerCase();
             return emp.full_name?.toLowerCase().includes(searchStr) ||
-                   emp.emp_id?.toLowerCase().includes(searchStr) ||
-                   emp.designation?.toLowerCase().includes(searchStr);
+                emp.emp_id?.toLowerCase().includes(searchStr) ||
+                emp.designation?.toLowerCase().includes(searchStr);
         });
     }, [data?.employees, search]);
 
@@ -1997,13 +2036,13 @@ function PunctualityTab() {
                     <p className="text-sm text-slate-500 font-medium">Analytics & Violation Tracking</p>
                 </div>
                 <div className="flex items-center gap-3">
-                    <button 
+                    <button
                         onClick={handleReset}
                         className="px-5 py-2 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl text-sm font-bold shadow-sm transition-all"
                     >
                         Reset
                     </button>
-                    <button 
+                    <button
                         onClick={handleUpdateView}
                         className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold shadow-md shadow-indigo-600/20 transition-all"
                     >
@@ -2039,7 +2078,7 @@ function PunctualityTab() {
             {/* Filters */}
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm px-5 py-3 mb-6 flex flex-col md:flex-row items-center justify-between gap-4">
                 <div className="relative w-full md:w-64">
-                    <select 
+                    <select
                         value={empFilter}
                         onChange={(e) => setEmpFilter(e.target.value)}
                         className="w-full pl-4 pr-10 py-2.5 bg-slate-50 border border-transparent rounded-xl text-sm font-semibold text-slate-700 appearance-none cursor-pointer hover:bg-slate-100 transition-colors"
@@ -2053,24 +2092,24 @@ function PunctualityTab() {
                     </select>
                     <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
                 </div>
-                
+
                 <div className="flex items-center gap-4 w-full md:w-auto overflow-hidden">
                     <div className="flex items-center gap-2">
                         <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">From</span>
-                        <input 
-                            type="date" 
+                        <input
+                            type="date"
                             value={startDate}
                             onChange={(e) => setStartDate(e.target.value)}
-                            className="px-3 py-2 bg-slate-50 border border-transparent rounded-xl text-sm font-semibold text-slate-700 focus:bg-white transition-all min-w-[130px]" 
+                            className="px-3 py-2 bg-slate-50 border border-transparent rounded-xl text-sm font-semibold text-slate-700 focus:bg-white transition-all min-w-[130px]"
                         />
                     </div>
                     <div className="flex items-center gap-2">
                         <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">To</span>
-                        <input 
-                            type="date" 
+                        <input
+                            type="date"
                             value={endDate}
                             onChange={(e) => setEndDate(e.target.value)}
-                            className="px-3 py-2 bg-slate-50 border border-transparent rounded-xl text-sm font-semibold text-slate-700 focus:bg-white transition-all min-w-[130px]" 
+                            className="px-3 py-2 bg-slate-50 border border-transparent rounded-xl text-sm font-semibold text-slate-700 focus:bg-white transition-all min-w-[130px]"
                         />
                     </div>
                 </div>
@@ -2131,34 +2170,31 @@ function PunctualityTab() {
                                             {emp.working_days}
                                         </td>
                                         <td className="px-6 py-4">
-                                            <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold border ${
-                                                emp.violations.total === 0 
-                                                    ? 'bg-green-50 text-green-700 border-green-200'
-                                                    : emp.violations.total < 3
+                                            <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold border ${emp.violations.total === 0
+                                                ? 'bg-green-50 text-green-700 border-green-200'
+                                                : emp.violations.total < 3
                                                     ? 'bg-yellow-50 text-yellow-700 border-yellow-200'
                                                     : 'bg-red-50 text-red-700 border-red-200'
-                                            }`}>
-                                                <span className={`w-1.5 h-1.5 rounded-full ${
-                                                    emp.violations.total === 0 
-                                                        ? 'bg-green-600'
-                                                        : emp.violations.total < 3
+                                                }`}>
+                                                <span className={`w-1.5 h-1.5 rounded-full ${emp.violations.total === 0
+                                                    ? 'bg-green-600'
+                                                    : emp.violations.total < 3
                                                         ? 'bg-yellow-600'
                                                         : 'bg-red-600'
-                                                }`}></span>
+                                                    }`}></span>
                                                 {emp.violations.summary}
                                             </span>
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-3">
                                                 <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
-                                                    <div 
-                                                        className={`h-full rounded-full transition-all duration-500 ${
-                                                            emp.punctuality_score >= 90 ? 'bg-green-500' :
+                                                    <div
+                                                        className={`h-full rounded-full transition-all duration-500 ${emp.punctuality_score >= 90 ? 'bg-green-500' :
                                                             emp.punctuality_score >= 75 ? 'bg-yellow-500' :
-                                                            emp.punctuality_score >= 50 ? 'bg-orange-500' :
-                                                            'bg-rose-500'
-                                                        }`}
-                                                        style={{width: `${emp.punctuality_score}%`}}
+                                                                emp.punctuality_score >= 50 ? 'bg-orange-500' :
+                                                                    'bg-rose-500'
+                                                            }`}
+                                                        style={{ width: `${emp.punctuality_score}%` }}
                                                     ></div>
                                                 </div>
                                                 <span className="text-xs font-bold text-slate-800 min-w-[42px]">
@@ -2183,6 +2219,7 @@ function EmployeeProfileView({ employee, onBack, onRefresh }) {
     const [attendance, setAttendance] = useState([]);
     const [movements, setMovements] = useState([]);
     const [ledger, setLedger] = useState([]);
+    const [commissions, setCommissions] = useState([]);
     const [checkoutRequests, setCheckoutRequests] = useState([]);
     const [loading, setLoading] = useState(false);
     const [isCheckedIn, setIsCheckedIn] = useState(false);
@@ -2244,25 +2281,28 @@ function EmployeeProfileView({ employee, onBack, onRefresh }) {
         if (activeTab === 'Attendance') loadAttendance();
         if (activeTab === 'Movements') loadMovements();
         if (activeTab === 'Ledger') loadLedger();
+        if (activeTab === 'Commissions') loadCommissions();
         if (activeTab === 'Checkout Requests') loadCheckoutRequests();
         checkTodayAttendance();
     }, [activeTab]);
 
     useEffect(() => {
         // Load checkout requests on mount to show pending badges
+        // Also check today's attendance to set correct check-in button state
         loadCheckoutRequests();
+        checkTodayAttendance();
     }, []);
 
     const checkTodayAttendance = async () => {
         try {
-            const today = new Date().toISOString().split('T')[0];
-            const data = await hrService.getAttendance({ emp_id: employee.emp_id, start_date: today, end_date: today });
-            if (data && data.length > 0) {
-                const todayRecord = data[0];
-                setIsCheckedIn(todayRecord.check_in && !todayRecord.check_out);
-            } else {
-                setIsCheckedIn(false);
-            }
+            // Uses dedicated endpoint that queries attendance collection directly
+            // by emp_id + today's date — no org_id filter, guaranteed to find the record.
+            const record = await hrService.getTodayAttendance(employee.emp_id);
+            // record.status === 'not_checked_in' means no record exists today
+            const checkedIn = record.check_in && record.status !== 'not_checked_in';
+            const checkedOut = record.check_out;
+            // Show checkout button only if checked in AND not yet checked out
+            setIsCheckedIn(!!checkedIn && !checkedOut);
         } catch (error) {
             console.error('Failed to check attendance status:', error);
             setIsCheckedIn(false);
@@ -2319,6 +2359,22 @@ function EmployeeProfileView({ employee, onBack, onRefresh }) {
         }
     };
 
+    const loadCommissions = async () => {
+        try {
+            setLoading(true);
+            // Use employee._id (MongoDB _id) — NOT emp_id (human-readable like EMP001)
+            const mongoId = employee._id || employee.id;
+            if (!mongoId) { setCommissions([]); return; }
+            const data = await hrService.getEmployeeCommissions(mongoId);
+            setCommissions(Array.isArray(data) ? data : []);
+        } catch (error) {
+            console.error('Failed to load commissions:', error);
+            setCommissions([]);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const handleCheckIn = async () => {
         try {
             if (isCheckedIn) {
@@ -2329,9 +2385,9 @@ function EmployeeProfileView({ employee, onBack, onRefresh }) {
                     const [hours, minutes] = checkoutTimeStr.split(':').map(s => parseInt(s));
                     const expected = new Date();
                     expected.setHours(hours, minutes, 0, 0);
-                    
+
                     const minutesEarly = Math.floor((expected - now) / (1000 * 60));
-                    
+
                     if (minutesEarly > 15) {
                         // Show custom modal to enter reason
                         setEarlyCheckoutInfo({ minutes: minutesEarly });
@@ -2340,9 +2396,9 @@ function EmployeeProfileView({ employee, onBack, onRefresh }) {
                         return;
                     }
                 }
-                
+
                 const result = await hrService.checkOut(employee.emp_id);
-                
+
                 // Handle approval responses even for normal checkout (in case schedule changed)
                 if (result.status === 'approval_required' || result.status === 'approval_pending') {
                     alert(`⏳ ${result.message}`);
@@ -2383,7 +2439,7 @@ function EmployeeProfileView({ employee, onBack, onRefresh }) {
 
         try {
             const result = await hrService.checkOut(employee.emp_id, null, earlyCheckoutReasonInput.trim());
-            
+
             // Handle approval responses
             if (result.status === 'approval_required' || result.status === 'approval_pending') {
                 alert(`✓ ${result.message}\n\nYour request has been sent to your manager for approval.`);
@@ -2393,7 +2449,7 @@ function EmployeeProfileView({ employee, onBack, onRefresh }) {
                 checkTodayAttendance();
                 return;
             }
-            
+
             alert('✓ Checked out successfully!');
             setShowEarlyCheckoutReasonModal(false);
             setEarlyCheckoutReasonInput('');
@@ -2423,13 +2479,12 @@ function EmployeeProfileView({ employee, onBack, onRefresh }) {
     };
 
     const TabButton = ({ label, icon: Icon, iconColor, active, onClick }) => (
-        <button 
+        <button
             onClick={onClick}
-            className={`flex items-center gap-2 pb-3 px-2 text-sm font-bold border-b-2 transition-all whitespace-nowrap relative top-px ${
-                active 
-                    ? 'text-blue-600 border-blue-600' 
-                    : 'text-slate-500 border-transparent hover:text-slate-700 hover:border-slate-200'
-            }`}
+            className={`flex items-center gap-2 pb-3 px-2 text-sm font-bold border-b-2 transition-all whitespace-nowrap relative top-px ${active
+                ? 'text-blue-600 border-blue-600'
+                : 'text-slate-500 border-transparent hover:text-slate-700 hover:border-slate-200'
+                }`}
         >
             {Icon && <Icon size={16} strokeWidth={2.5} className={iconColor || (active ? 'text-blue-600' : 'text-slate-400')} />}
             {label}
@@ -2445,7 +2500,7 @@ function EmployeeProfileView({ employee, onBack, onRefresh }) {
             {/* Top Actions Bar */}
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                    <button 
+                    <button
                         onClick={onBack}
                         className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-xl text-sm font-bold shadow-md shadow-blue-600/20 transition-all"
                     >
@@ -2453,7 +2508,7 @@ function EmployeeProfileView({ employee, onBack, onRefresh }) {
                     </button>
                     <h1 className="text-2xl font-black text-slate-800 tracking-tight hidden sm:block">Employee Profile</h1>
                 </div>
-                
+
                 <div className="flex items-center gap-3">
                     <button className="px-6 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-xl text-sm font-bold shadow-md shadow-blue-600/20 transition-all flex items-center gap-2">
                         <Save size={16} /> Save
@@ -2466,10 +2521,10 @@ function EmployeeProfileView({ employee, onBack, onRefresh }) {
 
             {/* Main Layout Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                
+
                 {/* Left Column (Profile Summary) */}
                 <div className="lg:col-span-4 bg-white rounded-3xl shadow-sm border border-slate-100/50 p-6 flex flex-col h-fit">
-                    
+
                     {/* Avatar & Name */}
                     <div className="flex items-center gap-4 mb-6">
                         <div className="w-16 h-16 rounded-2xl bg-slate-50 flex items-center justify-center text-xl font-black text-slate-600 border border-slate-100 shrink-0">
@@ -2543,25 +2598,25 @@ function EmployeeProfileView({ employee, onBack, onRefresh }) {
                     {/* Quick Actions */}
                     <div className="space-y-3 mb-6">
                         <p className="text-sm font-bold text-slate-800 mb-2">Quick Actions</p>
-                        
+
                         {/* Check In/Out Button with Approval Pending State */}
                         {checkoutRequests.filter(r => r.status === 'pending').length > 0 && isCheckedIn ? (
-                            <button 
+                            <button
                                 disabled
                                 className="w-full py-2.5 bg-orange-500 text-white rounded-xl text-sm font-bold shadow-md opacity-90 cursor-not-allowed flex items-center justify-center gap-2"
                             >
                                 <Clock size={16} className="text-orange-200" /> Checkout Pending Approval
                             </button>
                         ) : (
-                            <button 
+                            <button
                                 onClick={handleCheckIn}
                                 className={`w-full py-2.5 ${isCheckedIn ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'} text-white rounded-xl text-sm font-bold shadow-md shadow-blue-600/20 transition-all flex items-center justify-center gap-2`}
                             >
                                 <CheckSquare size={16} className={isCheckedIn ? 'text-red-400' : 'text-emerald-400'} /> {isCheckedIn ? 'Check Out' : 'Check In'}
                             </button>
                         )}
-                        
-                        <button 
+
+                        <button
                             onClick={handleStartMovement}
                             className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold shadow-md shadow-blue-600/20 transition-all flex items-center justify-center gap-2"
                         >
@@ -2591,48 +2646,48 @@ function EmployeeProfileView({ employee, onBack, onRefresh }) {
 
                 {/* Right Column (Tabs & Forms) */}
                 <div className="lg:col-span-8 bg-white rounded-3xl shadow-sm border border-slate-100/50 flex flex-col">
-                    
+
                     {/* Tabs */}
                     <div className="px-6 pt-6 border-b border-slate-100 flex gap-4 overflow-x-auto no-scrollbar">
-                        <TabButton 
-                            label="Info" 
-                            active={activeTab === 'Info'} 
-                            onClick={() => setActiveTab('Info')} 
+                        <TabButton
+                            label="Info"
+                            active={activeTab === 'Info'}
+                            onClick={() => setActiveTab('Info')}
                         />
-                        <TabButton 
-                            label="Checkout Requests" 
-                            icon={Clock} 
+                        <TabButton
+                            label="Checkout Requests"
+                            icon={Clock}
                             iconColor="text-slate-400"
-                            active={activeTab === 'Checkout Requests'} 
-                            onClick={() => setActiveTab('Checkout Requests')} 
+                            active={activeTab === 'Checkout Requests'}
+                            onClick={() => setActiveTab('Checkout Requests')}
                         />
-                        <TabButton 
-                            label="Ledger" 
-                            icon={BookOpen} 
+                        <TabButton
+                            label="Ledger"
+                            icon={BookOpen}
                             iconColor="text-amber-400"
-                            active={activeTab === 'Ledger'} 
-                            onClick={() => setActiveTab('Ledger')} 
+                            active={activeTab === 'Ledger'}
+                            onClick={() => setActiveTab('Ledger')}
                         />
-                        <TabButton 
-                            label="Commissions" 
-                            icon={BadgeDollarSign} 
+                        <TabButton
+                            label="Commissions"
+                            icon={BadgeDollarSign}
                             iconColor="text-emerald-500"
-                            active={activeTab === 'Commissions'} 
-                            onClick={() => setActiveTab('Commissions')} 
+                            active={activeTab === 'Commissions'}
+                            onClick={() => setActiveTab('Commissions')}
                         />
-                        <TabButton 
-                            label="Attendance" 
-                            icon={Calendar} 
+                        <TabButton
+                            label="Attendance"
+                            icon={Calendar}
                             iconColor="text-blue-500"
-                            active={activeTab === 'Attendance'} 
-                            onClick={() => setActiveTab('Attendance')} 
+                            active={activeTab === 'Attendance'}
+                            onClick={() => setActiveTab('Attendance')}
                         />
-                        <TabButton 
-                            label="Movements" 
-                            icon={PersonStanding} 
+                        <TabButton
+                            label="Movements"
+                            icon={PersonStanding}
                             iconColor="text-orange-500"
-                            active={activeTab === 'Movements'} 
-                            onClick={() => setActiveTab('Movements')} 
+                            active={activeTab === 'Movements'}
+                            onClick={() => setActiveTab('Movements')}
                         />
                     </div>
 
@@ -2640,12 +2695,12 @@ function EmployeeProfileView({ employee, onBack, onRefresh }) {
                     <div className="p-8 flex-1 overflow-y-auto">
                         {activeTab === 'Info' && (
                             <div className="animate-in fade-in duration-300">
-                                
+
                                 {/* Header with Edit Button */}
                                 <div className="flex justify-between items-center mb-6">
                                     <h3 className="text-lg font-black text-slate-800">Personal Information</h3>
                                     {!isEditMode && (
-                                        <button 
+                                        <button
                                             onClick={() => setIsEditMode(true)}
                                             className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-bold text-sm shadow-md transition-all flex items-center gap-2"
                                         >
@@ -2681,306 +2736,306 @@ function EmployeeProfileView({ employee, onBack, onRefresh }) {
                                     <div className="space-y-8">
                                         {/* Personal Information */}
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div className="space-y-1.5">
-                                            <label className="text-xs font-bold text-slate-600 ml-1">First Name</label>
-                                            <input 
-                                                type="text" 
-                                                value={formData.full_name?.split(' ')[0] || ''}
-                                                onChange={(e) => {
-                                                    const lastName = formData.full_name?.split(' ').slice(1).join(' ') || '';
-                                                    updateFormField('full_name', `${e.target.value} ${lastName}`.trim());
-                                                }}
-                                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:bg-white focus:border-blue-300 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm"
-                                            />
-                                        </div>
-                                        <div className="space-y-1.5">
-                                            <label className="text-xs font-bold text-slate-600 ml-1">Last Name</label>
-                                            <input 
-                                                type="text" 
-                                                value={formData.full_name?.split(' ').slice(1).join(' ') || ''}
-                                                onChange={(e) => {
-                                                    const firstName = formData.full_name?.split(' ')[0] || '';
-                                                    updateFormField('full_name', `${firstName} ${e.target.value}`.trim());
-                                                }}
-                                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:bg-white focus:border-blue-300 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm"
-                                            />
-                                        </div>
-                                        <div className="space-y-1.5">
-                                            <label className="text-xs font-bold text-slate-600 ml-1">Email</label>
-                                            <input 
-                                                type="email" 
-                                                value={formData.email || ''}
-                                                onChange={(e) => updateFormField('email', e.target.value)}
-                                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:bg-white focus:border-blue-300 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm"
-                                            />
-                                        </div>
-                                        <div className="space-y-1.5">
-                                            <label className="text-xs font-bold text-slate-600 ml-1">Phone</label>
-                                            <input 
-                                                type="tel" 
-                                                value={formData.phone || ''}
-                                                onChange={(e) => updateFormField('phone', e.target.value)}
-                                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:bg-white focus:border-blue-300 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm"
-                                            />
-                                        </div>
-                                        <div className="space-y-1.5">
-                                            <label className="text-xs font-bold text-slate-600 ml-1">WhatsApp Number</label>
-                                            <input 
-                                                type="tel" 
-                                                value={formData.whatsapp_number || ''}
-                                                onChange={(e) => updateFormField('whatsapp_number', e.target.value)}
-                                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:bg-white focus:border-blue-300 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm"
-                                            />
-                                        </div>
-                                        <div className="space-y-1.5">
-                                            <label className="text-xs font-bold text-slate-600 ml-1">Other Contact Number</label>
-                                            <input 
-                                                type="tel" 
-                                                value={formData.other_contact_number || ''}
-                                                onChange={(e) => updateFormField('other_contact_number', e.target.value)}
-                                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:bg-white focus:border-blue-300 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm"
-                                            />
-                                        </div>
-                                        <div className="space-y-1.5 md:col-span-2">
-                                            <label className="text-xs font-bold text-slate-600 ml-1">Address</label>
-                                            <input 
-                                                type="text" 
-                                                value={formData.address || ''}
-                                                onChange={(e) => updateFormField('address', e.target.value)}
-                                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:bg-white focus:border-blue-300 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm"
-                                            />
-                                        </div>
-                                        </div>
-
-                                {/* Emergency Contact */}
-                                <div className="border-t border-slate-100 pt-8 mb-8">
-                                    <h3 className="text-lg font-black text-slate-800 mb-6">Emergency Contact</h3>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div className="space-y-1.5">
-                                            <label className="text-xs font-bold text-slate-600 ml-1">Contact Name</label>
-                                            <input 
-                                                type="text" 
-                                                value={formData.emergency_contact_name || ''}
-                                                onChange={(e) => updateFormField('emergency_contact_name', e.target.value)}
-                                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:bg-white focus:border-blue-300 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm"
-                                            />
-                                        </div>
-                                        <div className="space-y-1.5">
-                                            <label className="text-xs font-bold text-slate-600 ml-1">Contact Phone</label>
-                                            <input 
-                                                type="tel" 
-                                                value={formData.emergency_contact_phone || ''}
-                                                onChange={(e) => updateFormField('emergency_contact_phone', e.target.value)}
-                                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:bg-white focus:border-blue-300 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm"
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Role & Organization */}
-                                <div className="border-t border-slate-100 pt-8 mb-8">
-                                    <h3 className="text-lg font-black text-slate-800 mb-6">Role & Organization</h3>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div className="space-y-1.5">
-                                            <label className="text-xs font-bold text-slate-600 ml-1">Role</label>
-                                            <input 
-                                                type="text" 
-                                                value={formData.role || ''}
-                                                disabled
-                                                className="w-full px-4 py-3 bg-slate-100 border border-slate-200 rounded-xl text-sm font-semibold text-slate-500 cursor-not-allowed shadow-sm"
-                                            />
-                                        </div>
-                                        <div className="space-y-1.5">
-                                            <label className="text-xs font-bold text-slate-600 ml-1">Commission Group (%)</label>
-                                            <input 
-                                                type="text" 
-                                                value={employee.commission_percentage || '0'}
-                                                disabled
-                                                className="w-full px-4 py-3 bg-slate-100 border border-slate-200 rounded-xl text-sm font-semibold text-slate-500 cursor-not-allowed shadow-sm"
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Office Schedule */}
-                                <div className="border-t border-slate-100 pt-8 mb-8">
-                                    <h3 className="text-lg font-black text-slate-800 mb-6">Office Schedule</h3>
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                        <div className="space-y-1.5">
-                                            <label className="text-xs font-bold text-slate-600 ml-1">Check-In Time</label>
-                                            <input 
-                                                type="time" 
-                                                value={formData.office_check_in_time || ''}
-                                                onChange={(e) => updateFormField('office_check_in_time', e.target.value)}
-                                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:bg-white focus:border-blue-300 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm"
-                                            />
-                                        </div>
-                                        <div className="space-y-1.5">
-                                            <label className="text-xs font-bold text-slate-600 ml-1">Check-Out Time</label>
-                                            <input 
-                                                type="time" 
-                                                value={formData.office_check_out_time || ''}
-                                                onChange={(e) => updateFormField('office_check_out_time', e.target.value)}
-                                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:bg-white focus:border-blue-300 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm"
-                                            />
-                                        </div>
-                                        <div className="space-y-1.5">
-                                            <label className="text-xs font-bold text-slate-600 ml-1">Grace Minutes</label>
-                                            <input 
-                                                type="number" 
-                                                value={formData.grace_period_minutes || ''}
-                                                onChange={(e) => updateFormField('grace_period_minutes', parseInt(e.target.value) || 0)}
-                                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:bg-white focus:border-blue-300 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm"
-                                                min="0"
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Salary Information */}
-                                <div className="border-t border-slate-100 pt-8 mb-8">
-                                    <h3 className="text-lg font-black text-slate-800 mb-6">Salary Information</h3>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div className="space-y-1.5">
-                                            <label className="text-xs font-bold text-slate-600 ml-1">Joining Date</label>
-                                            <input 
-                                                type="date" 
-                                                value={formData.join_date || ''}
-                                                onChange={(e) => updateFormField('join_date', e.target.value)}
-                                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:bg-white focus:border-blue-300 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm"
-                                            />
-                                        </div>
-                                        <div className="space-y-1.5">
-                                            <label className="text-xs font-bold text-slate-600 ml-1">Base Salary</label>
-                                            <input 
-                                                type="number" 
-                                                value={formData.base_salary || ''}
-                                                onChange={(e) => updateFormField('base_salary', parseFloat(e.target.value) || 0)}
-                                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:bg-white focus:border-blue-300 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm"
-                                                min="0"
-                                            />
-                                        </div>
-                                        <div className="space-y-1.5">
-                                            <label className="text-xs font-bold text-slate-600 ml-1">Currency</label>
-                                            <div className="relative">
-                                                <select 
-                                                    value={formData.currency || 'PKR'}
-                                                    onChange={(e) => updateFormField('currency', e.target.value)}
-                                                    className="w-full pl-4 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:bg-white focus:border-blue-300 focus:ring-4 focus:ring-blue-500/10 transition-all appearance-none cursor-pointer shadow-sm"
-                                                >
-                                                    <option value="PKR">PKR</option>
-                                                    <option value="USD">USD</option>
-                                                    <option value="EUR">EUR</option>
-                                                    <option value="GBP">GBP</option>
-                                                </select>
-                                                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                                            <div className="space-y-1.5">
+                                                <label className="text-xs font-bold text-slate-600 ml-1">First Name</label>
+                                                <input
+                                                    type="text"
+                                                    value={formData.full_name?.split(' ')[0] || ''}
+                                                    onChange={(e) => {
+                                                        const lastName = formData.full_name?.split(' ').slice(1).join(' ') || '';
+                                                        updateFormField('full_name', `${e.target.value} ${lastName}`.trim());
+                                                    }}
+                                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:bg-white focus:border-blue-300 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm"
+                                                />
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <label className="text-xs font-bold text-slate-600 ml-1">Last Name</label>
+                                                <input
+                                                    type="text"
+                                                    value={formData.full_name?.split(' ').slice(1).join(' ') || ''}
+                                                    onChange={(e) => {
+                                                        const firstName = formData.full_name?.split(' ')[0] || '';
+                                                        updateFormField('full_name', `${firstName} ${e.target.value}`.trim());
+                                                    }}
+                                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:bg-white focus:border-blue-300 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm"
+                                                />
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <label className="text-xs font-bold text-slate-600 ml-1">Email</label>
+                                                <input
+                                                    type="email"
+                                                    value={formData.email || ''}
+                                                    onChange={(e) => updateFormField('email', e.target.value)}
+                                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:bg-white focus:border-blue-300 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm"
+                                                />
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <label className="text-xs font-bold text-slate-600 ml-1">Phone</label>
+                                                <input
+                                                    type="tel"
+                                                    value={formData.phone || ''}
+                                                    onChange={(e) => updateFormField('phone', e.target.value)}
+                                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:bg-white focus:border-blue-300 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm"
+                                                />
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <label className="text-xs font-bold text-slate-600 ml-1">WhatsApp Number</label>
+                                                <input
+                                                    type="tel"
+                                                    value={formData.whatsapp_number || ''}
+                                                    onChange={(e) => updateFormField('whatsapp_number', e.target.value)}
+                                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:bg-white focus:border-blue-300 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm"
+                                                />
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <label className="text-xs font-bold text-slate-600 ml-1">Other Contact Number</label>
+                                                <input
+                                                    type="tel"
+                                                    value={formData.other_contact_number || ''}
+                                                    onChange={(e) => updateFormField('other_contact_number', e.target.value)}
+                                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:bg-white focus:border-blue-300 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm"
+                                                />
+                                            </div>
+                                            <div className="space-y-1.5 md:col-span-2">
+                                                <label className="text-xs font-bold text-slate-600 ml-1">Address</label>
+                                                <input
+                                                    type="text"
+                                                    value={formData.address || ''}
+                                                    onChange={(e) => updateFormField('address', e.target.value)}
+                                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:bg-white focus:border-blue-300 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm"
+                                                />
                                             </div>
                                         </div>
-                                        <div className="space-y-1.5">
-                                            <label className="text-xs font-bold text-slate-600 ml-1">Payment Day (1-31)</label>
-                                            <input 
-                                                type="number" 
-                                                value={formData.salary_payment_day || ''}
-                                                onChange={(e) => updateFormField('salary_payment_day', parseInt(e.target.value) || 1)}
-                                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:bg-white focus:border-blue-300 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm"
-                                                min="1"
-                                                max="31"
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
 
-                                {/* Bank Details */}
-                                <div className="border-t border-slate-100 pt-8 mb-8">
-                                    <h3 className="text-lg font-black text-slate-800 mb-6">Bank Details</h3>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div className="space-y-1.5">
-                                            <label className="text-xs font-bold text-slate-600 ml-1">Account Number</label>
-                                            <input 
-                                                type="text" 
-                                                value={formData.bank_account_number || ''}
-                                                onChange={(e) => updateFormField('bank_account_number', e.target.value)}
-                                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:bg-white focus:border-blue-300 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm"
-                                            />
+                                        {/* Emergency Contact */}
+                                        <div className="border-t border-slate-100 pt-8 mb-8">
+                                            <h3 className="text-lg font-black text-slate-800 mb-6">Emergency Contact</h3>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                <div className="space-y-1.5">
+                                                    <label className="text-xs font-bold text-slate-600 ml-1">Contact Name</label>
+                                                    <input
+                                                        type="text"
+                                                        value={formData.emergency_contact_name || ''}
+                                                        onChange={(e) => updateFormField('emergency_contact_name', e.target.value)}
+                                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:bg-white focus:border-blue-300 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm"
+                                                    />
+                                                </div>
+                                                <div className="space-y-1.5">
+                                                    <label className="text-xs font-bold text-slate-600 ml-1">Contact Phone</label>
+                                                    <input
+                                                        type="tel"
+                                                        value={formData.emergency_contact_phone || ''}
+                                                        onChange={(e) => updateFormField('emergency_contact_phone', e.target.value)}
+                                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:bg-white focus:border-blue-300 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm"
+                                                    />
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div className="space-y-1.5">
-                                            <label className="text-xs font-bold text-slate-600 ml-1">Account Title</label>
-                                            <input 
-                                                type="text" 
-                                                value={formData.bank_account_title || ''}
-                                                onChange={(e) => updateFormField('bank_account_title', e.target.value)}
-                                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:bg-white focus:border-blue-300 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm"
-                                            />
-                                        </div>
-                                        <div className="space-y-1.5 md:col-span-2">
-                                            <label className="text-xs font-bold text-slate-600 ml-1">Bank Name</label>
-                                            <input 
-                                                type="text" 
-                                                value={formData.bank_name || ''}
-                                                onChange={(e) => updateFormField('bank_name', e.target.value)}
-                                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:bg-white focus:border-blue-300 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm"
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
 
-                                {/* Active Status */}
-                                <div className="border-t border-slate-100 pt-8 mb-8">
-                                    <label className="flex items-center space-x-3">
-                                        <input 
-                                            type="checkbox" 
-                                            checked={formData.is_active || false}
-                                            onChange={(e) => updateFormField('is_active', e.target.checked)}
-                                            className="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500 focus:ring-2"
-                                        />
-                                        <span className="text-sm font-bold text-slate-800">Active Employee</span>
-                                    </label>
-                                </div>
+                                        {/* Role & Organization */}
+                                        <div className="border-t border-slate-100 pt-8 mb-8">
+                                            <h3 className="text-lg font-black text-slate-800 mb-6">Role & Organization</h3>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                <div className="space-y-1.5">
+                                                    <label className="text-xs font-bold text-slate-600 ml-1">Role</label>
+                                                    <input
+                                                        type="text"
+                                                        value={formData.role || ''}
+                                                        disabled
+                                                        className="w-full px-4 py-3 bg-slate-100 border border-slate-200 rounded-xl text-sm font-semibold text-slate-500 cursor-not-allowed shadow-sm"
+                                                    />
+                                                </div>
+                                                <div className="space-y-1.5">
+                                                    <label className="text-xs font-bold text-slate-600 ml-1">Commission Group (%)</label>
+                                                    <input
+                                                        type="text"
+                                                        value={employee.commission_percentage || '0'}
+                                                        disabled
+                                                        className="w-full px-4 py-3 bg-slate-100 border border-slate-200 rounded-xl text-sm font-semibold text-slate-500 cursor-not-allowed shadow-sm"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
 
-                                {/* Save and Cancel Buttons */}
-                                <div className="border-t border-slate-100 pt-8 flex justify-end gap-3">
-                                    <button 
-                                        onClick={() => {
-                                            setIsEditMode(false);
-                                            // Reset form data to original employee data
-                                            setFormData({
-                                                full_name: employee.full_name || employee.name || '',
-                                                email: employee.email || '',
-                                                phone: employee.phone || '',
-                                                whatsapp_number: employee.whatsapp_number || '',
-                                                other_contact_number: employee.other_contact_number || '',
-                                                address: employee.address || '',
-                                                emergency_contact_name: employee.emergency_contact_name || '',
-                                                emergency_contact_phone: employee.emergency_contact_phone || '',
-                                                office_check_in_time: employee.office_check_in_time || '09:00',
-                                                office_check_out_time: employee.office_check_out_time || '18:00',
-                                                grace_period_minutes: employee.grace_period_minutes || 15,
-                                                join_date: employee.join_date || employee.joining_date || '',
-                                                base_salary: employee.base_salary || employee.salary || 0,
-                                                currency: employee.currency || 'PKR',
-                                                bank_account_number: employee.bank_account_number || '',
-                                                bank_account_title: employee.bank_account_title || '',
-                                                bank_name: employee.bank_name || '',
-                                                salary_payment_day: employee.salary_payment_day || 25,
-                                                is_active: employee.is_active !== false,
-                                                role: employee.role || ''
-                                            });
-                                        }}
-                                        className="px-6 py-3 bg-slate-200 text-slate-800 rounded-xl hover:bg-slate-300 font-bold text-sm shadow-md transition-all"
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button 
-                                        onClick={async () => {
-                                            await handleSaveInfo();
-                                            setIsEditMode(false);
-                                        }}
-                                        disabled={isSaving}
-                                        className="px-8 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-bold text-sm shadow-lg shadow-blue-600/30 transition-all disabled:bg-gray-400 disabled:cursor-not-allowed disabled:shadow-none"
-                                    >
-                                        {isSaving ? 'Saving...' : 'Save Changes'}
-                                    </button>
-                                </div>
+                                        {/* Office Schedule */}
+                                        <div className="border-t border-slate-100 pt-8 mb-8">
+                                            <h3 className="text-lg font-black text-slate-800 mb-6">Office Schedule</h3>
+                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                                <div className="space-y-1.5">
+                                                    <label className="text-xs font-bold text-slate-600 ml-1">Check-In Time</label>
+                                                    <input
+                                                        type="time"
+                                                        value={formData.office_check_in_time || ''}
+                                                        onChange={(e) => updateFormField('office_check_in_time', e.target.value)}
+                                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:bg-white focus:border-blue-300 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm"
+                                                    />
+                                                </div>
+                                                <div className="space-y-1.5">
+                                                    <label className="text-xs font-bold text-slate-600 ml-1">Check-Out Time</label>
+                                                    <input
+                                                        type="time"
+                                                        value={formData.office_check_out_time || ''}
+                                                        onChange={(e) => updateFormField('office_check_out_time', e.target.value)}
+                                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:bg-white focus:border-blue-300 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm"
+                                                    />
+                                                </div>
+                                                <div className="space-y-1.5">
+                                                    <label className="text-xs font-bold text-slate-600 ml-1">Grace Minutes</label>
+                                                    <input
+                                                        type="number"
+                                                        value={formData.grace_period_minutes || ''}
+                                                        onChange={(e) => updateFormField('grace_period_minutes', parseInt(e.target.value) || 0)}
+                                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:bg-white focus:border-blue-300 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm"
+                                                        min="0"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Salary Information */}
+                                        <div className="border-t border-slate-100 pt-8 mb-8">
+                                            <h3 className="text-lg font-black text-slate-800 mb-6">Salary Information</h3>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                <div className="space-y-1.5">
+                                                    <label className="text-xs font-bold text-slate-600 ml-1">Joining Date</label>
+                                                    <input
+                                                        type="date"
+                                                        value={formData.join_date || ''}
+                                                        onChange={(e) => updateFormField('join_date', e.target.value)}
+                                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:bg-white focus:border-blue-300 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm"
+                                                    />
+                                                </div>
+                                                <div className="space-y-1.5">
+                                                    <label className="text-xs font-bold text-slate-600 ml-1">Base Salary</label>
+                                                    <input
+                                                        type="number"
+                                                        value={formData.base_salary || ''}
+                                                        onChange={(e) => updateFormField('base_salary', parseFloat(e.target.value) || 0)}
+                                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:bg-white focus:border-blue-300 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm"
+                                                        min="0"
+                                                    />
+                                                </div>
+                                                <div className="space-y-1.5">
+                                                    <label className="text-xs font-bold text-slate-600 ml-1">Currency</label>
+                                                    <div className="relative">
+                                                        <select
+                                                            value={formData.currency || 'PKR'}
+                                                            onChange={(e) => updateFormField('currency', e.target.value)}
+                                                            className="w-full pl-4 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:bg-white focus:border-blue-300 focus:ring-4 focus:ring-blue-500/10 transition-all appearance-none cursor-pointer shadow-sm"
+                                                        >
+                                                            <option value="PKR">PKR</option>
+                                                            <option value="USD">USD</option>
+                                                            <option value="EUR">EUR</option>
+                                                            <option value="GBP">GBP</option>
+                                                        </select>
+                                                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                                                    </div>
+                                                </div>
+                                                <div className="space-y-1.5">
+                                                    <label className="text-xs font-bold text-slate-600 ml-1">Payment Day (1-31)</label>
+                                                    <input
+                                                        type="number"
+                                                        value={formData.salary_payment_day || ''}
+                                                        onChange={(e) => updateFormField('salary_payment_day', parseInt(e.target.value) || 1)}
+                                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:bg-white focus:border-blue-300 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm"
+                                                        min="1"
+                                                        max="31"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Bank Details */}
+                                        <div className="border-t border-slate-100 pt-8 mb-8">
+                                            <h3 className="text-lg font-black text-slate-800 mb-6">Bank Details</h3>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                <div className="space-y-1.5">
+                                                    <label className="text-xs font-bold text-slate-600 ml-1">Account Number</label>
+                                                    <input
+                                                        type="text"
+                                                        value={formData.bank_account_number || ''}
+                                                        onChange={(e) => updateFormField('bank_account_number', e.target.value)}
+                                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:bg-white focus:border-blue-300 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm"
+                                                    />
+                                                </div>
+                                                <div className="space-y-1.5">
+                                                    <label className="text-xs font-bold text-slate-600 ml-1">Account Title</label>
+                                                    <input
+                                                        type="text"
+                                                        value={formData.bank_account_title || ''}
+                                                        onChange={(e) => updateFormField('bank_account_title', e.target.value)}
+                                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:bg-white focus:border-blue-300 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm"
+                                                    />
+                                                </div>
+                                                <div className="space-y-1.5 md:col-span-2">
+                                                    <label className="text-xs font-bold text-slate-600 ml-1">Bank Name</label>
+                                                    <input
+                                                        type="text"
+                                                        value={formData.bank_name || ''}
+                                                        onChange={(e) => updateFormField('bank_name', e.target.value)}
+                                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:bg-white focus:border-blue-300 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Active Status */}
+                                        <div className="border-t border-slate-100 pt-8 mb-8">
+                                            <label className="flex items-center space-x-3">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={formData.is_active || false}
+                                                    onChange={(e) => updateFormField('is_active', e.target.checked)}
+                                                    className="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500 focus:ring-2"
+                                                />
+                                                <span className="text-sm font-bold text-slate-800">Active Employee</span>
+                                            </label>
+                                        </div>
+
+                                        {/* Save and Cancel Buttons */}
+                                        <div className="border-t border-slate-100 pt-8 flex justify-end gap-3">
+                                            <button
+                                                onClick={() => {
+                                                    setIsEditMode(false);
+                                                    // Reset form data to original employee data
+                                                    setFormData({
+                                                        full_name: employee.full_name || employee.name || '',
+                                                        email: employee.email || '',
+                                                        phone: employee.phone || '',
+                                                        whatsapp_number: employee.whatsapp_number || '',
+                                                        other_contact_number: employee.other_contact_number || '',
+                                                        address: employee.address || '',
+                                                        emergency_contact_name: employee.emergency_contact_name || '',
+                                                        emergency_contact_phone: employee.emergency_contact_phone || '',
+                                                        office_check_in_time: employee.office_check_in_time || '09:00',
+                                                        office_check_out_time: employee.office_check_out_time || '18:00',
+                                                        grace_period_minutes: employee.grace_period_minutes || 15,
+                                                        join_date: employee.join_date || employee.joining_date || '',
+                                                        base_salary: employee.base_salary || employee.salary || 0,
+                                                        currency: employee.currency || 'PKR',
+                                                        bank_account_number: employee.bank_account_number || '',
+                                                        bank_account_title: employee.bank_account_title || '',
+                                                        bank_name: employee.bank_name || '',
+                                                        salary_payment_day: employee.salary_payment_day || 25,
+                                                        is_active: employee.is_active !== false,
+                                                        role: employee.role || ''
+                                                    });
+                                                }}
+                                                className="px-6 py-3 bg-slate-200 text-slate-800 rounded-xl hover:bg-slate-300 font-bold text-sm shadow-md transition-all"
+                                            >
+                                                Cancel
+                                            </button>
+                                            <button
+                                                onClick={async () => {
+                                                    await handleSaveInfo();
+                                                    setIsEditMode(false);
+                                                }}
+                                                disabled={isSaving}
+                                                className="px-8 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-bold text-sm shadow-lg shadow-blue-600/30 transition-all disabled:bg-gray-400 disabled:cursor-not-allowed disabled:shadow-none"
+                                            >
+                                                {isSaving ? 'Saving...' : 'Save Changes'}
+                                            </button>
+                                        </div>
                                     </div>
                                 )}
                             </div>
@@ -2990,7 +3045,7 @@ function EmployeeProfileView({ employee, onBack, onRefresh }) {
                             <div>
                                 <div className="flex justify-between items-center mb-6">
                                     <h3 className="text-lg font-black text-slate-800">Early Checkout Requests</h3>
-                                    <button 
+                                    <button
                                         onClick={loadCheckoutRequests}
                                         disabled={loading}
                                         className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-bold text-sm shadow-md transition-all disabled:opacity-50"
@@ -3032,11 +3087,10 @@ function EmployeeProfileView({ employee, onBack, onRefresh }) {
                                                             {request.reason || 'No reason provided'}
                                                         </td>
                                                         <td className="py-4 px-4">
-                                                            <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                                                                request.status === 'approved' ? 'bg-green-100 text-green-700' :
+                                                            <span className={`px-3 py-1 rounded-full text-xs font-bold ${request.status === 'approved' ? 'bg-green-100 text-green-700' :
                                                                 request.status === 'rejected' ? 'bg-red-100 text-red-700' :
-                                                                'bg-yellow-100 text-yellow-700'
-                                                            }`}>
+                                                                    'bg-yellow-100 text-yellow-700'
+                                                                }`}>
                                                                 {request.status || 'pending'}
                                                             </span>
                                                         </td>
@@ -3056,7 +3110,7 @@ function EmployeeProfileView({ employee, onBack, onRefresh }) {
                             <div>
                                 <div className="flex justify-between items-center mb-6">
                                     <h3 className="text-lg font-black text-slate-800">Employee Ledger</h3>
-                                    <button 
+                                    <button
                                         onClick={loadLedger}
                                         disabled={loading}
                                         className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-bold text-sm shadow-md transition-all disabled:opacity-50"
@@ -3110,32 +3164,77 @@ function EmployeeProfileView({ employee, onBack, onRefresh }) {
                         {activeTab === 'Commissions' && (
                             <div>
                                 <h3 className="text-lg font-black text-slate-800 mb-6">My Commissions</h3>
-                                
+
                                 {/* Commission Stats Cards */}
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                                     {/* Total Earned */}
                                     <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
                                         <p className="text-sm font-bold text-slate-500 mb-2">Total Earned</p>
-                                        <p className="text-2xl font-black text-slate-800">PKR 0</p>
+                                        <p className="text-2xl font-black text-slate-800">
+                                            {pkr(commissions.filter(c => c.status !== 'cancelled').reduce((sum, c) => sum + parseFloat(c.commission_amount || 0), 0))}
+                                        </p>
                                     </div>
-                                    
+
                                     {/* Paid */}
                                     <div className="bg-emerald-600 p-6 rounded-2xl">
                                         <p className="text-sm font-bold text-white/80 mb-2">Paid</p>
-                                        <p className="text-2xl font-black text-white">PKR 0</p>
+                                        <p className="text-2xl font-black text-white">
+                                            {pkr(commissions.filter(c => c.status === 'paid').reduce((sum, c) => sum + parseFloat(c.commission_amount || 0), 0))}
+                                        </p>
                                     </div>
-                                    
-                                    {/* Unpaid */}
+
+                                    {/* Unpaid (Pending + Earned) */}
                                     <div className="bg-amber-400 p-6 rounded-2xl">
                                         <p className="text-sm font-bold text-amber-900/70 mb-2">Unpaid</p>
-                                        <p className="text-2xl font-black text-amber-900">PKR 0</p>
+                                        <p className="text-2xl font-black text-amber-900">
+                                            {pkr(commissions.filter(c => c.status === 'pending' || c.status === 'earned').reduce((sum, c) => sum + parseFloat(c.commission_amount || 0), 0))}
+                                        </p>
                                     </div>
                                 </div>
-                                
-                                {/* Empty State */}
-                                <div className="flex items-center justify-center py-16 text-center">
-                                    <p className="text-sm font-medium text-slate-500">No commission records found</p>
-                                </div>
+
+                                {/* Commissions Table */}
+                                {loading ? (
+                                    <div className="flex justify-center py-12">
+                                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>
+                                    </div>
+                                ) : commissions.length === 0 ? (
+                                    <div className="flex items-center justify-center py-16 text-center">
+                                        <p className="text-sm font-medium text-slate-500">No commission records found</p>
+                                    </div>
+                                ) : (
+                                    <div className="overflow-x-auto">
+                                        <table className="min-w-full">
+                                            <thead>
+                                                <tr className="border-b-2 border-slate-200">
+                                                    <th className="px-4 py-3 text-left text-xs font-bold text-slate-600">Date</th>
+                                                    <th className="px-4 py-3 text-left text-xs font-bold text-slate-600">Booking Ref</th>
+                                                    <th className="px-4 py-3 text-left text-xs font-bold text-slate-600">Type</th>
+                                                    <th className="px-4 py-3 text-right text-xs font-bold text-slate-600">Amount</th>
+                                                    <th className="px-4 py-3 text-left text-xs font-bold text-slate-600">Status</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-100">
+                                                {commissions.map((record, index) => (
+                                                    <tr key={index} className="hover:bg-slate-50 transition-colors">
+                                                        <td className="px-4 py-3 text-sm font-semibold text-slate-900">{formatDate(record.created_at)}</td>
+                                                        <td className="px-4 py-3 text-sm font-black text-slate-800">{record.booking_reference}</td>
+                                                        <td className="px-4 py-3 text-sm text-slate-600 uppercase tracking-widest text-[10px] font-bold">{record.booking_type}</td>
+                                                        <td className="px-4 py-3 text-sm text-right text-emerald-600 font-bold">{pkr(record.commission_amount)}</td>
+                                                        <td className="px-4 py-3">
+                                                            <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${record.status === 'paid' ? 'bg-emerald-100 text-emerald-700' :
+                                                                record.status === 'earned' ? 'bg-blue-100 text-blue-700' :
+                                                                    record.status === 'cancelled' ? 'bg-red-100 text-red-700' :
+                                                                        'bg-yellow-100 text-yellow-700'
+                                                                }`}>
+                                                                {record.status}
+                                                            </span>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
                             </div>
                         )}
 
@@ -3143,7 +3242,7 @@ function EmployeeProfileView({ employee, onBack, onRefresh }) {
                             <div>
                                 <div className="flex justify-between items-center mb-6">
                                     <h3 className="text-lg font-black text-slate-800">Attendance Records</h3>
-                                    <button 
+                                    <button
                                         onClick={handleCheckIn}
                                         className={`px-4 py-2 ${isCheckedIn ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'} text-white rounded-xl font-bold text-sm shadow-md transition-all flex items-center gap-2`}
                                     >
@@ -3183,12 +3282,11 @@ function EmployeeProfileView({ employee, onBack, onRefresh }) {
                                                         <td className="px-4 py-3 text-sm text-slate-600">{record.check_out_time || '-'}</td>
                                                         <td className="px-4 py-3 text-sm text-slate-600">{record.total_hours || '-'}</td>
                                                         <td className="px-4 py-3">
-                                                            <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                                                                record.status === 'present' ? 'bg-green-50 text-green-700 border border-green-100' :
+                                                            <span className={`px-3 py-1 rounded-full text-xs font-bold ${record.status === 'present' ? 'bg-green-50 text-green-700 border border-green-100' :
                                                                 record.status === 'late' ? 'bg-yellow-50 text-yellow-700 border border-yellow-100' :
-                                                                record.status === 'absent' ? 'bg-red-50 text-red-700 border border-red-100' :
-                                                                'bg-slate-50 text-slate-700 border border-slate-100'
-                                                            }`}>
+                                                                    record.status === 'absent' ? 'bg-red-50 text-red-700 border border-red-100' :
+                                                                        'bg-slate-50 text-slate-700 border border-slate-100'
+                                                                }`}>
                                                                 {record.status?.toUpperCase()}
                                                             </span>
                                                         </td>
@@ -3205,7 +3303,7 @@ function EmployeeProfileView({ employee, onBack, onRefresh }) {
                             <div>
                                 <div className="flex justify-between items-center mb-6">
                                     <h3 className="text-lg font-black text-slate-800">Movement Records</h3>
-                                    <button 
+                                    <button
                                         onClick={handleStartMovement}
                                         className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-bold text-sm shadow-md transition-all flex items-center gap-2"
                                     >
@@ -3245,11 +3343,10 @@ function EmployeeProfileView({ employee, onBack, onRefresh }) {
                                                         <td className="px-4 py-3 text-sm text-slate-600">{movement.end_time ? new Date(movement.end_time).toLocaleTimeString() : 'Ongoing'}</td>
                                                         <td className="px-4 py-3 text-sm text-slate-600">{movement.reason || 'N/A'}</td>
                                                         <td className="px-4 py-3">
-                                                            <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                                                                movement.status === 'ended' ? 'bg-green-50 text-green-700 border border-green-100' :
+                                                            <span className={`px-3 py-1 rounded-full text-xs font-bold ${movement.status === 'ended' ? 'bg-green-50 text-green-700 border border-green-100' :
                                                                 movement.status === 'active' ? 'bg-blue-50 text-blue-700 border border-blue-100' :
-                                                                'bg-slate-50 text-slate-700 border border-slate-100'
-                                                            }`}>
+                                                                    'bg-slate-50 text-slate-700 border border-slate-100'
+                                                                }`}>
                                                                 {movement.status?.toUpperCase()}
                                                             </span>
                                                         </td>
@@ -3266,9 +3363,9 @@ function EmployeeProfileView({ employee, onBack, onRefresh }) {
             </div>
 
             {/* Early Checkout Reason Modal */}
-            <Modal 
-                isOpen={showEarlyCheckoutReasonModal} 
-                onClose={() => { setShowEarlyCheckoutReasonModal(false); setEarlyCheckoutReasonInput(''); }} 
+            <Modal
+                isOpen={showEarlyCheckoutReasonModal}
+                onClose={() => { setShowEarlyCheckoutReasonModal(false); setEarlyCheckoutReasonInput(''); }}
                 title="Early Checkout Detected"
             >
                 <div className="space-y-4">

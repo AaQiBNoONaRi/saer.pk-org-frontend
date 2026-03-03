@@ -1,29 +1,32 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Save, TrendingUp, Hotel, X, Plus } from 'lucide-react';
+import { ArrowLeft, Save, TrendingUp, Calendar, Hotel, X, Plus } from 'lucide-react';
 
 const AddCommissionView = ({ onBack, initialData }) => {
     const [saving, setSaving] = useState(false);
     const [hotels, setHotels] = useState([]);
-    
-    const [name, setName] = useState('');
-    const [ticketCommission, setTicketCommission] = useState('');
-    const [ticketCommissionType, setTicketCommissionType] = useState('fixed');
-    const [packageCommission, setPackageCommission] = useState('');
-    const [hotelCommissions, setHotelCommissions] = useState([{
-        id: Date.now(),
-        quint_commission: '',
-        quad_commission: '',
-        triple_commission: '',
-        double_commission: '',
-        sharing_commission: '',
-        other_commission: '',
-        hotels: [],
-        valid_from: '',
-        valid_until: ''
-    }]);
-    const [isActive, setIsActive] = useState(true);
-    const [hotelSearches, setHotelSearches] = useState(hotelCommissions.map(() => ''));
 
+    // Global: Title (applies to all periods)
+    const [title, setTitle] = useState('');
+
+    // Commission Periods (Repeatable)
+    const [commissionPeriods, setCommissionPeriods] = useState([
+        {
+            id: Date.now(),
+            ticketCommission: 0,
+            packageCommission: 0,
+            validFrom: '',
+            validUntil: '',
+            hotelGroups: [
+                {
+                    id: Date.now() + 1,
+                    selectedHotels: [],
+                    roomPrices: { double: 0, triple: 0, quad: 0, quint: 0 }
+                }
+            ]
+        }
+    ]);
+
+    // Fetch Hotels from Backend
     useEffect(() => {
         const fetchHotels = async () => {
             try {
@@ -44,37 +47,12 @@ const AddCommissionView = ({ onBack, initialData }) => {
 
     useEffect(() => {
         if (initialData) {
-            setName(initialData.name || '');
-            setTicketCommission(initialData.ticket_commission?.toString() || '');
-            setTicketCommissionType(initialData.ticket_commission_type || 'fixed');
-            setPackageCommission(initialData.package_commission?.toString() || '');
-            setIsActive(initialData.is_active ?? true);
-            if (initialData.hotel_commissions && initialData.hotel_commissions.length > 0) {
-                setHotelCommissions(initialData.hotel_commissions.map((hc, idx) => ({
-                    id: Date.now() + idx,
-                    quint_commission: hc.quint_commission?.toString() || '',
-                    quad_commission: hc.quad_commission?.toString() || '',
-                    triple_commission: hc.triple_commission?.toString() || '',
-                    double_commission: hc.double_commission?.toString() || '',
-                    sharing_commission: hc.sharing_commission?.toString() || '',
-                    other_commission: hc.other_commission?.toString() || '',
-                    hotels: hc.hotels || [],
-                    valid_from: hc.valid_from || '',
-                    valid_until: hc.valid_until || ''
-                })));
-                setHotelSearches(initialData.hotel_commissions.map(() => ''));
+            setTitle(initialData.title || '');
+            if (initialData.commission_periods && initialData.commission_periods.length > 0) {
+                setCommissionPeriods(initialData.commission_periods);
             }
         }
     }, [initialData]);
-
-    useEffect(() => {
-        setHotelSearches(prev => {
-            const next = [...prev];
-            while (next.length < hotelCommissions.length) next.push('');
-            while (next.length > hotelCommissions.length) next.pop();
-            return next;
-        });
-    }, [hotelCommissions.length]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -83,31 +61,16 @@ const AddCommissionView = ({ onBack, initialData }) => {
         try {
             const token = localStorage.getItem('access_token');
             const payload = {
-                name,
-                ticket_commission: parseFloat(ticketCommission) || 0,
-                ticket_commission_type: ticketCommissionType,
-                package_commission: parseFloat(packageCommission) || 0,
-                package_commission_type: 'fixed',
-                hotel_commissions: hotelCommissions.map(hc => ({
-                    quint_commission: parseFloat(hc.quint_commission) || 0,
-                    quad_commission: parseFloat(hc.quad_commission) || 0,
-                    triple_commission: parseFloat(hc.triple_commission) || 0,
-                    double_commission: parseFloat(hc.double_commission) || 0,
-                    sharing_commission: parseFloat(hc.sharing_commission) || 0,
-                    other_commission: parseFloat(hc.other_commission) || 0,
-                    hotels: hc.hotels,
-                    valid_from: hc.valid_from || undefined,
-                    valid_until: hc.valid_until || undefined
-                })),
-                is_active: isActive
+                title,
+                commission_periods: commissionPeriods
             };
 
             const url = initialData
                 ? `http://localhost:8000/api/commissions/${initialData._id}`
                 : 'http://localhost:8000/api/commissions/';
-            
+
             const method = initialData ? 'PUT' : 'POST';
-            
+
             const response = await fetch(url, {
                 method,
                 headers: {
@@ -118,11 +81,10 @@ const AddCommissionView = ({ onBack, initialData }) => {
             });
 
             if (response.ok) {
-                alert('Commission saved successfully!');
                 onBack();
             } else {
                 const error = await response.json();
-                alert(`Error: ${JSON.stringify(error.detail || 'Failed to save')}`);
+                alert(`Error: ${error.detail || 'Failed to save'}`);
             }
         } catch (error) {
             console.error('Error saving:', error);
@@ -132,289 +94,340 @@ const AddCommissionView = ({ onBack, initialData }) => {
         }
     };
 
-    const updateHotelCommission = (index, field, value) => {
-        const updated = [...hotelCommissions];
-        updated[index][field] = value;
-        setHotelCommissions(updated);
+    const addHotelToGroup = (periodIndex, groupIndex, hotelId) => {
+        const hotel = hotels.find(h => h._id === hotelId);
+        if (!hotel) return;
+
+        const updated = [...commissionPeriods];
+        if (updated[periodIndex].hotelGroups[groupIndex].selectedHotels.some(h => h._id === hotelId)) return;
+
+        updated[periodIndex].hotelGroups[groupIndex].selectedHotels.push({
+            _id: hotel._id,
+            hotel_name: hotel.hotel_name,
+            city: hotel.city
+        });
+        setCommissionPeriods(updated);
     };
 
-    const addHotelCommissionPeriod = () => {
-        setHotelCommissions([...hotelCommissions, {
+    const removeHotelFromGroup = (periodIndex, groupIndex, hotelId) => {
+        const updated = [...commissionPeriods];
+        updated[periodIndex].hotelGroups[groupIndex].selectedHotels =
+            updated[periodIndex].hotelGroups[groupIndex].selectedHotels.filter(h => h._id !== hotelId);
+        setCommissionPeriods(updated);
+    };
+
+    const updateRoomPrice = (periodIndex, groupIndex, roomType, value) => {
+        const updated = [...commissionPeriods];
+        updated[periodIndex].hotelGroups[groupIndex].roomPrices[roomType] = Number(value) || 0;
+        setCommissionPeriods(updated);
+    };
+
+    const addHotelGroup = (periodIndex) => {
+        const updated = [...commissionPeriods];
+        updated[periodIndex].hotelGroups.push({
             id: Date.now(),
-            quint_commission: '',
-            quad_commission: '',
-            triple_commission: '',
-            double_commission: '',
-            sharing_commission: '',
-            other_commission: '',
-            hotels: [],
-            valid_from: '',
-            valid_until: ''
-        }]);
-        setHotelSearches(prev => [...prev, '']);
+            selectedHotels: [],
+            roomPrices: { double: 0, triple: 0, quad: 0, quint: 0 }
+        });
+        setCommissionPeriods(updated);
     };
 
-    const removeHotelCommissionPeriod = (index) => {
-        if (hotelCommissions.length > 1) {
-            setHotelCommissions(hotelCommissions.filter((_, i) => i !== index));
-            setHotelSearches(prev => prev.filter((_, i) => i !== index));
-        }
+    const removeHotelGroup = (periodIndex, groupIndex) => {
+        const updated = [...commissionPeriods];
+        updated[periodIndex].hotelGroups = updated[periodIndex].hotelGroups.filter((_, i) => i !== groupIndex);
+        setCommissionPeriods(updated);
     };
 
-    const toggleHotelSelection = (periodIndex, hotelId) => {
-        const current = hotelCommissions[periodIndex].hotels || [];
-        const exists = current.includes(hotelId);
-        const updated = exists ? current.filter(h => h !== hotelId) : [...current, hotelId];
-        updateHotelCommission(periodIndex, 'hotels', updated);
+    const updatePeriodField = (periodIndex, field, value) => {
+        const updated = [...commissionPeriods];
+        updated[periodIndex][field] = value;
+        setCommissionPeriods(updated);
     };
 
-    const handleReset = () => {
-        setName('');
-        setTicketCommission('');
-        setTicketCommissionType('fixed');
-        setPackageCommission('');
-        setHotelCommissions([{
+    const addCommissionPeriod = () => {
+        const lastPeriod = commissionPeriods[commissionPeriods.length - 1];
+        const newPeriod = {
             id: Date.now(),
-            quint_commission: '',
-            quad_commission: '',
-            triple_commission: '',
-            double_commission: '',
-            sharing_commission: '',
-            other_commission: '',
-            hotels: [],
-            valid_from: '',
-            valid_until: ''
-        }]);
-        setIsActive(true);
+            ticketCommission: 0,
+            packageCommission: 0,
+            validFrom: lastPeriod.validUntil || '',
+            validUntil: '',
+            hotelGroups: [
+                {
+                    id: Date.now() + 1,
+                    selectedHotels: [],
+                    roomPrices: { double: 0, triple: 0, quad: 0, quint: 0 }
+                }
+            ]
+        };
+        setCommissionPeriods([...commissionPeriods, newPeriod]);
+    };
+
+    const removeCommissionPeriod = (index) => {
+        setCommissionPeriods(commissionPeriods.filter((_, i) => i !== index));
     };
 
     return (
-        <div className="max-w-7xl mx-auto p-8 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                    <button onClick={onBack} className="p-2 hover:bg-slate-100 rounded-xl transition-all">
-                        <ArrowLeft size={24} className="text-slate-600" />
-                    </button>
-                    <div>
-                        <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tight">
-                            {initialData ? 'Edit Commission Group' : 'Add Commission Group'}
-                        </h2>
-                        <p className="text-slate-500 font-medium">Configure commission amounts for tickets, packages, and hotels</p>
-                    </div>
-                </div>
-                <div className="flex gap-3">
-                    <button
-                        type="button"
-                        onClick={handleReset}
-                        className="px-6 py-2.5 bg-slate-100 text-slate-700 rounded-xl text-sm font-bold transition-all hover:bg-slate-200"
-                    >
-                        Reset
-                    </button>
-                    <button
-                        onClick={handleSubmit}
-                        disabled={saving}
-                        className="px-6 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold transition-all hover:bg-blue-700 shadow-lg shadow-blue-100 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                    >
-                        <Save size={18} />
-                        {saving ? 'Saving...' : 'Save'}
-                    </button>
+        <div className="max-w-6xl mx-auto p-8 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {/* Header */}
+            <div className="flex items-center gap-4">
+                <button onClick={onBack} className="p-2 hover:bg-slate-100 rounded-xl transition-all">
+                    <ArrowLeft size={24} className="text-slate-600" />
+                </button>
+                <div>
+                    <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tight">
+                        {initialData ? 'Edit Commission' : 'Add Commission'}
+                    </h2>
+                    <p className="text-slate-500 font-medium">Configure partner commission rates and hotel pricing</p>
                 </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-                    <h3 className="text-sm font-bold text-slate-700 mb-4">Select Commission Group</h3>
-                    <input
-                        type="text"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        placeholder="Enter commission group name"
-                        required
-                        className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus: ring-2 focus:ring-blue-100 outline-none font-medium text-sm"
-                    />
-                </div>
+            <form onSubmit={handleSubmit} className="space-y-8">
+                {/* Title Section (Global - applies to all periods) */}
+                <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-6">
+                    <div className="flex items-center gap-3 mb-4">
+                        <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center">
+                            <TrendingUp size={24} />
+                        </div>
+                        <div>
+                            <h3 className="text-xl font-black text-slate-900 tracking-tight">Group Title</h3>
+                            <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Applies to all commission periods</p>
+                        </div>
+                    </div>
 
-                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-                    <h3 className="text-sm font-bold text-slate-700 mb-4">Commissions</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-3">
-                            <label className="block text-sm font-bold text-slate-700">
-                                Group Ticket Commission
-                            </label>
-                            <select
-                                value={ticketCommissionType}
-                                onChange={(e) => setTicketCommissionType(e.target.value)}
-                                className="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none font-medium text-sm bg-white"
-                            >
-                                <option value="fixed">Fixed Amount</option>
-                                <option value="percentage">Percentage (%)</option>
-                            </select>
-                            <input
-                                type="number"
-                                value={ticketCommission}
-                                onChange={(e) => setTicketCommission(e.target.value)}
-                                placeholder={ticketCommissionType === 'percentage' ? 'e.g. 10 (for 10%)' : 'e.g. 922'}
-                                min="0"
-                                max={ticketCommissionType === 'percentage' ? '100' : undefined}
-                                step="0.01"
-                                className="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none font-medium text-sm"
-                            />
-                        </div>
-                        <div className="space-y-3">
-                            <label className="block text-sm font-bold text-slate-700">
-                                Umrah Package Commission Amount
-                            </label>
-                            <input
-                                type="number"
-                                value={packageCommission}
-                                onChange={(e) => setPackageCommission(e.target.value)}
-                                placeholder="e.g. 150"
-                                min="0"
-                                step="0.01"
-                                className="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none font-medium text-sm"
-                            />
-                        </div>
+                    <div>
+                        <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2">
+                            Title *
+                        </label>
+                        <input
+                            type="text"
+                            value={title}
+                            onChange={(e) => setTitle(e.target.value)}
+                            placeholder="Enter group title"
+                            required
+                            className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none font-bold text-sm"
+                        />
                     </div>
                 </div>
 
-                {hotelCommissions.map((commission, index) => (
-                    <div key={commission.id} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6 relative">
-                        {hotelCommissions.length > 1 && (
+                {/* Commission Periods */}
+                {commissionPeriods.map((period, periodIndex) => (
+                    <div key={period.id} className="space-y-6 relative">
+                        {commissionPeriods.length > 1 && (
                             <button
                                 type="button"
-                                onClick={() => removeHotelCommissionPeriod(index)}
-                                className="absolute top-4 right-4 p-2 text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                                onClick={() => removeCommissionPeriod(periodIndex)}
+                                className="absolute top-0 right-0 p-2 text-red-500 hover:text-red-600 rounded-lg transition-colors"
+                                title="Remove this commission period"
                             >
                                 <X size={20} />
                             </button>
                         )}
 
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center">
-                                <Hotel size={20} />
-                            </div>
-                            <h3 className="text-sm font-bold text-slate-700">
-                                Hotel Night Commissions {hotelCommissions.length > 1 && `- Period ${index + 1}`}
-                            </h3>
+                        <div className="bg-gradient-to-r from-blue-50 to-purple-50 px-6 py-3 rounded-2xl">
+                            <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight text-center">
+                                Commission Period #{periodIndex + 1}
+                            </h2>
                         </div>
 
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                            {['quint', 'quad', 'triple', 'double', 'sharing', 'other'].map(type => (
-                                <div key={type}>
-                                    <label className="block text-sm font-medium text-slate-600 mb-2 capitalize">
-                                        {type} Per Night Commission
+                        {/* SECTION 1: Commission Amounts */}
+                        <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-6">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center">
+                                    <TrendingUp size={24} />
+                                </div>
+                                <div>
+                                    <h3 className="text-xl font-black text-slate-900 tracking-tight">Commission Amounts</h3>
+                                    <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Fixed Commission Values (PKR)</p>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2">
+                                        Ticket Commission (PKR)
                                     </label>
                                     <input
                                         type="number"
-                                        value={commission[`${type}_commission`]}
-                                        onChange={(e) => updateHotelCommission(index, `${type}_commission`, e.target.value)}
+                                        value={period.ticketCommission}
+                                        onChange={(e) => updatePeriodField(periodIndex, 'ticketCommission', Number(e.target.value) || 0)}
                                         placeholder="0"
                                         min="0"
-                                        step="0.01"
-                                        className="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none font-medium text-sm"
+                                        className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none font-bold text-sm"
                                     />
                                 </div>
-                            ))}
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-slate-600 mb-2">
-                                Hotels (search by name or city)
-                            </label>
-                            <input
-                                type="text"
-                                value={hotelSearches[index]}
-                                onChange={(e) => setHotelSearches(prev => { const n = [...prev]; n[index] = e.target.value; return n; })}
-                                placeholder="Search hotels by city or name"
-                                className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none font-medium text-sm mb-2"
-                            />
-                            <div className="max-h-40 overflow-auto border border-slate-100 rounded-lg p-2">
-                                {(hotels || []).filter(h => {
-                                    const q = (hotelSearches[index] || '').toLowerCase().trim();
-                                    if (!q) return true;
-                                    const name = (h.name || h.hotel_name || '').toLowerCase();
-                                    const city = (h.city || '').toLowerCase();
-                                    return name.includes(q) || city.includes(q);
-                                }).slice(0, 50).map(h => (
-                                    <label key={h._id} className="flex items-center gap-2 py-1 px-2 hover:bg-slate-50 rounded">
-                                        <input type="checkbox" checked={(commission.hotels || []).includes(h._id)} onChange={() => toggleHotelSelection(index, h._id)} />
-                                        <span className="text-sm">{(h.name || h.hotel_name)} — <span className="text-xs text-slate-400">{h.city}</span></span>
+                                <div>
+                                    <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2">
+                                        Package Commission (PKR)
                                     </label>
-                                ))}
-                                {hotels.length === 0 && <div className="text-xs text-slate-400">No hotels available</div>}
-                            </div>
-                            <div className="mt-2 flex flex-wrap gap-2">
-                                {(commission.hotels || []).map(hid => {
-                                    const h = hotels.find(x => x._id === hid) || {};
-                                    return (
-                                        <div key={hid} className="px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full text-xs font-medium flex items-center gap-2">
-                                            <span>{(h.name || h.hotel_name) || hid}</span>
-                                            <button type="button" onClick={() => toggleHotelSelection(index, hid)} className="text-emerald-600">×</button>
-                                        </div>
-                                    )
-                                })}
+                                    <input
+                                        type="number"
+                                        value={period.packageCommission}
+                                        onChange={(e) => updatePeriodField(periodIndex, 'packageCommission', Number(e.target.value) || 0)}
+                                        placeholder="0"
+                                        min="0"
+                                        className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none font-bold text-sm"
+                                    />
+                                </div>
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-slate-100">
-                            <div>
-                                <label className="block text-sm font-medium text-slate-600 mb-2">Valid From</label>
-                                <input
-                                    type="date"
-                                    value={commission.valid_from}
-                                    onChange={(e) => updateHotelCommission(index, 'valid_from', e.target.value)}
-                                    className="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none font-medium text-sm"
-                                />
+                        {/* SECTION 2: Hotel Groups (Repeatable) */}
+                        <div className="space-y-6">
+                            {period.hotelGroups.map((group, groupIndex) => (
+                                <div key={group.id} className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-6 relative">
+                                    {period.hotelGroups.length > 1 && (
+                                        <button
+                                            type="button"
+                                            onClick={() => removeHotelGroup(periodIndex, groupIndex)}
+                                            className="absolute top-4 right-4 p-2 text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                                            title="Remove this hotel group"
+                                        >
+                                            <X size={20} />
+                                        </button>
+                                    )}
+
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center">
+                                            <Hotel size={24} />
+                                        </div>
+                                        <div>
+                                            <h3 className="text-xl font-black text-slate-900 tracking-tight">Hotel Group #{groupIndex + 1}</h3>
+                                            <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Select Hotels & Set Room Prices</p>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2">
+                                            Add Hotels
+                                        </label>
+                                        <select
+                                            onChange={(e) => {
+                                                if (e.target.value) {
+                                                    addHotelToGroup(periodIndex, groupIndex, e.target.value);
+                                                    e.target.value = '';
+                                                }
+                                            }}
+                                            className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-100 outline-none font-bold text-sm bg-white"
+                                        >
+                                            <option value="">Select a hotel to add...</option>
+                                            {hotels.map(h => (
+                                                <option key={h._id} value={h._id}>
+                                                    {h.hotel_name} - {h.city}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    {group.selectedHotels.length > 0 && (
+                                        <div className="flex flex-wrap gap-2">
+                                            {group.selectedHotels.map(hotel => (
+                                                <div
+                                                    key={hotel._id}
+                                                    className="flex items-center gap-2 px-4 py-2 bg-amber-50 border border-amber-200 rounded-xl text-sm font-bold text-amber-900"
+                                                >
+                                                    <span>{hotel.hotel_name} ({hotel.city})</span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => removeHotelFromGroup(periodIndex, groupIndex, hotel._id)}
+                                                        className="p-1 hover:bg-amber-200 rounded-full transition-all"
+                                                    >
+                                                        <X size={14} />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    <div className="pt-4 border-t border-slate-200">
+                                        <p className="text-xs font-black text-slate-500 uppercase tracking-wider mb-3">
+                                            Room Prices (PKR per night) - Applies to all selected hotels
+                                        </p>
+                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                            {['double', 'triple', 'quad', 'quint'].map(roomType => (
+                                                <div key={roomType}>
+                                                    <label className="block text-xs font-bold text-slate-600 mb-2 capitalize">{roomType}</label>
+                                                    <input
+                                                        type="number"
+                                                        value={group.roomPrices[roomType]}
+                                                        onChange={(e) => updateRoomPrice(periodIndex, groupIndex, roomType, e.target.value)}
+                                                        placeholder="0"
+                                                        min="0"
+                                                        className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-100 outline-none font-bold text-sm"
+                                                    />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+
+                            <button
+                                type="button"
+                                onClick={() => addHotelGroup(periodIndex)}
+                                className="w-full py-2 border border-slate-300 rounded-lg text-slate-600 hover:border-slate-400 hover:bg-slate-50 transition-all text-sm font-semibold flex items-center justify-center gap-2"
+                            >
+                                <Plus size={16} /> Add Hotel Group
+                            </button>
+                        </div>
+
+                        {/* SECTION 3: Validity Period */}
+                        <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-6">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="w-12 h-12 bg-purple-50 text-purple-600 rounded-2xl flex items-center justify-center">
+                                    <Calendar size={24} />
+                                </div>
+                                <div>
+                                    <h3 className="text-xl font-black text-slate-900 tracking-tight">Validity Period</h3>
+                                    <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Commission Price Valid Dates</p>
+                                </div>
                             </div>
-                            <div>
-                                <label className="block text-sm font-medium text-slate-600 mb-2">Valid Until</label>
-                                <input
-                                    type="date"
-                                    value={commission.valid_until}
-                                    onChange={(e) => updateHotelCommission(index, 'valid_until', e.target.value)}
-                                    className="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none font-medium text-sm"
-                                />
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2">
+                                        Valid From {periodIndex > 0 && <span className="text-purple-600">(Auto-filled)</span>}
+                                    </label>
+                                    <input
+                                        type="date"
+                                        value={period.validFrom}
+                                        onChange={(e) => updatePeriodField(periodIndex, 'validFrom', e.target.value)}
+                                        className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-100 outline-none font-bold text-sm"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2">
+                                        Valid Until
+                                    </label>
+                                    <input
+                                        type="date"
+                                        value={period.validUntil}
+                                        onChange={(e) => updatePeriodField(periodIndex, 'validUntil', e.target.value)}
+                                        className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-100 outline-none font-bold text-sm"
+                                    />
+                                </div>
                             </div>
                         </div>
                     </div>
                 ))}
 
-                <div className="flex gap-3">
+                {/* Bottom Action Buttons */}
+                <div className="flex gap-4">
                     <button
                         type="button"
-                        onClick={addHotelCommissionPeriod}
-                        className="px-6 py-2.5 bg-white border-2 border-blue-500 text-blue-600 rounded-xl text-sm font-bold transition-all hover:bg-blue-50 flex items-center gap-2"
+                        onClick={addCommissionPeriod}
+                        className="flex-1 py-3 border border-blue-400 rounded-lg text-blue-600 hover:bg-blue-50 transition-all text-sm font-semibold flex items-center justify-center gap-2"
                     >
-                        <Plus size={18} />
-                        Add Night Commission
+                        <Plus size={18} /> Add Commission Period
                     </button>
-                    {hotelCommissions.length > 1 && (
-                        <button
-                            type="button"
-                            onClick={() => removeHotelCommissionPeriod(hotelCommissions.length - 1)}
-                            className="px-6 py-2.5 bg-white border-2 border-red-500 text-red-600 rounded-xl text-sm font-bold transition-all hover:bg-red-50"
-                        >
-                            Remove Last
-                        </button>
-                    )}
-                </div>
-
-                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <h4 className="text-sm font-bold text-slate-700 mb-1">Status</h4>
-                            <p className="text-xs text-slate-500">Enable or disable this commission group</p>
-                        </div>
-                        <label className="relative inline-flex items-center cursor-pointer">
-                            <input
-                                type="checkbox"
-                                checked={isActive}
-                                onChange={(e) => setIsActive(e.target.checked)}
-                                className="sr-only peer"
-                            />
-                            <div className="w-14 h-7 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[4px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-blue-600"></div>
-                        </label>
-                    </div>
+                    <button
+                        type="submit"
+                        disabled={saving}
+                        className="flex-1 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        <Save size={18} />
+                        {saving ? 'Saving...' : 'Save Commission'}
+                    </button>
                 </div>
             </form>
         </div>

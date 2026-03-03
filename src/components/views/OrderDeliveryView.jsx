@@ -67,14 +67,18 @@ function normalizeBooking(b) {
     const isUmrah = b.booking_type === 'umrah_package';
 
     const agentName =
-        agencyDetails.name || agencyDetails.agency_name ||
-        branchDetails.name || branchDetails.branch_name ||
-        b.agent_name || '—';
+        b.source === 'customer'
+            ? (b.contact_name || 'Walk-in Customer')
+            : (agencyDetails.name || agencyDetails.agency_name ||
+               branchDetails.name || branchDetails.branch_name ||
+               b.agent_name || '—');
     const branchName = branchDetails.name || branchDetails.branch_name || '';
 
     // Source classification
     let source = 'Agent Orders';
-    if (b.branch_id && !b.agency_id) {
+    if (b.source === 'customer') {
+        source = 'Customer Orders';
+    } else if (b.branch_id && !b.agency_id) {
         source = 'Branch Orders';
     } else if (b.agency_id) {
         const aType = (agencyDetails.agency_type || '').toLowerCase();
@@ -125,46 +129,39 @@ export default function OrderDeliveryView({ onOrderClick }) {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    // ── Fetch both Umrah + Custom bookings ──────────────────────────────────
+    // ── Fetch bookings ──────────────────────────────────────────────────────
     useEffect(() => {
-        const fetchAllBookings = async () => {
+        async function load() {
             setLoading(true);
             setError(null);
             try {
                 const token = localStorage.getItem('access_token');
                 const headers = { 'Authorization': `Bearer ${token}` };
-
-                const [umrahRes, customRes, ticketRes] = await Promise.all([
+                const [r1, r2, r3, r4] = await Promise.all([
                     fetch(`${API}/api/umrah-bookings/?limit=200`, { headers }),
                     fetch(`${API}/api/custom-bookings/?limit=200`, { headers }),
                     fetch(`${API}/api/ticket-bookings/?limit=200`, { headers }),
+                    fetch(`${API}/api/customer-bookings/?limit=200`, { headers }),
                 ]);
-
-                const umrahData = umrahRes.ok ? await umrahRes.json() : [];
-                const customData = customRes.ok ? await customRes.json() : [];
-                const ticketData = ticketRes.ok ? await ticketRes.json() : [];
-
-                console.log("DEBUG: Fetched bookings:", {
-                    umrah: umrahData.length,
-                    custom: customData.length,
-                    ticket: ticketData.length
-                });
-
+                const d1 = r1.ok ? await r1.json() : [];
+                const d2 = r2.ok ? await r2.json() : [];
+                const d3 = r3.ok ? await r3.json() : [];
+                const d4 = r4.ok ? await r4.json() : [];
                 const merged = [
-                    ...umrahData.map(normalizeBooking),
-                    ...customData.map(normalizeBooking),
-                    ...ticketData.map(normalizeBooking),
-                ];
-                // Sort newest first (by id/created_at if available)
+                    ...(Array.isArray(d1) ? d1 : []),
+                    ...(Array.isArray(d2) ? d2 : []),
+                    ...(Array.isArray(d3) ? d3 : []),
+                    ...(Array.isArray(d4) ? d4 : []),
+                ].map(normalizeBooking);
                 merged.sort((a, b) => (b._raw.created_at || '').localeCompare(a._raw.created_at || ''));
                 setAllBookings(merged);
-            } catch (err) {
+            } catch (e) {
                 setError('Failed to load bookings. Please try again.');
             } finally {
                 setLoading(false);
             }
-        };
-        fetchAllBookings();
+        }
+        load();
     }, []);
 
     // ── Zero order agencies: unique agencies with 0 bookings ──────────────

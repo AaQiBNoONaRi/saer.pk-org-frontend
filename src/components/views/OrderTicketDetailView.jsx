@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronLeft, Printer, FileText, X, CheckCircle2 } from 'lucide-react';
+import { ChevronLeft, Printer, FileText, X } from 'lucide-react';
 
 const API = 'http://localhost:8000';
 
@@ -115,15 +115,15 @@ export default function OrderTicketDetailView({ onBack, order }) {
     const agency = raw.agency_details || {};
     const branch = raw.branch_details || {};
 
-    // Financial
-    const adultPrice = raw.base_price_per_person || raw.adult_price || 0;
-    const childPrice = raw.child_price || 0;
-    const infantPrice = raw.infant_price || 0;
-    const discount = raw.discount || 0;
+    // Financial — prefer ticket_details prices, fall back to top-level fields
+    const adultPrice = td.adult_selling || raw.base_price_per_person || raw.adult_price || 0;
+    const childPrice = td.child_selling || raw.child_price || 0;
+    const infantPrice = td.infant_selling || raw.infant_price || 0;
+    const discount = raw.discount_amount ?? raw.discount ?? 0;
     const paidAmt = raw.paid_amount || 0;
     const grandTotal = raw.grand_total || raw.total_amount || 0;
     const remaining = Math.max(0, grandTotal - paidAmt - discount);
-    const receivedBy = raw.received_by || raw.created_by || '—';
+    const receivedBy = raw.received_by || raw.booked_by_name || raw.created_by || '—';
 
     // Agency info
     const agencyName = agency.name || agency.agency_name || branch.name || branch.branch_name || raw.agent_name || '—';
@@ -147,13 +147,14 @@ export default function OrderTicketDetailView({ onBack, order }) {
 
     // Shared ticket meta (price, seats, pnr) from ticket_details or top-level raw
     const sharedMeta = {
-        price: raw.base_price_per_person || td.price || 0,
-        total_seats: raw.total_passengers || raw.total_seats || td.total_seats || 0,
+        price: td.adult_selling || raw.base_price_per_person || td.price || 0,
+        total_seats: td.total_seats || raw.total_seats || raw.total_passengers || 0,
+        available_seats: td.available_seats || '—',
         weight: td.weight || raw.weight || '—',
         piece: td.piece || raw.piece || '—',
-        pnr: td.pnr || raw.pnr || '—',
+        pnr: raw.pnr || td.pnr || '—',
         meal: td.meal != null ? (td.meal ? 'Yes' : 'No') : '—',
-        ticket_type: td.ticket_type || td.type || '—',
+        ticket_type: td.trip_type || td.ticket_type || td.type || '—',
     };
 
     // Modal states
@@ -174,7 +175,6 @@ export default function OrderTicketDetailView({ onBack, order }) {
     const refetchBooking = async () => {
         try {
             const id = raw._id || raw.id;
-            console.log('DEBUG: Re-fetching booking ID:', id);
             if (!id) return;
             const token = localStorage.getItem('access_token');
             const res = await fetch(`${API}/api/ticket-bookings/${id}`, {
@@ -182,13 +182,10 @@ export default function OrderTicketDetailView({ onBack, order }) {
             });
             if (res.ok) {
                 const updated = await res.json();
-                console.log('DEBUG: Received updated booking data:', updated);
                 setBookingData(updated);
-            } else {
-                console.error('DEBUG: Re-fetch failed with status:', res.status);
             }
         } catch (e) {
-            console.error('DEBUG: Re-fetch error:', e);
+            // silently ignore refetch errors
         }
     };
 
@@ -365,6 +362,7 @@ export default function OrderTicketDetailView({ onBack, order }) {
                     </div>
                 </Modal>
             )}
+
             {modal === 'refund_ticket' && (
                 <Modal title="Refund Ticket" onClose={() => setModal(null)}>
                     <p className="text-xs text-slate-500 font-semibold mb-4">Are you sure you want to refund this ticket? The booking will be marked as <span className="font-black text-rose-600">Refunded</span>.</p>
@@ -438,13 +436,13 @@ export default function OrderTicketDetailView({ onBack, order }) {
                                             <Td>{p.title || '—'}</Td>
                                             <Td className="font-black text-slate-900">{p.first_name || '—'}</Td>
                                             <Td className="font-black text-slate-900">{p.last_name || '—'}</Td>
-                                            <Td className="text-slate-800 font-black">{p.passport || p.passport_number || '—'}</Td>
+                                            <Td className="text-slate-800 font-black">{p.passport_no || p.passport || p.passport_number || '—'}</Td>
                                             <Td>{formatDate(p.dob || p.date_of_birth)}</Td>
-                                            <Td className={!p.passportIssue && !p.passport_issue_date ? 'text-slate-400' : 'text-amber-600 font-black'}>
-                                                {formatDate(p.passportIssue || p.passport_issue_date)}
+                                            <Td className={!p.passport_issue && !p.passportIssue && !p.passport_issue_date ? 'text-slate-400' : 'text-amber-600 font-black'}>
+                                                {formatDate(p.passport_issue || p.passportIssue || p.passport_issue_date)}
                                             </Td>
-                                            <Td className={!p.passportExpiry && !p.passport_expiry_date ? 'text-slate-400' : ''}>
-                                                {formatDate(p.passportExpiry || p.passport_expiry_date)}
+                                            <Td className={!p.passport_expiry && !p.passportExpiry && !p.passport_expiry_date ? 'text-slate-400' : ''}>
+                                                {formatDate(p.passport_expiry || p.passportExpiry || p.passport_expiry_date)}
                                             </Td>
                                             <Td>{p.country || '—'}</Td>
                                             <Td>
@@ -467,10 +465,10 @@ export default function OrderTicketDetailView({ onBack, order }) {
                         </div>
                         <div className="overflow-x-auto">
                             <table className="w-full text-left">
-                                <TableHead cols={['Airline', 'Flight Number', 'Meal', 'Type', 'PNR', 'Price', 'Total Seats', 'Weight', 'Piece', 'Route', 'Dep Date & Time', 'Arv Date & Time', 'Dep Date & Time', 'Arv Date & Time']} />
+                                <TableHead cols={['Airline', 'Flight No', 'Meal', 'Trip Type', 'PNR', 'Adult Price', 'Total Seats', 'Avail. Seats', 'Route', 'Dep Date & Time', 'Arv Date & Time', 'Rtn Dep Date', 'Rtn Arv Date']} />
                                 <tbody>
                                     {flights.length === 0 ? (
-                                        <tr><td colSpan={14} className="py-8 text-center text-xs text-slate-400 italic">No flight data available</td></tr>
+                                        <tr><td colSpan={13} className="py-8 text-center text-xs text-slate-400 italic">No flight data available</td></tr>
                                     ) : flights.map((f, idx) => {
                                         const leg = f._leg || (idx === 0 ? 'Departure' : 'Return');
                                         const route = [f.departure_city, f.arrival_city].filter(Boolean).join(' - ') || fmt(f.route);
@@ -491,8 +489,7 @@ export default function OrderTicketDetailView({ onBack, order }) {
                                                 <Td className="font-black text-blue-600 uppercase">{fmt(f.pnr || sharedMeta.pnr)}</Td>
                                                 <Td className="font-black">{fmtMoney(sharedMeta.price)}</Td>
                                                 <Td>{sharedMeta.total_seats}</Td>
-                                                <Td>{sharedMeta.weight}</Td>
-                                                <Td>{sharedMeta.piece}</Td>
+                                                <Td>{sharedMeta.available_seats}</Td>
                                                 <Td className="uppercase font-black text-slate-800">{route}</Td>
                                                 <Td className="text-slate-600">{formatDateTime(depDT)}</Td>
                                                 <Td className="text-slate-600">{formatDateTime(arvDT)}</Td>
@@ -580,38 +577,22 @@ export default function OrderTicketDetailView({ onBack, order }) {
                         </div>
                     )}
 
-                    {/* ── 5. Set Infant & Child Fare Button ── */}
-                    <div className="mb-8">
+                    {/* ── 5. Set Infant & Child Fare + PNR display ── */}
+                    <div className="mb-8 flex flex-wrap items-center gap-2">
                         <ActionBtn label="Set Infant And Child Fare" color="blue" onClick={() => setModal('infant_fare')} />
+                        <span className="px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg text-xs font-bold border border-slate-200">
+                            PNR: {sharedMeta.pnr}
+                        </span>
                     </div>
 
                     {/* ── 6. Bottom Action Buttons ── */}
                     <div className="pt-5 border-t border-slate-100 flex flex-wrap items-center gap-3">
-                        {/* Only show actions if NOT already approved or cancelled/rejected */}
-                        {((raw.booking_status || '').toLowerCase() !== 'approved' && !['cancelled', 'rejected'].includes((raw.booking_status || '').toLowerCase())) && (
-                            <>
-                                <ActionBtn label="Reject With Note" color="blue" onClick={() => { setModalNote(''); setModal('reject'); }} />
-                                <ActionBtn label="Partial Paid" color="blue" onClick={() => { setPartialAmt(''); setModal('partial'); }} />
-                                <ActionBtn label="Refund Ticket" color="blue" onClick={() => setModal('refund_ticket')} />
-                                <ActionBtn label={saving ? 'Approving...' : 'Approve Order'} color="blue" onClick={() => handleAction('approve')} />
-                                <ActionBtn label="cancel Order" color="blue" onClick={() => handleAction('cancel')} />
-                                <ActionBtn label="Cancel with note" color="blue" onClick={() => { setModalNote(''); setModal('cancel_note'); }} />
-                            </>
-                        )}
-
-                        {/* Show limited actions if approved or confirmed */}
-                        {((raw.booking_status || '').toLowerCase() === 'approved' || (raw.booking_status || '').toLowerCase() === 'confirmed') ? (
-                            <div className="flex items-center gap-3">
-                                <span className="text-emerald-600 font-bold text-xs bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100 flex items-center gap-2">
-                                    <CheckCircle2 size={14} /> This order is now APPROVED
-                                </span>
-                                {(raw.booking_status || '').toLowerCase() === 'confirmed' && (
-                                    <ActionBtn label={saving ? 'Updating...' : 'Ensure Approved Status'} color="green" small onClick={() => handleAction('approve')} />
-                                )}
-                                <ActionBtn label="Refund Ticket" color="blue" onClick={() => setModal('refund_ticket')} />
-                            </div>
-                        ) : null}
-
+                        <ActionBtn label="Reject With Note" color="blue" onClick={() => { setModalNote(''); setModal('reject'); }} />
+                        <ActionBtn label="Partial Paid" color="blue" onClick={() => { setPartialAmt(''); setModal('partial'); }} />
+                        <ActionBtn label="Refund Ticket" color="blue" onClick={() => setModal('refund_ticket')} />
+                        <ActionBtn label={saving ? 'Approving...' : 'Approve Order'} color="green" onClick={() => handleAction('approve')} />
+                        <ActionBtn label="Cancel Order" color="red" onClick={() => handleAction('cancel')} />
+                        <ActionBtn label="Cancel with note" color="blue" onClick={() => { setModalNote(''); setModal('cancel_note'); }} />
                         <ActionBtn label="Close" color="slate" onClick={onBack} />
                     </div>
 
