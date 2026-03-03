@@ -12,13 +12,14 @@ export const getCurrentPermissions = () => {
             const data = JSON.parse(employeeData);
             return data?.permissions || [];
         }
-
+        
         // Check if admin (admins have all permissions)
-        const userData = localStorage.getItem('user_data') || localStorage.getItem('admin_data');
-        if (userData) {
+        // org login stores under 'admin_data'; also fall back to 'user_data'
+        const adminData = localStorage.getItem('admin_data') || localStorage.getItem('user_data');
+        if (adminData) {
             return ['*']; // Wildcard - admins have all permissions
         }
-
+        
         return [];
     } catch {
         return [];
@@ -39,8 +40,8 @@ export const getCurrentUser = () => {
                 ...data
             };
         }
-
-        const userData = localStorage.getItem('user_data') || localStorage.getItem('admin_data');
+        
+        const userData = localStorage.getItem('user_data');
         if (userData) {
             const data = JSON.parse(userData);
             return {
@@ -51,7 +52,7 @@ export const getCurrentUser = () => {
                 ...data
             };
         }
-
+        
         return null;
     } catch {
         return null;
@@ -61,13 +62,13 @@ export const getCurrentUser = () => {
 // Check if user has a specific permission
 export const hasPermission = (permissionCode) => {
     const permissions = getCurrentPermissions();
-
+    
     // Admins have all permissions
     if (permissions.includes('*')) return true;
-
+    
     // Check exact match
     if (permissions.includes(permissionCode)) return true;
-
+    
     // Check if any permission starts with the code (e.g., "customers." matches "customers.view")
     return permissions.some(p => p.startsWith(permissionCode));
 };
@@ -75,21 +76,21 @@ export const hasPermission = (permissionCode) => {
 // Check if user has any of the specified actions for a module
 export const hasModulePermission = (module, action) => {
     const permissions = getCurrentPermissions();
-
+    
     // Admins have all permissions
     if (permissions.includes('*')) return true;
-
+    
     // Check for legacy format (e.g., "crm", "employees")
     if (permissions.includes(module)) return true;
-
+    
     // Check for new RBAC format (e.g., "customers.leads.view")
     const permissionCode = `${module}.${action}`;
     if (permissions.includes(permissionCode)) return true;
-
+    
     // Check if "all" permission exists for the module
     const allPermissionCode = `${module}.all`;
     if (permissions.includes(allPermissionCode)) return true;
-
+    
     // Check prefix match
     return permissions.some(p => p.startsWith(permissionCode));
 };
@@ -102,7 +103,7 @@ export const hasAnyModulePermission = (module, actions = []) => {
 // Permission object for a module (useful for UI rendering)
 export const getModulePermissions = (module) => {
     const permissions = getCurrentPermissions();
-
+    
     // Admins have all permissions
     if (permissions.includes('*')) {
         return {
@@ -113,7 +114,7 @@ export const getModulePermissions = (module) => {
             all: true
         };
     }
-
+    
     // Legacy format check
     if (permissions.includes(module)) {
         return {
@@ -124,7 +125,7 @@ export const getModulePermissions = (module) => {
             all: true
         };
     }
-
+    
     // New RBAC format
     const result = {
         view: false,
@@ -133,7 +134,7 @@ export const getModulePermissions = (module) => {
         delete: false,
         all: false
     };
-
+    
     permissions.forEach(p => {
         if (p.startsWith(module)) {
             const parts = p.split('.');
@@ -143,7 +144,7 @@ export const getModulePermissions = (module) => {
             }
         }
     });
-
+    
     // If "all" is true, set all actions to true
     if (result.all) {
         result.view = true;
@@ -151,15 +152,14 @@ export const getModulePermissions = (module) => {
         result.update = true;
         result.delete = true;
     }
-
+    
     return result;
 };
 
 // Check if user is admin
 export const isAdmin = () => {
     try {
-        const userData = localStorage.getItem('user_data') || localStorage.getItem('admin_data');
-        return !!userData;
+        return !!(localStorage.getItem('admin_data') || localStorage.getItem('user_data'));
     } catch {
         return false;
     }

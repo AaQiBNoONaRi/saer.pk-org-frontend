@@ -4,8 +4,11 @@ import {
     Edit2, Trash2, ShieldCheck, Loader2, AlertCircle, CreditCard,
     Eye, EyeOff, Building, User, Check, Ticket, Clock
 } from 'lucide-react';
+import { getModulePermissions } from '../../utils/permissions';
 
 const AgenciesView = () => {
+    // Check permissions for entities.agencies module
+    const agenciesPerms = getModulePermissions('entities.agencies');
     const [agencies, setAgencies] = useState([]);
     const [branches, setBranches] = useState([]);
     const [discountGroups, setDiscountGroups] = useState([]);
@@ -367,13 +370,15 @@ const AgenciesView = () => {
                             Manage your branch agency partners
                         </p>
                     </div>
-                    <button
-                        onClick={openAddForm}
-                        className="flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-blue-100 hover:scale-105 transition-all"
-                    >
-                        <Plus size={16} />
-                        <span>Add New Agency</span>
-                    </button>
+                    {agenciesPerms.add && (
+                        <button
+                            onClick={openAddForm}
+                            className="flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-blue-100 hover:scale-105 transition-all"
+                        >
+                            <Plus size={16} />
+                            <span>Add New Agency</span>
+                        </button>
+                    )}
                 </div>
 
                 <div className="bg-white rounded-[32px] p-6 border border-slate-100 shadow-sm">
@@ -491,18 +496,22 @@ const AgenciesView = () => {
                             </div>
                         </div>
                         <div className="flex gap-2">
-                            <button
-                                onClick={() => openEditForm(selectedAgency)}
-                                className="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition-all flex items-center gap-2"
-                            >
-                                <Edit2 size={14} /> EDIT
-                            </button>
-                            <button
-                                onClick={() => handleConfirmDelete(selectedAgency)}
-                                className="px-4 py-2 bg-red-50 text-red-600 rounded-lg text-xs font-bold hover:bg-red-100 transition-all flex items-center gap-2"
-                            >
-                                <Trash2 size={14} />
-                            </button>
+                            {agenciesPerms.update && (
+                                <button
+                                    onClick={() => openEditForm(selectedAgency)}
+                                    className="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition-all flex items-center gap-2"
+                                >
+                                    <Edit2 size={14} /> EDIT
+                                </button>
+                            )}
+                            {agenciesPerms.delete && (
+                                <button
+                                    onClick={() => handleConfirmDelete(selectedAgency)}
+                                    className="px-4 py-2 bg-red-50 text-red-600 rounded-lg text-xs font-bold hover:bg-red-100 transition-all flex items-center gap-2"
+                                >
+                                    <Trash2 size={14} />
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>

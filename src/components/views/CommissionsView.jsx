@@ -35,7 +35,7 @@ const CommissionsView = ({ onAddCommission, onEditCommission }) => {
 
     const handleDelete = async (id) => {
         if (!window.confirm('Are you sure you want to delete this commission?')) return;
-        
+
         try {
             const token = localStorage.getItem('access_token');
             const response = await fetch(`http://localhost:8000/api/commissions/${id}`, {
@@ -57,7 +57,7 @@ const CommissionsView = ({ onAddCommission, onEditCommission }) => {
         try {
             const token = localStorage.getItem('access_token');
             const updateData = { status: newStatus };
-            
+
             if (newStatus === 'earned') {
                 updateData.earned_date = new Date().toISOString().split('T')[0];
             } else if (newStatus === 'paid') {

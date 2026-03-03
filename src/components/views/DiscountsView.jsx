@@ -5,7 +5,6 @@ const DiscountsView = ({ onAddDiscount, onEditDiscount }) => {
     const [discounts, setDiscounts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
-
     useEffect(() => {
         fetchDiscounts();
     }, []);

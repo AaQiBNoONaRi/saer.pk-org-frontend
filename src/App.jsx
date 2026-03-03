@@ -29,6 +29,18 @@ import AddBankAccountView from './components/views/AddBankAccountView';
 import OrderConfirmationView from './components/views/OrderConfirmationView';
 import OrderTicketDetailView from './components/views/OrderTicketDetailView';
 
+import CommissionEarningsView from './components/views/CommissionEarningsView';
+import DiscountsView from './components/views/DiscountsView';
+import CommissionsView from './components/views/CommissionsView';
+import ServiceChargesView from './components/views/ServiceChargesView';
+import PaxMovementView from './components/views/PaxMovementView';
+import DailyOperationsView from './components/views/DailyOperationsView';
+import EmployeeDashboard from './components/employee/EmployeeDashboard';
+import HRManagementView from './components/views/HRManagementView';
+import RolesPermissionsPage from './components/views/RolesPermissionsPage';
+// The Customer Database and Leads modules might not have specific views yet, but let's map them to generic if they don't, or map to what we have.
+// Wait, I see we have EmployeesView already, which maps to Employees. The sidebar uses 'HR Employees'.
+
 // Route mapping: URL path <-> Tab name
 const ROUTES = {
   '/dashboard': 'Dashboard',
@@ -44,14 +56,22 @@ const ROUTES = {
   '/organization': 'Organization',
   '/branch': 'Branch',
   '/agencies': 'Agencies',
+  '/roles-permissions': 'Roles & Permissions',
   '/employees': 'Employees',
-
+  '/hr-employees': 'HR Employees',
   '/blogs': 'Blogs',
   '/forms': 'Forms',
   '/order-delivery': 'Order Delivery',
-  '/order-delivery': 'Order Delivery',
   '/payments': 'Payments',
   '/payments/add': 'Add Bank Account',
+  '/commission-earnings': 'Commission Earnings',
+  '/discounts': 'Discounts',
+  '/commissions': 'Commissions',
+  '/service-charges': 'Service Charges',
+  '/pax-movement': 'Pax Movement',
+  '/daily-operations': 'Daily Operations',
+  '/customers': 'Customer Database',
+  '/leads': 'Lead Management',
 };
 
 // Helper: Get URL path for a tab name
@@ -152,6 +172,7 @@ const App = () => {
 
   // View routing logic
   const renderView = () => {
+    console.log("Rendering view for activeTab:", activeTab);
     switch (activeTab) {
       case 'Dashboard':
         return <DashboardView onNavigate={setActiveTab} />;
@@ -256,9 +277,28 @@ const App = () => {
         return <BranchesView />;
       case 'Agencies':
         return <AgenciesView />;
+      case 'Roles & Permissions':
+        return <RolesPermissionsPage />;
       case 'Employees':
         return <EmployeesView />;
-
+      case 'HR Employees':
+        return <HRManagementView />;
+      case 'Commission Earnings':
+        return <CommissionEarningsView />;
+      case 'Discounts':
+        return <DiscountsView />;
+      case 'Commissions':
+        return <CommissionsView />;
+      case 'Service Charges':
+        return <ServiceChargesView />;
+      case 'Pax Movement':
+        return <PaxMovementView />;
+      case 'Daily Operations':
+        return <DailyOperationsView />;
+      case 'Customer Database':
+        return <EmployeeDashboard />;
+      case 'Lead Management':
+        return <PlaceholderView title={activeTab} />;
       case 'Blogs':
         return <BlogsView />;
       case 'Forms':

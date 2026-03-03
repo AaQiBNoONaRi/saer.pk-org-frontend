@@ -175,7 +175,7 @@ const AddTicketView = ({ onBack, editingTicket }) => {
             setFormData({
                 meal: 'Yes',
                 type: 'Refundable',
-                pnr: '',
+                pnr: editingTicket.pnr || '',
                 umrahSeat: 'Yes',
                 totalSeats: editingTicket.total_seats?.toString() || '',
                 availableSeats: editingTicket.available_seats?.toString() || '',

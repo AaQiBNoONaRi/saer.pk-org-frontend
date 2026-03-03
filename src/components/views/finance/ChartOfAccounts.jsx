@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { coaAPI } from '../../../services/financeService';
 import { Plus, RefreshCw, BookOpen, CheckCircle, XCircle } from 'lucide-react';
+import { getModulePermissions } from '../../../utils/permissions';
 
 const ACCOUNT_TYPES = ['asset', 'liability', 'equity', 'income', 'expense'];
 
@@ -23,6 +24,7 @@ export default function ChartOfAccounts() {
     const [msg, setMsg] = useState('');
 
     const orgId = localStorage.getItem('organization_id') || '';
+    const canAdd = getModulePermissions('finance.coa').add;
 
     const load = async () => {
         setLoading(true);
@@ -83,15 +85,19 @@ export default function ChartOfAccounts() {
                     <p className="text-slate-400 text-sm mt-1">{accounts.length} accounts</p>
                 </div>
                 <div className="flex gap-2">
-                    <button onClick={handleSeed} disabled={seeding}
-                        className="flex items-center gap-2 px-4 py-2 border border-slate-200 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-50 transition">
-                        <BookOpen size={16} />
-                        {seeding ? 'Seeding…' : 'Seed Default COA'}
-                    </button>
-                    <button onClick={() => setShowForm(true)}
-                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 transition">
-                        <Plus size={16} /> Add Account
-                    </button>
+                    {canAdd && (
+                        <button onClick={handleSeed} disabled={seeding}
+                            className="flex items-center gap-2 px-4 py-2 border border-slate-200 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-50 transition">
+                            <BookOpen size={16} />
+                            {seeding ? 'Seeding…' : 'Seed Default COA'}
+                        </button>
+                    )}
+                    {canAdd && (
+                        <button onClick={() => setShowForm(true)}
+                            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 transition">
+                            <Plus size={16} /> Add Account
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -170,8 +176,8 @@ export default function ChartOfAccounts() {
                                     <table className="w-full">
                                         <thead className="bg-slate-50">
                                             <tr>
-                                                {['Code', 'Name', 'Status', 'Description'].map(h => (
-                                                    <th key={h} className="px-5 py-3 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">{h}</th>
+                                                {['Code', 'Name', 'Status', 'Balance', 'Description'].map(h => (
+                                                    <th key={h} className={`px-5 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest ${h === 'Balance' ? 'text-right' : 'text-left'}`}>{h}</th>
                                                 ))}
                                             </tr>
                                         </thead>
@@ -185,6 +191,9 @@ export default function ChartOfAccounts() {
                                                             ? <span className="flex items-center gap-1 text-emerald-600 text-xs font-bold"><CheckCircle size={12} /> Active</span>
                                                             : <span className="flex items-center gap-1 text-slate-400 text-xs font-bold"><XCircle size={12} /> Inactive</span>
                                                         }
+                                                    </td>
+                                                    <td className="px-5 py-3 text-sm font-bold text-right text-slate-800">
+                                                        {new Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR', minimumFractionDigits: 0 }).format(a.current_balance || 0)}
                                                     </td>
                                                     <td className="px-5 py-3 text-sm text-slate-400">{a.description || '—'}</td>
                                                 </tr>

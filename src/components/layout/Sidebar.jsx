@@ -11,7 +11,6 @@ import {
 export default function Sidebar({ activeTab, setActiveTab, getPathForTab, isSidebarOpen, setSidebarOpen, setIsLoggedIn }) {
     const [isInventoryOpen, setInventoryOpen] = useState(false);
     const [isCoreBusinessOpen, setCoreBusinessOpen] = useState(false);
-    const [isBookingsOpen, setBookingsOpen] = useState(false);
     const [isPartnersOpen, setPartnersOpen] = useState(false);
     const [isUserMenuOpen, setUserMenuOpen] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
@@ -91,28 +90,13 @@ export default function Sidebar({ activeTab, setActiveTab, getPathForTab, isSide
                             isOpen={isSidebarOpen}
                             isExpanded={isInventoryOpen}
                             onClick={() => setInventoryOpen(!isInventoryOpen)}
-                            active={['Packages', 'Hotels', 'Tickets', 'Flights', 'Visa & Other', 'Share Inventory'].includes(activeTab)}
+                            active={['Packages', 'Hotels', 'Tickets', 'Others', 'Share Inventory'].includes(activeTab)}
                         >
                             <DropdownItem label="Packages" active={activeTab === 'Packages'} onClick={() => handleNavClick('Packages')} href={getPathForTab ? getPathForTab('Packages') : '#'} />
                             <DropdownItem label="Hotels" active={activeTab === 'Hotels'} onClick={() => handleNavClick('Hotels')} href={getPathForTab ? getPathForTab('Hotels') : '#'} />
                             <DropdownItem label="Tickets" active={activeTab === 'Tickets'} onClick={() => handleNavClick('Tickets')} href={getPathForTab ? getPathForTab('Tickets') : '#'} />
-                            <DropdownItem label="Flights" active={activeTab === 'Flights'} onClick={() => handleNavClick('Flights')} href={getPathForTab ? getPathForTab('Flights') : '#'} />
                             <DropdownItem label="Others" active={activeTab === 'Others'} onClick={() => handleNavClick('Other')} href={getPathForTab ? getPathForTab('Other') : '#'} />
                             <DropdownItem label="Share Inventory" active={activeTab === 'Share Inventory'} onClick={() => handleNavClick('Share Inventory')} href={getPathForTab ? getPathForTab('Share Inventory') : '#'} />
-                        </NavDropdown>
-
-                        <NavDropdown
-                            icon={<ClipboardList size={20} />}
-                            label="Bookings"
-                            isOpen={isSidebarOpen}
-                            isExpanded={isBookingsOpen}
-                            onClick={() => setBookingsOpen(!isBookingsOpen)}
-                            active={['Ticket', 'Umrah Package', 'Custom Umrah', 'Booking History'].includes(activeTab)}
-                        >
-                            <DropdownItem label="Booking History" active={activeTab === 'Booking History'} onClick={() => handleNavClick('Booking History')} href={getPathForTab ? getPathForTab('Booking History') : '#'} />
-                            <DropdownItem label="Custom Umrah" active={activeTab === 'Custom Umrah'} onClick={() => handleNavClick('Custom Umrah')} href={getPathForTab ? getPathForTab('Custom Umrah') : '#'} />
-                            <DropdownItem label="Umrah Package" active={activeTab === 'Umrah Package'} onClick={() => handleNavClick('Umrah Package')} href={getPathForTab ? getPathForTab('Umrah Package') : '#'} />
-                            <DropdownItem label="Ticket" active={activeTab === 'Ticket'} onClick={() => handleNavClick('Ticket')} href={getPathForTab ? getPathForTab('Ticket') : '#'} />
                         </NavDropdown>
 
                         <NavDropdown
@@ -143,14 +127,6 @@ export default function Sidebar({ activeTab, setActiveTab, getPathForTab, isSide
                             onClick={() => handleNavClick('Customer Database')}
                             isOpen={isSidebarOpen}
                             href={getPathForTab ? getPathForTab('Customer Database') : '#'}
-                        />
-                        <NavItem
-                            icon={<TrendingUp size={20} />}
-                            label="Leads"
-                            active={activeTab === 'Lead Management'}
-                            onClick={() => handleNavClick('Lead Management')}
-                            isOpen={isSidebarOpen}
-                            href={getPathForTab ? getPathForTab('Lead Management') : '#'}
                         />
                     </NavGroup>
 
@@ -188,7 +164,6 @@ export default function Sidebar({ activeTab, setActiveTab, getPathForTab, isSide
                     </NavGroup>
 
                     <NavGroup title="Operations" isOpen={isSidebarOpen}>
-                        <NavItem icon={<ShieldCheck size={20} />} label="Visa Services" active={activeTab === 'Visa Services'} onClick={() => handleNavClick('Visa Services')} isOpen={isSidebarOpen} href={getPathForTab ? getPathForTab('Visa Services') : '#'} />
                         <NavItem icon={<Truck size={20} />} label="Pax Movement" active={activeTab === 'Pax Movement'} onClick={() => handleNavClick('Pax Movement')} isOpen={isSidebarOpen} href={getPathForTab ? getPathForTab('Pax Movement') : '#'} />
                         <NavItem icon={<ClipboardList size={20} />} label="Daily Operations" active={activeTab === 'Daily Operations'} onClick={() => handleNavClick('Daily Operations')} isOpen={isSidebarOpen} href={getPathForTab ? getPathForTab('Daily Operations') : '#'} />
                         <NavItem icon={<ClipboardList size={20} />} label="Order Delivery" active={activeTab === 'Order Delivery'} onClick={() => handleNavClick('Order Delivery')} isOpen={isSidebarOpen} href={getPathForTab ? getPathForTab('Order Delivery') : '#'} />

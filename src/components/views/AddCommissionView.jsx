@@ -4,10 +4,10 @@ import { ArrowLeft, Save, TrendingUp, Calendar, Hotel, X, Plus } from 'lucide-re
 const AddCommissionView = ({ onBack, initialData }) => {
     const [saving, setSaving] = useState(false);
     const [hotels, setHotels] = useState([]);
-    
+
     // Global: Title (applies to all periods)
     const [title, setTitle] = useState('');
-    
+
     // Commission Periods (Repeatable)
     const [commissionPeriods, setCommissionPeriods] = useState([
         {
@@ -68,9 +68,9 @@ const AddCommissionView = ({ onBack, initialData }) => {
             const url = initialData
                 ? `http://localhost:8000/api/commissions/${initialData._id}`
                 : 'http://localhost:8000/api/commissions/';
-            
+
             const method = initialData ? 'PUT' : 'POST';
-            
+
             const response = await fetch(url, {
                 method,
                 headers: {
@@ -100,7 +100,7 @@ const AddCommissionView = ({ onBack, initialData }) => {
 
         const updated = [...commissionPeriods];
         if (updated[periodIndex].hotelGroups[groupIndex].selectedHotels.some(h => h._id === hotelId)) return;
-        
+
         updated[periodIndex].hotelGroups[groupIndex].selectedHotels.push({
             _id: hotel._id,
             hotel_name: hotel.hotel_name,
@@ -111,7 +111,7 @@ const AddCommissionView = ({ onBack, initialData }) => {
 
     const removeHotelFromGroup = (periodIndex, groupIndex, hotelId) => {
         const updated = [...commissionPeriods];
-        updated[periodIndex].hotelGroups[groupIndex].selectedHotels = 
+        updated[periodIndex].hotelGroups[groupIndex].selectedHotels =
             updated[periodIndex].hotelGroups[groupIndex].selectedHotels.filter(h => h._id !== hotelId);
         setCommissionPeriods(updated);
     };

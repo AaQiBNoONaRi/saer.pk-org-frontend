@@ -3,6 +3,7 @@ import {
     LayoutDashboard, BookOpen, BookMarked, PenSquare,
     TrendingUp, Scale, Table2, BookText, ShieldCheck
 } from 'lucide-react';
+import { getCurrentPermissions } from '../../../utils/permissions';
 
 import FinanceDashboard from './FinanceDashboard';
 import ChartOfAccounts from './ChartOfAccounts';
@@ -14,20 +15,33 @@ import BalanceSheet from './reports/BalanceSheet';
 import TrialBalance from './reports/TrialBalance';
 import Ledger from './reports/Ledger';
 
-const TABS = [
-    { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { key: 'coa', label: 'Chart of Accounts', icon: BookOpen },
-    { key: 'journal', label: 'Journal Entries', icon: BookMarked },
-    { key: 'manual', label: 'Manual Posting', icon: PenSquare },
-    { key: 'pl', label: 'Profit & Loss', icon: TrendingUp },
-    { key: 'bs', label: 'Balance Sheet', icon: Scale },
-    { key: 'tb', label: 'Trial Balance', icon: Table2 },
-    { key: 'ledger', label: 'Ledger', icon: BookText },
-    { key: 'audit', label: 'Audit Trail', icon: ShieldCheck },
+// Each tab declares the minimum permission code required to VIEW it
+const ALL_TABS = [
+    { key: 'dashboard', label: 'Dashboard',        icon: LayoutDashboard, permCode: 'finance.dashboard' },
+    { key: 'coa',       label: 'Chart of Accounts', icon: BookOpen,        permCode: 'finance.coa' },
+    { key: 'journal',   label: 'Journal Entries',   icon: BookMarked,      permCode: 'finance.journals' },
+    { key: 'manual',    label: 'Manual Posting',    icon: PenSquare,       permCode: 'finance.manual_posting' },
+    { key: 'pl',        label: 'Profit & Loss',     icon: TrendingUp,      permCode: 'finance.profit_loss' },
+    { key: 'bs',        label: 'Balance Sheet',     icon: Scale,           permCode: 'finance.balance_sheet' },
+    { key: 'tb',        label: 'Trial Balance',     icon: Table2,          permCode: 'finance.trial_balance' },
+    { key: 'ledger',    label: 'Ledger',            icon: BookText,        permCode: 'finance.ledger' },
+    { key: 'audit',     label: 'Audit Trail',       icon: ShieldCheck,     permCode: 'finance.audit_trail' },
 ];
 
+// Returns the tabs this user is allowed to see
+function getAllowedTabs() {
+    const perms = getCurrentPermissions();
+    // Org admins have wildcard — show everything
+    if (perms.includes('*')) return ALL_TABS;
+    return ALL_TABS.filter(tab =>
+        perms.some(p => p === tab.permCode || p.startsWith(tab.permCode + '.'))
+    );
+}
+
 export default function FinanceHub() {
-    const [activeTab, setActiveTab] = useState('dashboard');
+    // If no specific tabs resolved (shouldn't happen for admins), show all as fallback
+    const TABS = getAllowedTabs().length > 0 ? getAllowedTabs() : ALL_TABS;
+    const [activeTab, setActiveTab] = useState(TABS[0]?.key || 'dashboard');
 
     const renderContent = () => {
         switch (activeTab) {
@@ -38,7 +52,9 @@ export default function FinanceHub() {
                     'Finance/Reports/PL': 'pl', 'Finance/Reports/BS': 'bs',
                     'Finance/Reports/TB': 'tb', 'Finance/Reports/Ledger': 'ledger',
                 };
-                if (map[t]) setActiveTab(map[t]);
+                const target = map[t];
+                // Only navigate to tabs this user is allowed to see
+                if (target && TABS.some(tab => tab.key === target)) setActiveTab(target);
             }} />;
             case 'coa': return <ChartOfAccounts />;
             case 'journal': return <JournalEntries />;
