@@ -8,7 +8,7 @@ const API = 'http://localhost:8000';
 
 // --- Reusable UI Components ---
 
-const FilterButton = ({ label, active, onClick, icon: Icon, variant = 'blue' }) => {
+const FilterButton = ({ label, active, onClick, icon: Icon, variant = 'blue', count }) => {
     const baseStyles = "flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 border";
     const variants = {
         blue: active ? "bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-600/20" : "bg-white text-slate-600 border-slate-200 hover:border-blue-200 hover:text-blue-600 hover:shadow-sm",
@@ -19,7 +19,14 @@ const FilterButton = ({ label, active, onClick, icon: Icon, variant = 'blue' }) 
     return (
         <button onClick={onClick} className={`${baseStyles} ${variants[variant] || variants.blue}`}>
             {Icon && <Icon size={14} strokeWidth={active ? 2.5 : 2} />}
-            {label}
+            <span className="flex items-center gap-2">
+                {label}
+                {count !== undefined && (
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-md ${active ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                        {count}
+                    </span>
+                )}
+            </span>
         </button>
     );
 };
@@ -70,8 +77,8 @@ function normalizeBooking(b) {
         b.source === 'customer'
             ? (b.contact_name || 'Walk-in Customer')
             : (agencyDetails.name || agencyDetails.agency_name ||
-               branchDetails.name || branchDetails.branch_name ||
-               b.agent_name || '—');
+                branchDetails.name || branchDetails.branch_name ||
+                b.agent_name || '—');
     const branchName = branchDetails.name || branchDetails.branch_name || '';
 
     // Source classification
@@ -221,6 +228,45 @@ export default function OrderDeliveryView({ onOrderClick }) {
         allBookings.filter(b => !['confirmed', 'approved'].includes(b.orderStatus?.toLowerCase())).length,
         [allBookings]);
 
+    const confirmedCount = useMemo(() =>
+        allBookings.filter(b => ['confirmed', 'approved'].includes(b.orderStatus?.toLowerCase())).length,
+        [allBookings]);
+
+    const agencyCount = useMemo(() =>
+        Object.keys(agencyBookingMap).length,
+        [agencyBookingMap]);
+
+    const filterCounts = useMemo(() => {
+        // We calculate counts based on the current mainTab selection
+        const baseBookings = allBookings.filter(order =>
+            mainTab === 'Confirmed Orders'
+                ? ['confirmed', 'approved'].includes(order.orderStatus?.toLowerCase())
+                : !['confirmed', 'approved'].includes(order.orderStatus?.toLowerCase())
+        );
+
+        return {
+            sources: {
+                'Agent Orders': baseBookings.filter(b => b.source === 'Agent Orders').length,
+                'Area Agent Orders': baseBookings.filter(b => b.source === 'Area Agent Orders').length,
+                'Customer Orders': baseBookings.filter(b => b.source === 'Customer Orders').length,
+                'Branch Orders': baseBookings.filter(b => b.source === 'Branch Orders').length,
+                'All Orders': baseBookings.length,
+            },
+            types: {
+                'Umrah Packages': baseBookings.filter(b => b.type === 'Umrah Packages').length,
+                'Custom Packages': baseBookings.filter(b => b.type === 'Custom Packages').length,
+                'Group Tickets': baseBookings.filter(b => b.type === 'Group Tickets').length,
+            },
+            statuses: {
+                'All': baseBookings.length,
+                'Under-process': baseBookings.filter(b => ['underprocess', 'processing', 'pending', 'approved'].includes(b.deliveryStatus?.toLowerCase())).length,
+                'Un-Approved': baseBookings.filter(b => ['draft', 'underprocess', 'pending'].includes(b.deliveryStatus?.toLowerCase())).length,
+                'Delivered': baseBookings.filter(b => b.deliveryStatus?.toLowerCase() === 'delivered').length,
+                'Cancelled': baseBookings.filter(b => b.orderStatus?.toLowerCase() === 'cancelled').length,
+            }
+        };
+    }, [allBookings, mainTab]);
+
     // ── Status badge renderer ─────────────────────────────────────────────
     const StatusBadge = ({ value }) => {
         const key = (value || '').toLowerCase();
@@ -237,9 +283,9 @@ export default function OrderDeliveryView({ onOrderClick }) {
 
             {/* 1. Top Tabs */}
             <div className="px-8 pt-8 border-b border-slate-100 flex gap-8">
-                <TabLink label="Confirmed Orders" active={mainTab === 'Confirmed Orders'} onClick={() => setMainTab('Confirmed Orders')} />
+                <TabLink label="Confirmed Orders" active={mainTab === 'Confirmed Orders'} onClick={() => setMainTab('Confirmed Orders')} count={confirmedCount} />
                 <TabLink label="Un-Confirmed Orders" active={mainTab === 'Un-Confirmed Orders'} onClick={() => setMainTab('Un-Confirmed Orders')} count={unconfirmedCount} />
-                <TabLink label="Zero Order Agencies" active={mainTab === 'Zero Order Agencies'} onClick={() => setMainTab('Zero Order Agencies')} />
+                <TabLink label="Zero Order Agencies" active={mainTab === 'Zero Order Agencies'} onClick={() => setMainTab('Zero Order Agencies')} count={agencyCount} />
             </div>
 
             {/* ZERO ORDER AGENCIES TAB */}
@@ -288,14 +334,15 @@ export default function OrderDeliveryView({ onOrderClick }) {
                         {/* Row 1: Source */}
                         <div className="flex flex-wrap items-center gap-3">
                             <span className="text-xs font-bold text-slate-400 uppercase tracking-widest mr-2">Source:</span>
-                            <FilterButton label="Agent Orders" icon={Briefcase} active={sourceFilter === 'Agent Orders'} onClick={() => setSourceFilter('Agent Orders')} />
-                            <FilterButton label="Area Agent Orders" icon={MapPin} active={sourceFilter === 'Area Agent Orders'} onClick={() => setSourceFilter('Area Agent Orders')} />
-                            <FilterButton label="Customer Orders" icon={User} active={sourceFilter === 'Customer Orders'} onClick={() => setSourceFilter('Customer Orders')} />
+                            <FilterButton label="Agent Orders" icon={Briefcase} active={sourceFilter === 'Agent Orders'} onClick={() => setSourceFilter('Agent Orders')} count={filterCounts.sources['Agent Orders']} />
+                            <FilterButton label="Area Agent Orders" icon={MapPin} active={sourceFilter === 'Area Agent Orders'} onClick={() => setSourceFilter('Area Agent Orders')} count={filterCounts.sources['Area Agent Orders']} />
+                            <FilterButton label="Customer Orders" icon={User} active={sourceFilter === 'Customer Orders'} onClick={() => setSourceFilter('Customer Orders')} count={filterCounts.sources['Customer Orders']} />
                             <div className="relative group/branch">
                                 <FilterButton
                                     label={selectedBranch ? `Branch: ${selectedBranch}` : "Branch Orders"}
                                     icon={Building2}
                                     active={sourceFilter === 'Branch Orders' || !!selectedBranch}
+                                    count={filterCounts.sources['Branch Orders']}
                                     onClick={() => {
                                         setSourceFilter('Branch Orders');
                                         setShowBranchDropdown(!showBranchDropdown);
@@ -347,30 +394,30 @@ export default function OrderDeliveryView({ onOrderClick }) {
                                     </div>
                                 )}
                             </div>
-                            <FilterButton label="All Orders" icon={Globe} active={sourceFilter === 'All Orders'} onClick={() => setSourceFilter('All Orders')} />
+                            <FilterButton label="All Orders" icon={Globe} active={sourceFilter === 'All Orders'} onClick={() => setSourceFilter('All Orders')} count={filterCounts.sources['All Orders']} />
                         </div>
 
                         {/* Row 2: Package Type */}
                         <div className="flex flex-wrap items-center gap-3">
                             <span className="text-xs font-bold text-slate-400 uppercase tracking-widest mr-2">Type:</span>
-                            <FilterButton label="Umrah Packages" active={packageFilter === 'Umrah Packages'} onClick={() => setPackageFilter('Umrah Packages')} />
-                            <FilterButton label="Custom Packages" active={packageFilter === 'Custom Packages'} onClick={() => setPackageFilter('Custom Packages')} />
-                            <FilterButton label="Group Tickets" active={packageFilter === 'Group Tickets'} onClick={() => setPackageFilter('Group Tickets')} />
+                            <FilterButton label="Umrah Packages" active={packageFilter === 'Umrah Packages'} onClick={() => setPackageFilter('Umrah Packages')} count={filterCounts.types['Umrah Packages']} />
+                            <FilterButton label="Custom Packages" active={packageFilter === 'Custom Packages'} onClick={() => setPackageFilter('Custom Packages')} count={filterCounts.types['Custom Packages']} />
+                            <FilterButton label="Group Tickets" active={packageFilter === 'Group Tickets'} onClick={() => setPackageFilter('Group Tickets')} count={filterCounts.types['Group Tickets']} />
                         </div>
 
                         {/* Row 3: Status & Search */}
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pt-2">
                             <div className="flex flex-wrap items-center gap-3">
                                 <span className="text-xs font-bold text-slate-400 uppercase tracking-widest mr-2">Status:</span>
-                                <FilterButton label="All" active={statusFilter === 'All'} onClick={() => setStatusFilter('All')} />
-                                <FilterButton label="Under-process" icon={Clock} active={statusFilter === 'Under-process'} onClick={() => setStatusFilter('Under-process')} />
+                                <FilterButton label="All" active={statusFilter === 'All'} onClick={() => setStatusFilter('All')} count={filterCounts.statuses['All']} />
+                                <FilterButton label="Under-process" icon={Clock} active={statusFilter === 'Under-process'} onClick={() => setStatusFilter('Under-process')} count={filterCounts.statuses['Under-process']} />
                                 {mainTab === 'Confirmed Orders' && (
                                     <>
-                                        <FilterButton label="Un-Approved" icon={AlertCircle} variant="amber" active={statusFilter === 'Un-Approved'} onClick={() => setStatusFilter('Un-Approved')} />
-                                        <FilterButton label="Delivered" icon={CheckCircle2} variant="emerald" active={statusFilter === 'Delivered'} onClick={() => setStatusFilter('Delivered')} />
+                                        <FilterButton label="Un-Approved" icon={AlertCircle} variant="amber" active={statusFilter === 'Un-Approved'} onClick={() => setStatusFilter('Un-Approved')} count={filterCounts.statuses['Un-Approved']} />
+                                        <FilterButton label="Delivered" icon={CheckCircle2} variant="emerald" active={statusFilter === 'Delivered'} onClick={() => setStatusFilter('Delivered')} count={filterCounts.statuses['Delivered']} />
                                     </>
                                 )}
-                                <FilterButton label="Cancelled" icon={XCircle} variant="red" active={statusFilter === 'Cancelled'} onClick={() => setStatusFilter('Cancelled')} />
+                                <FilterButton label="Cancelled" icon={XCircle} variant="red" active={statusFilter === 'Cancelled'} onClick={() => setStatusFilter('Cancelled')} count={filterCounts.statuses['Cancelled']} />
                             </div>
                             <div className="relative w-full md:w-80">
                                 <input

@@ -3,13 +3,15 @@ import {
     LayoutDashboard, Box, Users, UsersRound, ScanLine,
     ShieldCheck, Truck, ClipboardList, LogOut, UserCircle,
     ChevronUp, ChevronDown, CreditCard, Landmark, Menu, X,
-    FileText, FileEdit, DollarSign, Percent, BadgePercent, TrendingUp
+    FileText, FileEdit, DollarSign, Percent, BadgePercent, TrendingUp,
+    BookOpen
 } from 'lucide-react';
 
 
 
 export default function Sidebar({ activeTab, setActiveTab, getPathForTab, isSidebarOpen, setSidebarOpen, setIsLoggedIn }) {
     const [isInventoryOpen, setInventoryOpen] = useState(false);
+    const [isBookingsOpen, setBookingsOpen] = useState(false);
     const [isCoreBusinessOpen, setCoreBusinessOpen] = useState(false);
     const [isPartnersOpen, setPartnersOpen] = useState(false);
     const [isUserMenuOpen, setUserMenuOpen] = useState(false);
@@ -97,6 +99,20 @@ export default function Sidebar({ activeTab, setActiveTab, getPathForTab, isSide
                             <DropdownItem label="Tickets" active={activeTab === 'Tickets'} onClick={() => handleNavClick('Tickets')} href={getPathForTab ? getPathForTab('Tickets') : '#'} />
                             <DropdownItem label="Others" active={activeTab === 'Others'} onClick={() => handleNavClick('Other')} href={getPathForTab ? getPathForTab('Other') : '#'} />
                             <DropdownItem label="Share Inventory" active={activeTab === 'Share Inventory'} onClick={() => handleNavClick('Share Inventory')} href={getPathForTab ? getPathForTab('Share Inventory') : '#'} />
+                        </NavDropdown>
+
+                        <NavDropdown
+                            icon={<BookOpen size={20} />}
+                            label="Bookings"
+                            isOpen={isSidebarOpen}
+                            isExpanded={isBookingsOpen}
+                            onClick={() => setBookingsOpen(!isBookingsOpen)}
+                            active={['Booking History', 'Custom Booking', 'Ticket Booking', 'Umrah Booking'].includes(activeTab)}
+                        >
+                            <DropdownItem label="Booking History" active={activeTab === 'Booking History'} onClick={() => handleNavClick('Booking History')} href={getPathForTab ? getPathForTab('Booking History') : '#'} />
+                            <DropdownItem label="Custom Booking" active={activeTab === 'Custom Booking'} onClick={() => handleNavClick('Custom Booking')} href={getPathForTab ? getPathForTab('Custom Booking') : '#'} />
+                            <DropdownItem label="Ticket Booking" active={activeTab === 'Ticket Booking'} onClick={() => handleNavClick('Ticket Booking')} href={getPathForTab ? getPathForTab('Ticket Booking') : '#'} />
+                            <DropdownItem label="Umrah Booking" active={activeTab === 'Umrah Booking'} onClick={() => handleNavClick('Umrah Booking')} href={getPathForTab ? getPathForTab('Umrah Booking') : '#'} />
                         </NavDropdown>
 
                         <NavDropdown

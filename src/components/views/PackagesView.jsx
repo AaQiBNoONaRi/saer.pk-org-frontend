@@ -1,7 +1,7 @@
 import React from 'react';
 import { Building2, Truck, ShieldCheck, Plane, Utensils, DollarSign } from 'lucide-react';
 
-const PackagesView = ({ onNavigate, onEdit }) => {
+const PackagesView = ({ onNavigate, onEdit, onBookNow, bookingMode = false }) => {
     const [packages, setPackages] = React.useState([]);
     const [flights, setFlights] = React.useState([]);
     const [airlines, setAirlines] = React.useState([]);
@@ -96,7 +96,9 @@ const PackagesView = ({ onNavigate, onEdit }) => {
                     <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tight">Umrah Packages</h2>
                     {/* <p className="text-slate-500 font-medium">Create and distribute itinerary templates.</p> */}
                 </div>
-                <button onClick={() => onNavigate('Add Package')} className="w-full sm:w-auto px-6 py-3 bg-blue-600 text-white rounded-xl text-xs font-bold transition-all hover:scale-105 active:scale-95 shadow-lg shadow-blue-100">+ New Package</button>
+                {!bookingMode && (
+                    <button onClick={() => onNavigate('Add Package')} className="w-full sm:w-auto px-6 py-3 bg-blue-600 text-white rounded-xl text-xs font-bold transition-all hover:scale-105 active:scale-95 shadow-lg shadow-blue-100">+ New Package</button>
+                )}
             </div>
 
             <div className="space-y-6">
@@ -113,6 +115,8 @@ const PackagesView = ({ onNavigate, onEdit }) => {
                             airlines={airlines}
                             onEdit={onEdit}
                             onDelete={handleDelete}
+                            onBookNow={onBookNow}
+                            bookingMode={bookingMode}
                         />
                     ))
                 )}
@@ -121,7 +125,7 @@ const PackagesView = ({ onNavigate, onEdit }) => {
     );
 };
 
-const UmrahPackageCard = ({ packageData, flights, airlines, onEdit, onDelete }) => {
+const UmrahPackageCard = ({ packageData, flights, airlines, onEdit, onDelete, onBookNow, bookingMode = false }) => {
     // Helper to format price
     const formatPrice = (price) => price ? price.toLocaleString() : 'N/A';
 
@@ -270,23 +274,33 @@ const UmrahPackageCard = ({ packageData, flights, airlines, onEdit, onDelete }) 
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+            {bookingMode ? (
                 <button
-                    onClick={() => onDelete && onDelete(packageData)}
-                    className="py-3 sm:py-4 bg-red-50 text-red-600 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-red-100 transition-all border-2 border-red-100 hover:border-red-200"
+                    onClick={() => onBookNow && onBookNow(packageData)}
+                    className="w-full py-4 bg-emerald-600 text-white rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100"
                 >
-                    Delete Package
+                    Book Now
                 </button>
-                <button
-                    onClick={() => onEdit && onEdit(packageData)}
-                    className="py-3 sm:py-4 bg-blue-600 text-white rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-blue-700 transition-all shadow-lg shadow-blue-100"
-                >
-                    Edit Package
-                </button>
-            </div>
+            ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                    <button
+                        onClick={() => onDelete && onDelete(packageData)}
+                        className="py-3 sm:py-4 bg-red-50 text-red-600 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-red-100 transition-all border-2 border-red-100 hover:border-red-200"
+                    >
+                        Delete Package
+                    </button>
+                    <button
+                        onClick={() => onEdit && onEdit(packageData)}
+                        className="py-3 sm:py-4 bg-blue-600 text-white rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-blue-700 transition-all shadow-lg shadow-blue-100"
+                    >
+                        Edit Package
+                    </button>
+                </div>
+            )}
         </div>
     );
 };
+
 
 const QuickInfo = ({ label, value, icon }) => (
     <div className="min-w-0 bg-slate-50 rounded-2xl p-4 border border-slate-100">

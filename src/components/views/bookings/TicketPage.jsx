@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { MapPin, Search, MoveRight, Plane, Calendar, Users, DollarSign, Share2 } from 'lucide-react';
+import { MapPin, Search, MoveRight, Plane, Calendar, Users, DollarSign, ShoppingCart } from 'lucide-react';
+import BookingPage from './BookingPage';
 
-const TicketsView = ({ onAddTicket, onEditTicket, onDeleteTicket, onBookTicket, bookingMode = false, permissions = null }) => {
+const TicketPage = ({ resumeId, clearResume }) => {
     const [tickets, setTickets] = useState([]);
     const [airlines, setAirlines] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -10,13 +11,9 @@ const TicketsView = ({ onAddTicket, onEditTicket, onDeleteTicket, onBookTicket, 
         departureCity: '',
         arrivalCity: ''
     });
+    const [showBooking, setShowBooking] = useState(false);
+    const [selectedTicket, setSelectedTicket] = useState(null);
 
-    // If permissions prop is not provided, assume full access (for org admin)
-    const canAdd = !bookingMode && (permissions ? permissions.add : true);
-    const canUpdate = !bookingMode && (permissions ? permissions.update : true);
-    const canDelete = !bookingMode && (permissions ? permissions.delete : true);
-
-    // Fetch tickets and airlines from API
     useEffect(() => {
         fetchTickets();
         fetchAirlines();
@@ -27,6 +24,10 @@ const TicketsView = ({ onAddTicket, onEditTicket, onDeleteTicket, onBookTicket, 
             setLoading(true);
             const token = localStorage.getItem('access_token');
 
+            if (!token) {
+                throw new Error('Not logged in. Please login first.');
+            }
+
             const response = await fetch('http://localhost:8000/api/flights/', {
                 headers: {
                     'Authorization': `Bearer ${token}`
@@ -34,6 +35,9 @@ const TicketsView = ({ onAddTicket, onEditTicket, onDeleteTicket, onBookTicket, 
             });
 
             if (!response.ok) {
+                if (response.status === 401) {
+                    throw new Error('Unauthorized. Your session may have expired. Please login again.');
+                }
                 throw new Error('Failed to fetch tickets');
             }
 
@@ -50,12 +54,20 @@ const TicketsView = ({ onAddTicket, onEditTicket, onDeleteTicket, onBookTicket, 
     const fetchAirlines = async () => {
         try {
             const token = localStorage.getItem('access_token');
+
+            if (!token) {
+                console.warn('No access token found');
+                return;
+            }
+
             const response = await fetch('http://localhost:8000/api/others/flight-iata?is_active=true', {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (response.ok) {
                 const data = await response.json();
                 setAirlines(data);
+            } else {
+                console.error('Failed to fetch airlines:', response.status);
             }
         } catch (error) {
             console.error('Error fetching airlines:', error);
@@ -63,36 +75,50 @@ const TicketsView = ({ onAddTicket, onEditTicket, onDeleteTicket, onBookTicket, 
     };
 
     const handleSearch = () => {
-        // Filter tickets based on search criteria
-        // For now, just refetch
         fetchTickets();
     };
 
-    const formatDate = (dateString) => {
-        const date = new Date(dateString);
-        return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+    const handleBook = (ticket) => {
+        // Prepare booking data with full ticket info
+        const bookingData = {
+            type: 'Flight Ticket',
+            itemDetails: {
+                route: `${ticket.departure_trip.departure_city} → ${ticket.departure_trip.arrival_city}`,
+                dates: `${new Date(ticket.departure_trip.departure_datetime).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}${ticket.return_trip ? ' - ' + new Date(ticket.return_trip.departure_datetime).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : ''}`,
+                airline: ticket.departure_trip.airline,
+                flightNo: ticket.departure_trip.flight_number
+            },
+            ticketId: ticket._id,
+            fullTicketData: ticket // Pass complete ticket data for pricing
+        };
+
+        setSelectedTicket(bookingData);
+        setShowBooking(true);
+        window.history.pushState({ step: 1 }, '', '/ticket-booking/step-1');
     };
 
-    const formatTime = (dateString) => {
-        const date = new Date(dateString);
-        return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-    };
+    // Show booking page if ticket is selected or if we are resuming
+    if ((showBooking && selectedTicket) || resumeId) {
+        return (
+            <BookingPage
+                bookingData={selectedTicket}
+                resumeId={resumeId}
+                onBack={() => {
+                    setShowBooking(false);
+                    setSelectedTicket(null);
+                    if (clearResume) clearResume();
+                }}
+            />
+        );
+    }
 
     return (
-        <div className="max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500">
+        <div className="space-y-8 animate-in fade-in duration-500">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-6">
                 <div>
-                    <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tight">Flight Inventory</h2>
-                    <p className="text-slate-500 font-medium text-lg">Manage real-time ticket availability for groups.</p>
+                    <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tight">Flight Tickets</h2>
+                    <p className="text-slate-500 font-medium text-lg">Browse and book available flight tickets</p>
                 </div>
-                {canAdd && (
-                    <button
-                        onClick={onAddTicket}
-                        className="w-full sm:w-auto px-8 py-4 bg-blue-600 text-white rounded-2xl text-xs font-black uppercase tracking-widest shadow-2xl shadow-blue-100 hover:scale-105 transition-all"
-                    >
-                        + Add Group Tickets
-                    </button>
-                )}
             </div>
 
             {/* Search Bar */}
@@ -160,17 +186,11 @@ const TicketsView = ({ onAddTicket, onEditTicket, onDeleteTicket, onBookTicket, 
                         <div className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-3xl p-12 text-center">
                             <Plane className="mx-auto text-slate-300 mb-4" size={48} />
                             <h3 className="text-xl font-black text-slate-400 uppercase tracking-wider mb-2">No Tickets Found</h3>
-                            <p className="text-slate-500">Add your first group ticket to get started!</p>
-                            <button
-                                onClick={onAddTicket}
-                                className="mt-6 px-8 py-3 bg-blue-600 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:scale-105 transition-all"
-                            >
-                                + Add Ticket
-                            </button>
+                            <p className="text-slate-500">No flight tickets available at the moment.</p>
                         </div>
                     ) : (
                         tickets.map((ticket) => (
-                            <TicketCard key={ticket._id} ticket={ticket} airlines={airlines} onEditTicket={onEditTicket} onDeleteTicket={onDeleteTicket} onBookTicket={onBookTicket} canUpdate={canUpdate} canDelete={canDelete} bookingMode={bookingMode} />
+                            <TicketCard key={ticket._id} ticket={ticket} airlines={airlines} onBook={handleBook} />
                         ))
                     )}
                 </div>
@@ -180,13 +200,18 @@ const TicketsView = ({ onAddTicket, onEditTicket, onDeleteTicket, onBookTicket, 
 };
 
 // Modern Ticket Card Component
-const TicketCard = ({ ticket, airlines, onEditTicket, onDeleteTicket, onBookTicket, canUpdate = true, canDelete = true, bookingMode = false }) => {
+const TicketCard = ({ ticket, airlines, onBook }) => {
     const { departure_trip, return_trip, trip_type, total_seats, available_seats, adult_selling, adult_purchasing } = ticket;
 
-    // Calculate margin
+    // Debug logging
+    console.log('Ticket data:', {
+        trip_type,
+        has_return_trip: !!return_trip,
+        return_trip,
+        full_ticket: ticket
+    });
+
     const selling = adult_selling || 0;
-    const cost = adult_purchasing || 0;
-    const margin = selling - cost;
 
     // LegRow component for each flight leg
     const LegRow = ({ trip, isReturn }) => {
@@ -255,106 +280,45 @@ const TicketCard = ({ ticket, airlines, onEditTicket, onDeleteTicket, onBookTick
 
     return (
         <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-xl hover:border-blue-200 transition-all duration-300 overflow-hidden flex flex-col md:flex-row group">
-
-            {/* Flight Information Section */}
-            <div className="flex-1 p-5 lg:p-7 space-y-2">
-                {/* Trip Type Badge & Reselling Indicator */}
-                <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                        <span className="inline-block px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-black uppercase tracking-wider">
-                            {trip_type}
-                        </span>
-                        {ticket.is_shared && (
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-full text-xs font-black uppercase tracking-wider shadow-sm">
-                                <Share2 size={12} className="text-amber-500" />
-                                Reselling
-                            </span>
-                        )}
-                    </div>
-                    <div className="text-right flex items-center gap-6">
-                        {ticket.pnr ? (
-                            <div className="text-right">
-                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">PNR</p>
-                                <p className="text-sm font-black text-slate-900 uppercase">{ticket.pnr}</p>
-                            </div>
-                        ) : null}
-                        <div className="text-right">
-                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Available Seats</p>
-                            <p className="text-sm font-black text-slate-900">{available_seats}/{total_seats}</p>
-                        </div>
-                    </div>
-                </div>
-
+            {/* Left: Flight Details */}
+            <div className="flex-1 p-6 md:p-8 space-y-4 border-b md:border-b-0 md:border-r border-slate-100">
                 <LegRow trip={departure_trip} isReturn={false} />
-
                 {return_trip && (
                     <>
-                        <div className="h-px bg-slate-50 mx-4" />
+                        <div className="border-t border-slate-100"></div>
                         <LegRow trip={return_trip} isReturn={true} />
                     </>
                 )}
             </div>
 
-            {/* Pricing & Management Sidebar */}
-            <div className="w-full md:w-72 bg-slate-50/50 p-6 lg:p-8 flex flex-col justify-between border-t md:border-t-0 md:border-l border-slate-100">
+            {/* Right: Pricing & Actions */}
+            <div className="w-full md:w-80 bg-slate-50 p-6 md:p-8 flex flex-col justify-between">
                 <div className="space-y-4">
-                    {/* Prices Grid */}
-                    <div className="flex justify-between items-start">
-                        <div className="space-y-0.5">
-                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Adult Selling</p>
-                            <p className="text-xl font-black text-[#3B82F6]">Rs. {selling.toLocaleString()}</p>
-                        </div>
+                    <div className="flex items-center justify-between">
+                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Available Seats</span>
+                        <span className="text-sm font-black text-slate-900">{available_seats} / {total_seats}</span>
                     </div>
 
-                    <div className="p-4 bg-white rounded-2xl border border-slate-100 shadow-sm space-y-2">
-                        <div className="flex justify-between items-center text-[9px] font-bold uppercase tracking-widest text-slate-400">
-                            <span>Inventory Cost</span>
-                            <span className="text-slate-700 font-black">Rs. {cost.toLocaleString()}</span>
-                        </div>
-                        <div className="flex justify-between items-center text-[9px] font-bold uppercase tracking-widest">
-                            <span className="text-emerald-500">Net Margin</span>
-                            <span className="text-emerald-600 font-black">+Rs. {margin.toLocaleString()}</span>
+                    <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100">
+                        <div className="space-y-0.5">
+                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Price Per Adult</p>
+                            <p className="text-xl font-black text-[#3B82F6]">Rs. {selling.toLocaleString()}</p>
                         </div>
                     </div>
                 </div>
 
                 <div className="space-y-2 mt-6">
-                    {bookingMode ? (
-                        <button
-                            onClick={() => onBookTicket && onBookTicket(ticket)}
-                            className="w-full py-3 bg-emerald-600 text-white rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100"
-                        >
-                            Book Ticket
-                        </button>
-                    ) : (
-                        <>
-                            <button className="w-full py-3 bg-slate-900 text-white rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-slate-800 transition-all shadow-lg shadow-slate-200">
-                                Manage PNR
-                            </button>
-                            <div className="grid grid-cols-2 gap-2">
-                                {canUpdate && (
-                                    <button
-                                        onClick={() => onEditTicket(ticket)}
-                                        className="py-2 bg-white border border-slate-200 text-slate-600 rounded-lg font-bold uppercase text-[9px] tracking-widest hover:bg-slate-50 transition-all"
-                                    >
-                                        Edit
-                                    </button>
-                                )}
-                                {canDelete && (
-                                    <button
-                                        onClick={() => onDeleteTicket(ticket)}
-                                        className="py-2 bg-white border border-slate-200 text-rose-500 rounded-lg font-bold uppercase text-[9px] tracking-widest hover:bg-rose-50 transition-all"
-                                    >
-                                        Delete
-                                    </button>
-                                )}
-                            </div>
-                        </>
-                    )}
+                    <button
+                        onClick={() => onBook && onBook(ticket)}
+                        className="w-full py-3 bg-blue-600 text-white rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 flex items-center justify-center gap-2"
+                    >
+                        <ShoppingCart size={14} />
+                        Book This Ticket
+                    </button>
                 </div>
             </div>
         </div>
     );
 };
 
-export default TicketsView;
+export default TicketPage;

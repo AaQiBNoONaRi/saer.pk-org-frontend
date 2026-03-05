@@ -1,66 +1,14 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { toast } from 'react-hot-toast';
+import React, { useState, useMemo, useRef } from 'react';
 import {
   Plane, Building2, Users, ChevronDown, ChevronUp,
   CheckCircle, ArrowLeft, Clock, Upload, X, Check,
-  CreditCard, ArrowRight, FileText, Smartphone, Wallet, ArrowLeftRight,
-  Truck, Utensils, MapPin, Globe, Star, Building, Info
+  CreditCard, ArrowRight, FileText, Smartphone, Wallet,
+  Truck, Utensils, MapPin, Globe, Star, Building
 } from 'lucide-react';
-import SearchableSelect from '../../ui/SearchableSelect';
 
 const API = 'http://localhost:8000';
 const PKR = (n) => `PKR ${(Number(n) || 0).toLocaleString()}`;
 const SAR = (n) => `SAR ${(Number(n) || 0).toLocaleString()}`;
-
-const CountdownTimer = ({ deadline }) => {
-  const [timeLeft, setTimeLeft] = useState('');
-  const hasToasted = useRef(false);
-
-  useEffect(() => {
-    if (!deadline || deadline === '-') {
-      setTimeLeft('-');
-      return;
-    }
-
-    const target = new Date(deadline).getTime();
-
-    const updateTimer = () => {
-      const now = new Date().getTime();
-      const diff = target - now;
-
-      if (diff <= 0) {
-        setTimeLeft('EXPIRED');
-        if (!hasToasted.current) {
-          toast.error('Booking Expired! (EXPIRED if not confirmed)', {
-            duration: 6000,
-            position: 'top-right',
-          });
-          hasToasted.current = true;
-        }
-        return;
-      }
-
-      const h = Math.floor(diff / (1000 * 60 * 60));
-      const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-      const s = Math.floor((diff % (1000 * 60)) / 1000);
-
-      setTimeLeft(`${h}h ${m}m ${s}s`);
-    };
-
-    const timer = setInterval(updateTimer, 1000);
-    updateTimer();
-    return () => clearInterval(timer);
-  }, [deadline]);
-
-  if (timeLeft === 'EXPIRED') return <span className="text-rose-500 font-bold">EXPIRED</span>;
-  if (timeLeft === '-') return <span className="text-slate-300">-</span>;
-
-  return (
-    <span className="tabular-nums">
-      {timeLeft}
-    </span>
-  );
-};
 
 /* ─────────────────────────────────────────────────────────────────────────── */
 /*  HELPERS                                                                    */
@@ -74,31 +22,9 @@ const emptyCustomPax = (id, type, familyId, familyLabel, isFamilyHead = false) =
   familyHeadName: '', familyHeadPassport: ''
 });
 
-const calculateAge = (dob) => {
-  if (!dob) return 0;
-  const birthDate = new Date(dob);
-  const today = new Date();
-  let age = today.getFullYear() - birthDate.getFullYear();
-  const m = today.getMonth() - birthDate.getMonth();
-  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
-    age--;
-  }
-  return age;
-};
-
-const isPaxComplete = (p) => {
-  const basicFields = p.type && p.title && p.firstName && p.lastName &&
-    p.passportNo && p.dob && p.passportIssue && p.passportExpiry && p.country && p.passportFile;
-
-  if (!basicFields) return false;
-
-  const age = calculateAge(p.dob);
-  if (p.type === 'Adult' && age < 18) return false;
-  if (p.type === 'Child' && (age >= 18 || age < 2)) return false;
-  if (p.type === 'Infant' && age >= 2) return false;
-
-  return true;
-};
+const isPaxComplete = (p) =>
+  p.type && p.title && p.firstName && p.lastName &&
+  p.passportNo && p.dob && p.passportIssue && p.passportExpiry && p.country;
 
 /* ─────────────────────────────────────────────────────────────────────────── */
 /*  ATOMIC COMPONENTS                                                          */
@@ -106,8 +32,9 @@ const isPaxComplete = (p) => {
 
 const StepIndicator = ({ step, label, active, done }) => (
   <div className={`flex items-center gap-3 transition-all duration-500 ${active ? 'opacity-100 scale-110' : done ? 'opacity-100' : 'opacity-40'}`}>
-    <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-black transition-all ${done ? 'bg-green-500 text-white' : active ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'bg-slate-200 text-slate-500'
-      }`}>
+    <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-black transition-all ${
+      done ? 'bg-green-500 text-white' : active ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'bg-slate-200 text-slate-500'
+    }`}>
       {done ? <CheckCircle size={20} /> : step}
     </div>
     <span className={`hidden md:block text-[11px] font-black uppercase tracking-widest ${active ? 'text-slate-900' : 'text-slate-400'}`}>{label}</span>
@@ -144,20 +71,20 @@ const SearchableCountryField = ({ label, value, onChange }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [term, setTerm] = useState('');
   const COUNTRIES = [
-    'Afghanistan', 'Albania', 'Algeria', 'Argentina', 'Armenia', 'Australia', 'Austria', 'Azerbaijan',
-    'Bahrain', 'Bangladesh', 'Belgium', 'Bosnia and Herzegovina', 'Brazil', 'Bulgaria',
-    'Cambodia', 'Canada', 'Chile', 'China', 'Colombia', 'Croatia', 'Cyprus', 'Czech Republic',
-    'Denmark', 'Egypt', 'Ethiopia', 'Finland', 'France', 'Germany', 'Ghana', 'Greece', 'Guatemala',
-    'Hungary', 'India', 'Indonesia', 'Iran', 'Iraq', 'Ireland', 'Israel', 'Italy',
-    'Jamaica', 'Japan', 'Jordan', 'Kazakhstan', 'Kenya', 'Kuwait', 'Kyrgyzstan',
-    'Lebanon', 'Libya', 'Luxembourg', 'Malaysia', 'Maldives', 'Malta', 'Mexico', 'Moldova', 'Morocco', 'Myanmar',
-    'Nepal', 'Netherlands', 'New Zealand', 'Nigeria', 'Norway', 'Oman',
-    'Pakistan', 'Palestine', 'Peru', 'Philippines', 'Poland', 'Portugal', 'Qatar',
-    'Romania', 'Russia', 'Saudi Arabia', 'Serbia', 'Singapore', 'Slovakia', 'Slovenia',
-    'Somalia', 'South Africa', 'South Korea', 'Spain', 'Sri Lanka', 'Sudan', 'Sweden', 'Switzerland', 'Syria',
-    'Taiwan', 'Tanzania', 'Thailand', 'Tunisia', 'Turkey', 'Turkmenistan',
-    'Uganda', 'Ukraine', 'United Arab Emirates', 'United Kingdom', 'United States', 'Uzbekistan',
-    'Venezuela', 'Vietnam', 'Yemen', 'Zambia', 'Zimbabwe'
+    'Afghanistan','Albania','Algeria','Argentina','Armenia','Australia','Austria','Azerbaijan',
+    'Bahrain','Bangladesh','Belgium','Bosnia and Herzegovina','Brazil','Bulgaria',
+    'Cambodia','Canada','Chile','China','Colombia','Croatia','Cyprus','Czech Republic',
+    'Denmark','Egypt','Ethiopia','Finland','France','Germany','Ghana','Greece','Guatemala',
+    'Hungary','India','Indonesia','Iran','Iraq','Ireland','Israel','Italy',
+    'Jamaica','Japan','Jordan','Kazakhstan','Kenya','Kuwait','Kyrgyzstan',
+    'Lebanon','Libya','Luxembourg','Malaysia','Maldives','Malta','Mexico','Moldova','Morocco','Myanmar',
+    'Nepal','Netherlands','New Zealand','Nigeria','Norway','Oman',
+    'Pakistan','Palestine','Peru','Philippines','Poland','Portugal','Qatar',
+    'Romania','Russia','Saudi Arabia','Serbia','Singapore','Slovakia','Slovenia',
+    'Somalia','South Africa','South Korea','Spain','Sri Lanka','Sudan','Sweden','Switzerland','Syria',
+    'Taiwan','Tanzania','Thailand','Tunisia','Turkey','Turkmenistan',
+    'Uganda','Ukraine','United Arab Emirates','United Kingdom','United States','Uzbekistan',
+    'Venezuela','Vietnam','Yemen','Zambia','Zimbabwe'
   ];
   const filtered = COUNTRIES.filter(c => c.toLowerCase().includes((term || value || '').toLowerCase()));
   return (
@@ -189,10 +116,11 @@ const SearchableCountryField = ({ label, value, onChange }) => {
 
 const PaymentMethodCard = ({ label, icon, active, disabled, onClick }) => (
   <button onClick={onClick} disabled={disabled}
-    className={`p-4 rounded-2xl border-2 transition-all text-center space-y-2 ${active ? 'border-blue-600 bg-blue-50 shadow-lg scale-105'
+    className={`p-4 rounded-2xl border-2 transition-all text-center space-y-2 ${
+      active ? 'border-blue-600 bg-blue-50 shadow-lg scale-105'
       : disabled ? 'border-slate-200 bg-slate-50 opacity-40 cursor-not-allowed'
-        : 'border-slate-200 bg-white hover:border-blue-300 hover:shadow-md'
-      }`}>
+      : 'border-slate-200 bg-white hover:border-blue-300 hover:shadow-md'
+    }`}>
     <div className={`flex items-center justify-center ${active ? 'text-blue-600' : disabled ? 'text-slate-400' : 'text-slate-600'}`}>{icon}</div>
     <p className={`text-[10px] font-black uppercase tracking-widest ${active ? 'text-blue-600' : 'text-slate-900'}`}>{label}</p>
     {disabled && <p className="text-[9px] font-bold text-slate-400">Coming Soon</p>}
@@ -215,15 +143,17 @@ const PaxAccordion = ({ pax, index, isOpen, onToggle, onChange, onPassportUpload
   const c = colorMap[typeColor];
 
   return (
-    <div className={`rounded-3xl border-2 transition-all duration-300 overflow-hidden ${isOpen ? `${c.border} shadow-xl ring-4 ${c.ring}` : 'border-slate-100 bg-white shadow-sm hover:shadow-md hover:border-slate-200'
-      }`}>
+    <div className={`rounded-3xl border-2 transition-all duration-300 overflow-hidden ${
+      isOpen ? `${c.border} shadow-xl ring-4 ${c.ring}` : 'border-slate-100 bg-white shadow-sm hover:shadow-md hover:border-slate-200'
+    }`}>
       <button
         onClick={onToggle}
         className="w-full flex items-center justify-between p-6 text-left"
       >
         <div className="flex items-center gap-4">
-          <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-black ${isOpen ? `${c.badge} text-base` : 'bg-slate-100 text-slate-400 text-xs'
-            }`}>
+          <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-black ${
+            isOpen ? `${c.badge} text-base` : 'bg-slate-100 text-slate-400 text-xs'
+          }`}>
             {complete ? <Check size={18} className="text-green-500" /> : index + 1}
           </div>
           <div className="text-left">
@@ -299,25 +229,6 @@ const PaxAccordion = ({ pax, index, isOpen, onToggle, onChange, onPassportUpload
             <input ref={fileRef} type="file" accept="image/*,application/pdf" className="hidden"
               onChange={e => { if (e.target.files[0]) onChange('passportFile', e.target.files[0]); e.target.value = ''; }} />
           </div>
-
-          {/* Validation Feedback */}
-          {!complete && (pax.dob || pax.passportFile === null) && (
-            <div className="mt-4 p-3 bg-red-50 border border-red-100 rounded-2xl">
-              <p className="text-[10px] font-bold text-red-600 uppercase tracking-widest flex items-center gap-2">
-                <Info size={12} /> Validation Issues:
-              </p>
-              <ul className="mt-1 space-y-1">
-                {!pax.passportFile && <li className="text-[10px] font-bold text-red-500">• Passport Image is required</li>}
-                {pax.dob && (
-                  <>
-                    {pax.type === 'Adult' && calculateAge(pax.dob) < 18 && <li className="text-[10px] font-bold text-red-500">• Adult must be 18 years or older</li>}
-                    {pax.type === 'Child' && (calculateAge(pax.dob) >= 18 || calculateAge(pax.dob) < 2) && <li className="text-[10px] font-bold text-red-500">• Child must be between 2 and 17 years old</li>}
-                    {pax.type === 'Infant' && calculateAge(pax.dob) >= 2 && <li className="text-[10px] font-bold text-red-500">• Infant must be under 2 years old</li>}
-                  </>
-                )}
-              </ul>
-            </div>
-          )}
         </div>
       )}
     </div>
@@ -330,7 +241,7 @@ const PaxAccordion = ({ pax, index, isOpen, onToggle, onChange, onPassportUpload
 
 const StepOnePassengers = ({ passengers, setPassengers, expandedPax, setExpandedPax, onNext }) => {
   const completedCount = passengers.filter(isPaxComplete).length;
-  const allComplete = passengers.length > 0 && completedCount === passengers.length;
+  const allComplete = completedCount === passengers.length;
 
   const handleChange = (idx, field, val) => {
     setPassengers(prev => prev.map((p, i) => i === idx ? { ...p, [field]: val } : p));
@@ -378,31 +289,22 @@ const StepOnePassengers = ({ passengers, setPassengers, expandedPax, setExpanded
       })()}
 
       {!allComplete && (
-        <div className="flex items-center gap-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-2xl px-5 py-4 text-xs font-bold">
-          {passengers.length === 0 ? (
-            <>
-              <Info size={16} className="shrink-0" />
-              No passengers specified in calculator. Please go back and add at least one person.
-            </>
-          ) : (
-            <>
-              <Clock size={15} className="shrink-0" />
-              {passengers.length - completedCount} passenger(s) still need information.
-            </>
-          )
-          }
+        <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 text-amber-700 rounded-2xl px-5 py-4 text-xs font-bold">
+          <Clock size={15} className="shrink-0" />
+          {passengers.length - completedCount} passenger(s) still need information.
         </div>
       )}
 
       <button
         onClick={onNext}
-        className={`w-full py-5 rounded-2xl font-black uppercase tracking-[3px] text-xs shadow-xl flex items-center justify-center gap-3 transition-all ${allComplete ? 'bg-blue-600 text-white shadow-blue-500/30 hover:scale-[1.02] active:scale-95' : 'bg-slate-200 text-slate-400 cursor-not-allowed'
-          }`}
+        className={`w-full py-5 rounded-2xl font-black uppercase tracking-[3px] text-xs shadow-xl flex items-center justify-center gap-3 transition-all ${
+          allComplete ? 'bg-blue-600 text-white shadow-blue-500/30 hover:scale-[1.02] active:scale-95' : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+        }`}
         disabled={!allComplete}
       >
-        {passengers.length === 0 ? 'Add Passengers First' : 'Review Booking'} <ArrowRight size={18} />
+        Review Booking <ArrowRight size={18} />
       </button>
-    </div >
+    </div>
   );
 };
 
@@ -413,10 +315,10 @@ const StepOnePassengers = ({ passengers, setPassengers, expandedPax, setExpanded
 /* Section wrapper card */
 const SectionCard = ({ icon, title, color, children }) => {
   const colors = {
-    purple: { header: 'bg-purple-50 border-purple-100', icon: 'bg-purple-100 text-purple-600', title: 'text-purple-700' },
-    blue: { header: 'bg-blue-50   border-blue-100', icon: 'bg-blue-100   text-blue-600', title: 'text-blue-700' },
-    orange: { header: 'bg-orange-50 border-orange-100', icon: 'bg-orange-100 text-orange-600', title: 'text-orange-700' },
-    emerald: { header: 'bg-emerald-50 border-emerald-100', icon: 'bg-emerald-100 text-emerald-600', title: 'text-emerald-700' },
+    purple: { header: 'bg-purple-50 border-purple-100',  icon: 'bg-purple-100 text-purple-600', title: 'text-purple-700' },
+    blue:   { header: 'bg-blue-50   border-blue-100',    icon: 'bg-blue-100   text-blue-600',   title: 'text-blue-700'   },
+    orange: { header: 'bg-orange-50 border-orange-100',  icon: 'bg-orange-100 text-orange-600', title: 'text-orange-700' },
+    emerald:{ header: 'bg-emerald-50 border-emerald-100',icon: 'bg-emerald-100 text-emerald-600',title:'text-emerald-700'},
   };
   const c = colors[color] || colors.blue;
   return (
@@ -430,10 +332,7 @@ const SectionCard = ({ icon, title, color, children }) => {
   );
 };
 
-const StepTwoReview = ({
-  passengers, calculatorData, grandTotal, familyInvoices, isLoading, onEdit, onNext,
-  discountGroup, discountAmount = 0, subtotal = 0
-}) => {
+const StepTwoReview = ({ passengers, calculatorData, grandTotal, familyInvoices, isLoading, onEdit, onNext }) => {
   const {
     selectedFlight, selectedVehicle, selectedVisaRate,
     hotelRows = [], selectedOptions = [], riyalRate
@@ -518,18 +417,17 @@ const StepTwoReview = ({
               </div>
             ))}
           </div>
-          <div className="p-6 border-t-2 border-slate-100 bg-slate-50/50 space-y-4">
-
-            {/* Grand Total */}
+          <div className="p-6 border-t-2 border-slate-100 bg-slate-50/50">
             <div className="flex items-center justify-between mb-5">
               <span className="text-sm font-black uppercase tracking-widest text-slate-900">Grand Total</span>
-              <span className="text-2xl font-black text-blue-600">{PKR(subtotal)}</span>
+              <span className="text-2xl font-black text-blue-600">{PKR(grandTotal)}</span>
             </div>
             <button
               onClick={onNext}
               disabled={isLoading}
-              className={`w-full py-4 rounded-2xl font-black uppercase tracking-[3px] text-xs shadow-lg flex items-center justify-center gap-3 transition-all ${isLoading ? 'bg-slate-300 text-slate-500 cursor-not-allowed' : 'bg-blue-600 text-white shadow-blue-500/30 hover:scale-[1.02] active:scale-95'
-                }`}
+              className={`w-full py-4 rounded-2xl font-black uppercase tracking-[3px] text-xs shadow-lg flex items-center justify-center gap-3 transition-all ${
+                isLoading ? 'bg-slate-300 text-slate-500 cursor-not-allowed' : 'bg-blue-600 text-white shadow-blue-500/30 hover:scale-[1.02] active:scale-95'
+              }`}
             >
               {isLoading ? (
                 <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Creating Booking...</>
@@ -551,36 +449,22 @@ const StepTwoReview = ({
 const StepThreePayment = ({
   booking, totalAmount, paymentMethod, setPaymentMethod,
   paymentData, setPaymentData, expiryMins,
-  onConfirm, isLoading, setIsLoading, setError,
-  discountGroup = null, discountAmount = 0
+  onConfirm, isLoading, setIsLoading, setError
 }) => {
   const upd = (field, val) => setPaymentData(prev => ({ ...prev, [field]: val }));
 
-  // Dynamic bank accounts
-  const [beneficiaryAccounts, setBeneficiaryAccounts] = useState([]);
-  const [agentAccounts, setAgentAccounts] = useState([]);
-
-  useEffect(() => {
-    const fetchAccounts = async () => {
-      try {
-        const token = localStorage.getItem('access_token');
-        const res = await fetch(`${API}/api/bank-accounts/?include_system=true`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (res.ok) {
-          const data = await res.json();
-          const orgAccs = data.filter(a => a.account_type === 'Organization');
-          const agAccs = data.filter(a => a.account_type === 'Agency');
-          setBeneficiaryAccounts(orgAccs.map(a => `${a.account_title ? a.account_title + ' - ' : ''}${a.bank_name} (Acc: ${a.account_number}) (Org)`));
-          setAgentAccounts(agAccs.map(a => `${a.account_title ? a.account_title + ' - ' : ''}${a.bank_name} (Acc: ${a.account_number}) (Agency)`));
-        }
-      } catch (e) { console.error('Error fetching bank accounts:', e); }
-    };
-    fetchAccounts();
-  }, []);
-
-  const handleHoldBooking = () => {
-    window.location.href = '/booking-history';
+  const handleHoldBooking = async () => {
+    try {
+      const token = localStorage.getItem('access_token');
+      const id = booking._id || booking.id;
+      const res = await fetch(`${API}/api/custom-bookings/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ booking_status: 'pending' })
+      });
+      if (res.ok) { alert('Booking held successfully! You can complete payment later.'); onConfirm(); }
+      else throw new Error('Failed to hold booking');
+    } catch (e) { setError(e.message); }
   };
 
   const handleConfirmOrder = async () => {
@@ -595,67 +479,65 @@ const StepThreePayment = ({
         return;
       }
 
-      const isManualPayment = ['bank', 'cash'].includes(paymentMethod);
-
-      if (isManualPayment && paymentMethod === 'bank' && !paymentData.beneficiaryAccount) {
+      if ((paymentMethod === 'bank' || paymentMethod === 'cheque') && !paymentData.beneficiaryAccount) {
         if (!window.confirm('⚠️ No beneficiary account selected. Continue anyway?')) { setIsLoading(false); return; }
       }
 
-      if (isManualPayment && paymentMethod === 'cash' && (!paymentData.bankName || !paymentData.depositorName || !paymentData.depositorCNIC)) {
-        if (!window.confirm('⚠️ Cash deposit details incomplete. Continue anyway?')) { setIsLoading(false); return; }
-      }
-
-      if (paymentMethod === 'transfer' && (!paymentData.transferAccount || !paymentData.transferAccountName || !paymentData.transferPhone || !paymentData.transferCNIC || !paymentData.transferAccountNumber)) {
-        if (!window.confirm('⚠️ Transfer details incomplete. Continue anyway?')) {
-          setIsLoading(false);
-          return;
-        }
-      }
-
-      if ((isManualPayment || paymentMethod === 'transfer') && (paymentMethod === 'bank' || paymentMethod === 'transfer') && !paymentData.slipFile) {
+      if ((paymentMethod === 'bank' || paymentMethod === 'cheque') && !paymentData.slipFile) {
         if (!window.confirm('⚠️ No payment slip uploaded. Continue anyway?')) { setIsLoading(false); return; }
       }
 
-
-      // Bank / Cash - Use centralized payments API
-      const formData = new FormData();
-      formData.append('booking_id', id);
-      formData.append('booking_type', 'custom');
-      formData.append('payment_method', paymentMethod);
-      formData.append('amount', paymentData.amount);
-      formData.append('payment_date', paymentData.date);
-      if (paymentData.note) formData.append('note', paymentData.note);
-
-      if (paymentMethod === 'cash') {
-        formData.append('bank_name', paymentData.bankName || '');
-        formData.append('depositor_name', paymentData.depositorName || '');
-        formData.append('depositor_cnic', paymentData.depositorCNIC || '');
-      } else if (paymentMethod === 'transfer') {
-        formData.append('transfer_account', paymentData.transferAccount?.value || paymentData.transferAccount || '');
-        formData.append('transfer_account_name', paymentData.transferAccountName || '');
-        formData.append('transfer_phone', paymentData.transferPhone || '');
-        formData.append('transfer_cnic', paymentData.transferCNIC || '');
-        formData.append('transfer_account_number', paymentData.transferAccountNumber || '');
-      } else {
-        formData.append('beneficiary_account', paymentData.beneficiaryAccount || '');
-        formData.append('agent_account', paymentData.agentAccount || '');
+      // Upload slip if provided
+      let slipPath = '';
+      if ((paymentMethod === 'bank' || paymentMethod === 'cheque') && paymentData.slipFile) {
+        const fd = new FormData();
+        fd.append('file', paymentData.slipFile);
+        const r = await fetch(`${API}/api/custom-bookings/upload-passport`, {
+          method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: fd
+        });
+        if (r.ok) { const { path } = await r.json(); slipPath = path; }
       }
 
-      if (paymentData.slipFile) {
-        formData.append('slip_file', paymentData.slipFile);
+      // Credit payment
+      if (paymentMethod === 'credit') {
+        const res = await fetch(`${API}/api/custom-bookings/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            booking_status: 'confirmed',
+            payment_method: 'credit',
+            payment_status: 'paid',
+            payment_details: { method: 'credit', amount: totalAmount, note: paymentData.note }
+          })
+        });
+        if (!res.ok) { const d = await res.json(); throw new Error(d.detail || 'Failed'); }
+        alert('✅ Booking confirmed via credit.');
+        setIsLoading(false); onConfirm(); return;
       }
 
-      const res = await fetch(`${API}/api/payments/`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData
+      // Bank / Cheque / Cash
+      const notes = `Payment: ${paymentMethod.toUpperCase()} | PKR ${paymentData.amount} | ${paymentData.date}` +
+        (paymentMethod === 'cash'
+          ? ` | ${paymentData.bankName} | ${paymentData.depositorName} | ${paymentData.depositorCNIC}`
+          : ` | Beneficiary: ${paymentData.beneficiaryAccount} | Agent: ${paymentData.agentAccount}`);
+
+      const res = await fetch(`${API}/api/custom-bookings/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          booking_status: 'confirmed',
+          payment_method: paymentMethod,
+          payment_status: 'pending',
+          notes,
+          payment_details: {
+            method: paymentMethod, amount: paymentData.amount, date: paymentData.date,
+            bank_name: paymentData.bankName, depositor_name: paymentData.depositorName,
+            cnic: paymentData.depositorCNIC, beneficiary_account: paymentData.beneficiaryAccount,
+            agent_account: paymentData.agentAccount, slip_path: slipPath, note: paymentData.note
+          }
+        })
       });
-
-      if (!res.ok) {
-        const d = await res.json();
-        throw new Error(d.detail || 'Failed to submit payment request');
-      }
-
+      if (!res.ok) { const d = await res.json(); throw new Error(d.detail || 'Failed'); }
       alert('✅ Booking confirmed! Payment pending verification.');
       setIsLoading(false); onConfirm();
     } catch (e) {
@@ -694,56 +576,23 @@ const StepThreePayment = ({
         </div>
       )}
 
-      {/* Agency Discount (if applicable) */}
-      {discountAmount > 0 && discountGroup && (
-        <div className="bg-green-50 border-2 border-green-200 rounded-3xl p-6 shadow-sm">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 bg-green-500 rounded-xl flex items-center justify-center">
-              <Check size={20} className="text-white" />
-            </div>
-            <div>
-              <h3 className="text-lg font-black text-green-900 uppercase tracking-tight">Agency Discount Applied</h3>
-              <p className="text-xs font-bold text-green-600">{discountGroup.name}</p>
-            </div>
-          </div>
-          <div className="bg-white rounded-xl p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-slate-600">Total Amount</span>
-              <span className="text-lg font-bold text-slate-900">{PKR(totalAmount + discountAmount)}</span>
-            </div>
-            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
-              <span className="text-sm font-medium text-green-700">Discount Applied</span>
-              <span className="text-lg font-bold text-green-600">- {PKR(discountAmount)}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-black text-slate-900 uppercase">Amount After Discount</span>
-              <span className="text-2xl font-black text-blue-600">{PKR(totalAmount)}</span>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Payment Methods */}
       <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-6">
         <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">Select Payment Method</h3>
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          <PaymentMethodCard label="Bank Transfer" icon={<Building2 size={24} />} active={paymentMethod === 'bank'} onClick={() => setPaymentMethod('bank')} />
+          <PaymentMethodCard label="Bank Transfer" icon={<Building size={24} />} active={paymentMethod === 'bank'} onClick={() => setPaymentMethod('bank')} />
           <PaymentMethodCard label="Cash" icon={<Wallet size={24} />} active={paymentMethod === 'cash'} onClick={() => setPaymentMethod('cash')} />
-          <PaymentMethodCard
-            label="Transfer"
-            icon={<ArrowLeftRight size={24} />}
-            active={paymentMethod === 'transfer'}
-            onClick={() => setPaymentMethod('transfer')}
-          />
-          <PaymentMethodCard label="KuikPay" icon={<Smartphone size={24} />} active={false} disabled={true} onClick={() => { }} />
+          <PaymentMethodCard label="Cheque" icon={<FileText size={24} />} active={paymentMethod === 'cheque'} onClick={() => setPaymentMethod('cheque')} />
+          <PaymentMethodCard label="Pay with Credit" icon={<CreditCard size={24} />} active={paymentMethod === 'credit'} onClick={() => setPaymentMethod('credit')} />
+          <PaymentMethodCard label="KuikPay" icon={<Smartphone size={24} />} active={false} disabled={true} onClick={() => {}} />
         </div>
 
-        {/* Bank */}
-        {(paymentMethod === 'bank') && (
+        {/* Bank / Cheque */}
+        {(paymentMethod === 'bank' || paymentMethod === 'cheque') && (
           <div className="space-y-4 pt-4 border-t border-slate-100">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <SelectField label="Beneficiary Account (Company)" options={beneficiaryAccounts.length > 0 ? beneficiaryAccounts : ['No accounts found']} value={paymentData.beneficiaryAccount} onChange={v => upd('beneficiaryAccount', v)} />
-              <SelectField label="Agent Account" options={agentAccounts.length > 0 ? agentAccounts : ['No accounts found']} value={paymentData.agentAccount} onChange={v => upd('agentAccount', v)} />
+              <SelectField label="Beneficiary Account (Company)" options={['Account 1 - HBL', 'Account 2 - UBL', 'Account 3 - MCB']} value={paymentData.beneficiaryAccount} onChange={v => upd('beneficiaryAccount', v)} />
+              <SelectField label="Agent Account" options={['My Account - HBL', 'My Account - UBL']} value={paymentData.agentAccount} onChange={v => upd('agentAccount', v)} />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <InputField label="Amount" type="number" placeholder="Enter amount" value={paymentData.amount} onChange={v => upd('amount', parseFloat(v) || 0)} />
@@ -761,64 +610,6 @@ const StepThreePayment = ({
               ) : (
                 <input type="file" accept="image/*,.pdf" onChange={e => { if (e.target.files[0]) upd('slipFile', e.target.files[0]); }}
                   className="mt-2 w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none focus:ring-4 ring-blue-50 transition-all" />
-              )}
-            </div>
-          </div>
-        )}
-
-        {paymentMethod === 'transfer' && (
-          <div className="space-y-4 pt-4 border-t border-slate-100">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <SearchableSelect
-                label="Organization Account (Internal)"
-                options={beneficiaryAccounts.filter(a => a.includes('(Org)') || a.includes('Organization')).map(a => ({ label: a, value: a }))}
-                value={paymentData.transferAccount}
-                onChange={(v) => upd('transferAccount', v)}
-                placeholder="Select Organization Account..."
-              />
-              <InputField
-                label="Client Account Number"
-                placeholder="Enter client's account number"
-                value={paymentData.transferAccountNumber}
-                onChange={(v) => upd('transferAccountNumber', v)}
-              />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <InputField
-                label="Transfer Account Name"
-                placeholder="Enter account name"
-                value={paymentData.transferAccountName}
-                onChange={(v) => upd('transferAccountName', v)}
-              />
-              <InputField
-                label="Phone Number"
-                placeholder="03XXXXXXXXX"
-                value={paymentData.transferPhone}
-                onChange={(v) => upd('transferPhone', v)}
-              />
-              <InputField
-                label="CNIC Number"
-                placeholder="12345-1234567-1"
-                value={paymentData.transferCNIC}
-                onChange={(v) => upd('transferCNIC', v)}
-              />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <InputField label="Amount" type="number" placeholder="Enter amount" value={paymentData.amount} onChange={v => upd('amount', parseFloat(v) || 0)} />
-              <InputField label="Date" type="date" value={paymentData.date} onChange={v => upd('date', v)} />
-              <InputField label="Note (Optional)" placeholder="Add note" value={paymentData.note} onChange={v => upd('note', v)} />
-            </div>
-            <div>
-              <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Upload Payment Slip *</label>
-              {paymentData.slipFile ? (
-                <div className="flex items-center gap-3 bg-green-50 border border-green-200 rounded-2xl px-5 py-3 mt-2">
-                  <Check size={16} className="text-green-600" />
-                  <span className="text-xs font-black text-green-700 flex-1 truncate">{paymentData.slipFile.name}</span>
-                  <button onClick={() => upd('slipFile', null)} className="text-slate-400 hover:text-red-500"><X size={15} /></button>
-                </div>
-              ) : (
-                <input type="file" accept="image/*,.pdf" onChange={e => { if (e.target.files[0]) upd('slipFile', e.target.files[0]); }}
-                  className="mt-2 w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none focus:ring-4 ring-blue-50 transition-all cursor-pointer" />
               )}
             </div>
           </div>
@@ -879,8 +670,7 @@ const SuccessView = ({ booking, onBack }) => (
       <div>
         <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tight">Booking Secured!</h2>
         <p className="text-slate-500 font-medium mt-3">
-          Your confirmation reference is <span className="text-blue-600 font-black">{booking.booking_reference}</span>.{' '}
-          Payment verification is pending.
+          Reference: <span className="text-blue-600 font-black">{booking.booking_reference}</span>
         </p>
       </div>
       <div className="bg-slate-50 rounded-3xl p-6 text-left space-y-3">
@@ -897,20 +687,9 @@ const SuccessView = ({ booking, onBack }) => (
           <span className="font-black text-amber-600 uppercase">{booking.booking_status}</span>
         </div>
       </div>
-      <div className="pt-6 space-y-3">
-        <button
-          onClick={() => window.location.href = '/booking-history'}
-          className="w-full px-10 py-4 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:scale-105 transition-all shadow-xl"
-        >
-          View Booking History
-        </button>
-        <button
-          onClick={() => window.location.reload()}
-          className="w-full px-10 py-4 bg-slate-100 text-slate-900 rounded-2xl font-black uppercase tracking-widest text-xs hover:scale-105 transition-all"
-        >
-          Book Another Ticket
-        </button>
-      </div>
+      <button onClick={onBack} className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-blue-600 transition-all shadow-xl">
+        Back to Calculator
+      </button>
     </div>
   </div>
 );
@@ -979,8 +758,7 @@ const ServicesSummaryCard = ({ calculatorData }) => {
 /*  MAIN PAGE                                                                  */
 /* ─────────────────────────────────────────────────────────────────────────── */
 
-const CustomBookingPage = ({ calculatorData: initialData, onBack, resumeId }) => {
-  const [calculatorData, setCalculatorData] = useState(initialData || {});
+const CustomBookingPage = ({ calculatorData, onBack }) => {
   const {
     families = [],
     hotelRows = [],
@@ -989,140 +767,50 @@ const CustomBookingPage = ({ calculatorData: initialData, onBack, resumeId }) =>
     selectedVisaRate,
     riyalRate,
     selectedOptions = [],
-    passengers: paxTotals = { adults: 0, children: 0, infants: 0 },
-    foodRows = [],
-    ziaratRows = [],
-    foodPrices = [],
-    ziaratPrices = []
+    passengers: paxTotals = { adults: 0, children: 0, infants: 0 }
   } = calculatorData || {};
 
   // ── Generate initial passengers from families ──
   const initPassengers = useMemo(() => {
     const list = [];
     let idx = 0;
-
-    // Use families if available
-    if (families && families.length > 0) {
-      families.forEach((fam, fi) => {
-        const famId = `family_${fi + 1}`;
-        const famLabel = `Family ${fi + 1}`;
-        for (let i = 0; i < (fam.adults || 0); i++) {
-          list.push(emptyCustomPax(idx++, 'Adult', famId, famLabel, i === 0));
-        }
-        for (let i = 0; i < (fam.children || 0); i++) {
-          list.push(emptyCustomPax(idx++, 'Child', famId, famLabel, false));
-        }
-        for (let i = 0; i < (fam.infants || 0); i++) {
-          list.push(emptyCustomPax(idx++, 'Infant', famId, famLabel, false));
-        }
-      });
-    } else {
-      // Fallback: Use paxTotals to create a single default family
-      const famId = `family_1`;
-      const famLabel = `Family 1`;
-      for (let i = 0; i < (paxTotals.adults || 0); i++) {
+    families.forEach((fam, fi) => {
+      const famId = `family_${fi + 1}`;
+      const famLabel = `Family ${fi + 1}`;
+      for (let i = 0; i < (fam.adults || 0); i++) {
         list.push(emptyCustomPax(idx++, 'Adult', famId, famLabel, i === 0));
       }
-      for (let i = 0; i < (paxTotals.children || 0); i++) {
+      for (let i = 0; i < (fam.children || 0); i++) {
         list.push(emptyCustomPax(idx++, 'Child', famId, famLabel, false));
       }
-      for (let i = 0; i < (paxTotals.infants || 0); i++) {
+      for (let i = 0; i < (fam.infants || 0); i++) {
         list.push(emptyCustomPax(idx++, 'Infant', famId, famLabel, false));
       }
-    }
+    });
     return list;
-  }, [families, paxTotals]);
+  }, [families]);
 
   // ── State ──
-  const [currentStep, setCurrentStep] = useState(resumeId ? 3 : 1);
-  const [passengers, setPassengers] = useState(initPassengers);
+  const [currentStep, setCurrentStep] = useState(1);
+  const [passengers, setPassengers]   = useState(initPassengers);
   const [expandedPax, setExpandedPax] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState('bank');
   const [paymentData, setPaymentData] = useState({
     amount: 0, date: new Date().toISOString().split('T')[0], note: '',
     bankName: '', depositorName: '', depositorCNIC: '', slipFile: null,
-    beneficiaryAccount: '', agentAccount: '',
-    transferAccount: null, transferAccountName: '', transferPhone: '', transferCNIC: '',
-    transferAccountNumber: ''
+    beneficiaryAccount: '', agentAccount: ''
   });
-  const [discountGroup, setDiscountGroup] = useState(null);
-  const [discountAmount, setDiscountAmount] = useState(0);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading]     = useState(false);
   const [createdBooking, setCreatedBooking] = useState(null);
-  const [isBooked, setIsBooked] = useState(false);
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    if (resumeId) {
-      const fetchBooking = async () => {
-        try {
-          const token = localStorage.getItem('access_token');
-          const res = await fetch(`${API}/api/custom-bookings/${resumeId}`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-          });
-          if (res.ok) {
-            const data = await res.json();
-            setCreatedBooking(data);
-            if (data.calculator_data) setCalculatorData(data.calculator_data);
-            // Pre-fill payment amount from the booking
-            if (data.total_amount) {
-              setPaymentData(prev => ({ ...prev, amount: data.total_amount }));
-            }
-            // Map passengers if available
-            if (data.passengers && data.passengers.length > 0) {
-              const mappedPax = data.passengers.map((p, idx) => ({
-                id: idx,
-                type: (p.type || 'Adult').charAt(0).toUpperCase() + (p.type || 'Adult').slice(1).toLowerCase(),
-                title: p.title || '',
-                firstName: p.first_name || '',
-                lastName: p.last_name || '',
-                passportNo: p.passport_no || '',
-                dob: p.dob || '',
-                passportIssue: p.passport_issue || '',
-                passportExpiry: p.passport_expiry || '',
-                country: p.country || '',
-                passportPath: p.passport_path || '',
-                familyId: p.family_id || '',
-                familyLabel: p.family_label || '',
-                isFamilyHead: p.is_family_head || false,
-                passportFile: null
-              }));
-              setPassengers(mappedPax);
-            }
-            setCurrentStep(3);
-            window.history.pushState({ step: 3 }, '', `/custom-booking/step-3${window.location.search}`);
-          }
-        } catch (err) {
-          console.error('Error fetching booking for resume:', err);
-        }
-      };
-      fetchBooking();
-    }
-  }, [resumeId]);
-
-  const updateStep = (step) => {
-    setCurrentStep(step);
-    window.history.pushState({ step }, '', `/custom-booking/step-${step}${window.location.search}`);
-  };
-
-  useEffect(() => {
-    const handlePopState = (e) => {
-      if (e.state && e.state.step) {
-        setCurrentStep(e.state.step);
-      } else {
-        setCurrentStep(1);
-      }
-    };
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
+  const [isBooked, setIsBooked]       = useState(false);
+  const [error, setError]             = useState('');
 
   // ── Pricing helpers ──
   const buildFamilyInvoice = (family, fi) => {
-    const exchangeRate = riyalRate?.rate || 1;
-    const isVisaPKR = riyalRate?.is_visa_pkr ?? false;
-    const isHotelPKR = riyalRate?.is_hotel_pkr ?? false;
-    const isTransPKR = riyalRate?.is_transport_pkr ?? true;
+    const exchangeRate   = riyalRate?.rate || 1;
+    const isVisaPKR      = riyalRate?.is_visa_pkr      ?? false;
+    const isHotelPKR     = riyalRate?.is_hotel_pkr     ?? false;
+    const isTransPKR     = riyalRate?.is_transport_pkr ?? true;
     const toPKR = (amount, isPKR) => isPKR ? Math.round(amount) : Math.round(amount * exchangeRate);
 
     const familyPax = (family.adults || 0) + (family.children || 0) + (family.infants || 0);
@@ -1140,60 +828,22 @@ const CustomBookingPage = ({ calculatorData: initialData, onBack, resumeId }) =>
 
     // Transport — adult_selling is the native rate (SAR or PKR depending on flag)
     const transportNative = (selectedVehicle?.adult_selling || 0) * familyPax;
-    const transportNet = toPKR(transportNative, isTransPKR);
+    const transportNet    = toPKR(transportNative, isTransPKR);
 
     // Visa — native rate (SAR or PKR depending on flag)
-    const adultVisaNative = Number(selectedVisaRate?.adult_selling || selectedVisaRate?.adult_rate || 0);
-    const childVisaNative = Number(selectedVisaRate?.child_selling || selectedVisaRate?.child_rate || 0);
+    const adultVisaNative  = Number(selectedVisaRate?.adult_selling  || selectedVisaRate?.adult_rate  || 0);
+    const childVisaNative  = Number(selectedVisaRate?.child_selling  || selectedVisaRate?.child_rate  || 0);
     const infantVisaNative = Number(selectedVisaRate?.infant_selling || selectedVisaRate?.infant_rate || 0);
-    const totalVisaNative = (adultVisaNative * (family.adults || 0)) + (childVisaNative * (family.children || 0)) + (infantVisaNative * (family.infants || 0));
-    const totalVisaPKR = toPKR(totalVisaNative, isVisaPKR);
+    const totalVisaNative  = (adultVisaNative * (family.adults || 0)) + (childVisaNative * (family.children || 0)) + (infantVisaNative * (family.infants || 0));
+    const totalVisaPKR     = toPKR(totalVisaNative, isVisaPKR);
 
     // Tickets — always PKR
     const totalTicketPKR = ((selectedFlight?.adult_selling || 0) * (family.adults || 0)) +
-      ((selectedFlight?.child_selling || 0) * (family.children || 0)) +
-      ((selectedFlight?.infant_selling || 0) * (family.infants || 0));
+                           ((selectedFlight?.child_selling || 0) * (family.children || 0)) +
+                           ((selectedFlight?.infant_selling || 0) * (family.infants || 0));
 
-    // Food
-    const isFoodPKR = riyalRate?.is_food_pkr ?? true;
-    let foodNative = 0;
-    foodRows.forEach(foodRow => {
-      if (!foodRow.food_id) return;
-      const item = foodPrices.find(f => String(f.id || f._id) === String(foodRow.food_id));
-      if (!item) return;
-      const start = foodRow.startDate ? new Date(foodRow.startDate) : null;
-      const end = foodRow.endDate ? new Date(foodRow.endDate) : null;
-      const days = start && end ? Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24))) : 1;
-      foodNative += ((item.adult_selling || 0) * (family.adults || 0) +
-        (item.child_selling || 0) * (family.children || 0) +
-        (item.infant_selling || 0) * (family.infants || 0)) * days;
-    });
-    const foodPKR = toPKR(foodNative, isFoodPKR);
-
-    // Ziarat
-    const isZiaratPKR = riyalRate?.is_ziarat_pkr ?? true;
-    let ziaratNative = 0;
-    ziaratRows.forEach(zRow => {
-      if (!zRow.ziarat_id) return;
-      const item = ziaratPrices.find(z => String(z.id || z._id) === String(zRow.ziarat_id));
-      if (!item) return;
-      ziaratNative += (item.adult_selling || 0) * (family.adults || 0) +
-        (item.child_selling || 0) * (family.children || 0) +
-        (item.infant_selling || 0) * (family.infants || 0);
-    });
-    const ziaratPKR = toPKR(ziaratNative, isZiaratPKR);
-
-    const netPKR = totalVisaPKR + totalTicketPKR + transportNet + accomPKR + foodPKR + ziaratPKR;
-
-    return {
-      familyPax, netPKR,
-      // PKR totals per service
-      accomPKR, transportNet, totalVisaPKR, totalTicketPKR, foodPKR, ziaratPKR,
-      // Native SAR/PKR totals for audit (raw amounts before conversion)
-      accomNative, transportNative, totalVisaNative, foodNative, ziaratNative,
-      // Currency flags
-      isVisaPKR, isHotelPKR, isTransPKR, isFoodPKR, isZiaratPKR,
-    };
+    const netPKR = totalVisaPKR + totalTicketPKR + transportNet + accomPKR;
+    return { familyPax, accomPKR, transportNet, totalVisaPKR, totalTicketPKR, netPKR };
   };
 
   const familyInvoices = useMemo(() =>
@@ -1201,55 +851,10 @@ const CustomBookingPage = ({ calculatorData: initialData, onBack, resumeId }) =>
     [families, hotelRows, selectedFlight, selectedVehicle, selectedVisaRate, riyalRate]
   );
 
-  const subtotal = useMemo(() =>
+  const grandTotal = useMemo(() =>
     familyInvoices.reduce((sum, inv) => sum + inv.netPKR, 0),
     [familyInvoices]
   );
-
-  const grandTotal = useMemo(() => {
-    const total = subtotal - discountAmount;
-    return Math.max(0, total);
-  }, [subtotal, discountAmount]);
-
-  // Fetch discount groups
-  React.useEffect(() => {
-    const token = localStorage.getItem('access_token');
-    const isAdmin = !!localStorage.getItem('admin_data');
-    if (isAdmin) return;
-
-    // Fetch agency details to get discount_group_id
-    fetch(`${API}/api/agencies/me`, { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.ok ? r.json() : null)
-      .then(async (agency) => {
-        if (agency && agency.discount_group_id) {
-          // Fetch the specific discount group
-          const discountRes = await fetch(`${API}/api/discounts/${agency.discount_group_id}`, {
-            headers: { Authorization: `Bearer ${token}` }
-          });
-          if (discountRes.ok) {
-            const discount = await discountRes.json();
-            setDiscountGroup(discount);
-          }
-        }
-      })
-      .catch(() => { });
-  }, []);
-
-  // Calculate discount when discount group is loaded
-  React.useEffect(() => {
-    if (discountGroup && discountGroup.package_discount) {
-      if (discountGroup.package_discount_type === 'percentage') {
-        // Calculate percentage discount
-        const percentageDiscount = (subtotal * discountGroup.package_discount) / 100;
-        setDiscountAmount(Math.round(percentageDiscount));
-      } else {
-        // Fixed discount
-        setDiscountAmount(discountGroup.package_discount);
-      }
-    } else {
-      setDiscountAmount(0);
-    }
-  }, [discountGroup, subtotal]);
 
   // ── Build rooms_selected payload ──
   const buildRoomsSelected = () => {
@@ -1277,10 +882,10 @@ const CustomBookingPage = ({ calculatorData: initialData, onBack, resumeId }) =>
 
   // ── Build package_details payload ──
   const buildPackageDetails = () => {
-    const exchangeRate = riyalRate?.rate || 1;
-    const isHotelPKR = riyalRate?.is_hotel_pkr ?? false;
-    const isTransPKR = riyalRate?.is_transport_pkr ?? true;
-    const isVisaPKR = riyalRate?.is_visa_pkr ?? false;
+    const exchangeRate    = riyalRate?.rate || 1;
+    const isHotelPKR      = riyalRate?.is_hotel_pkr     ?? false;
+    const isTransPKR      = riyalRate?.is_transport_pkr ?? true;
+    const isVisaPKR       = riyalRate?.is_visa_pkr      ?? false;
     const toPKR = (amount, isPKR) => isPKR ? Math.round(amount) : Math.round(amount * exchangeRate);
 
     return {
@@ -1289,113 +894,83 @@ const CustomBookingPage = ({ calculatorData: initialData, onBack, resumeId }) =>
       flight: selectedFlight ? {
         id: selectedFlight._id || selectedFlight.id,
         // Departure leg
-        departure_trip: selectedFlight.departure_trip ? (() => {
-          const dt = selectedFlight.departure_trip;
-          const depDT = dt.departure_datetime ? new Date(dt.departure_datetime) : null;
-          const arrDT = dt.arrival_datetime ? new Date(dt.arrival_datetime) : null;
-          return {
-            airline: dt.airline || '',
-            flight_number: dt.flight_number || '',
-            departure_city: dt.departure_city || '',
-            arrival_city: dt.arrival_city || '',
-            departure_date: depDT ? depDT.toISOString().split('T')[0] : (dt.departure_date || ''),
-            arrival_date: arrDT ? arrDT.toISOString().split('T')[0] : (dt.arrival_date || ''),
-            departure_time: depDT ? depDT.toTimeString().slice(0, 5) : (dt.departure_time || ''),
-            arrival_time: arrDT ? arrDT.toTimeString().slice(0, 5) : (dt.arrival_time || ''),
-          };
-        })() : null,
+        departure_trip: selectedFlight.departure_trip ? {
+          airline:          selectedFlight.departure_trip.airline          || '',
+          flight_number:    selectedFlight.departure_trip.flight_number    || '',
+          departure_city:   selectedFlight.departure_trip.departure_city   || '',
+          arrival_city:     selectedFlight.departure_trip.arrival_city     || '',
+          departure_date:   selectedFlight.departure_trip.departure_date   || '',
+          arrival_date:     selectedFlight.departure_trip.arrival_date     || '',
+          departure_time:   selectedFlight.departure_trip.departure_time   || '',
+          arrival_time:     selectedFlight.departure_trip.arrival_time     || '',
+        } : null,
         // Return leg
-        return_trip: selectedFlight.return_trip ? (() => {
-          const rt = selectedFlight.return_trip;
-          const depDT = rt.departure_datetime ? new Date(rt.departure_datetime) : null;
-          const arrDT = rt.arrival_datetime ? new Date(rt.arrival_datetime) : null;
-          return {
-            airline: rt.airline || '',
-            flight_number: rt.flight_number || '',
-            departure_city: rt.departure_city || '',
-            arrival_city: rt.arrival_city || '',
-            departure_date: depDT ? depDT.toISOString().split('T')[0] : (rt.departure_date || ''),
-            arrival_date: arrDT ? arrDT.toISOString().split('T')[0] : (rt.arrival_date || ''),
-            departure_time: depDT ? depDT.toTimeString().slice(0, 5) : (rt.departure_time || ''),
-            arrival_time: arrDT ? arrDT.toTimeString().slice(0, 5) : (rt.arrival_time || ''),
-          };
-        })() : null,
-        adult_selling: selectedFlight.adult_selling || 0,
-        child_selling: selectedFlight.child_selling || 0,
+        return_trip: selectedFlight.return_trip ? {
+          airline:          selectedFlight.return_trip.airline             || '',
+          flight_number:    selectedFlight.return_trip.flight_number       || '',
+          departure_city:   selectedFlight.return_trip.departure_city      || '',
+          arrival_city:     selectedFlight.return_trip.arrival_city        || '',
+          departure_date:   selectedFlight.return_trip.departure_date      || '',
+          arrival_date:     selectedFlight.return_trip.arrival_date        || '',
+          departure_time:   selectedFlight.return_trip.departure_time      || '',
+          arrival_time:     selectedFlight.return_trip.arrival_time        || '',
+        } : null,
+        adult_selling:  selectedFlight.adult_selling  || 0,
+        child_selling:  selectedFlight.child_selling  || 0,
         infant_selling: selectedFlight.infant_selling || 0,
-        adult_pkr: selectedFlight.adult_selling || 0,
-        child_pkr: selectedFlight.child_selling || 0,
-        infant_pkr: selectedFlight.infant_selling || 0,
+        adult_pkr:      selectedFlight.adult_selling  || 0,
+        child_pkr:      selectedFlight.child_selling  || 0,
+        infant_pkr:     selectedFlight.infant_selling || 0,
       } : null,
 
       hotels: hotelRows.filter(h => h.hotel_name).map(h => ({
-        id: h.hotel_id || h.id,
-        name: h.hotel_name,
-        city: h.city,
-        check_in: h.check_in,
-        check_out: h.check_out,
+        id:           h.hotel_id || h.id,
+        name:         h.hotel_name,
+        city:         h.city,
+        check_in:     h.check_in,
+        check_out:    h.check_out,
         total_nights: h.total_nights,
-        stars: h.stars || '',
-        address: h.address || '',
+        stars:        h.stars || '',
+        address:      h.address || '',
       })),
 
       transport: selectedVehicle ? {
-        id: selectedVehicle._id || selectedVehicle.id,
-        vehicle_type: selectedVehicle.vehicle_type || '',
-        vehicle_name: selectedVehicle.vehicle_name || '',
-        sector: selectedVehicle.sector || '',
-        sector_id: selectedVehicle.sector_id || '',
-        // ── Sector routing info for invoice/order delivery route display ──
-        big_sector_id: selectedVehicle.big_sector || selectedVehicle.big_sector_id || null,
-        small_sector_ids: selectedVehicle.small_sector_ids || [],
-        // Embed full small sector details if already resolved (city names, types)
-        small_sectors: selectedVehicle.small_sectors || selectedVehicle.small_sectors_details || [],
-        adult_selling: selectedVehicle.adult_selling || 0,
-        child_selling: selectedVehicle.child_selling || 0,
+        id:             selectedVehicle._id || selectedVehicle.id,
+        vehicle_type:   selectedVehicle.vehicle_type   || '',
+        vehicle_name:   selectedVehicle.vehicle_name   || '',
+        sector:         selectedVehicle.sector         || '',
+        sector_id:      selectedVehicle.sector_id      || '',
+        adult_selling:  selectedVehicle.adult_selling  || 0,
+        child_selling:  selectedVehicle.child_selling  || 0,
         infant_selling: selectedVehicle.infant_selling || 0,
-        adult_pkr: toPKR(selectedVehicle.adult_selling || 0, isTransPKR),
-        child_pkr: toPKR(selectedVehicle.child_selling || 0, isTransPKR),
-        infant_pkr: toPKR(selectedVehicle.infant_selling || 0, isTransPKR),
-        is_pkr: isTransPKR,
+        adult_pkr:      toPKR(selectedVehicle.adult_selling  || 0, isTransPKR),
+        child_pkr:      toPKR(selectedVehicle.child_selling  || 0, isTransPKR),
+        infant_pkr:     toPKR(selectedVehicle.infant_selling || 0, isTransPKR),
+        is_pkr:         isTransPKR,
       } : null,
 
       visa: selectedVisaRate ? {
-        id: selectedVisaRate._id || selectedVisaRate.id,
-        title: selectedVisaRate.title || '',
-        adult_selling: selectedVisaRate.adult_selling || selectedVisaRate.adult_rate || 0,
-        child_selling: selectedVisaRate.child_selling || selectedVisaRate.child_rate || 0,
-        infant_selling: selectedVisaRate.infant_selling || selectedVisaRate.infant_rate || 0,
-        adult_pkr: toPKR(selectedVisaRate.adult_selling || selectedVisaRate.adult_rate || 0, isVisaPKR),
-        child_pkr: toPKR(selectedVisaRate.child_selling || selectedVisaRate.child_rate || 0, isVisaPKR),
-        infant_pkr: toPKR(selectedVisaRate.infant_selling || selectedVisaRate.infant_rate || 0, isVisaPKR),
-        is_pkr: isVisaPKR,
+        id:               selectedVisaRate._id || selectedVisaRate.id,
+        title:            selectedVisaRate.title            || '',
+        adult_selling:    selectedVisaRate.adult_selling    || selectedVisaRate.adult_rate   || 0,
+        child_selling:    selectedVisaRate.child_selling    || selectedVisaRate.child_rate   || 0,
+        infant_selling:   selectedVisaRate.infant_selling   || selectedVisaRate.infant_rate  || 0,
+        adult_pkr:        toPKR(selectedVisaRate.adult_selling   || selectedVisaRate.adult_rate   || 0, isVisaPKR),
+        child_pkr:        toPKR(selectedVisaRate.child_selling   || selectedVisaRate.child_rate   || 0, isVisaPKR),
+        infant_pkr:       toPKR(selectedVisaRate.infant_selling  || selectedVisaRate.infant_rate  || 0, isVisaPKR),
+        is_pkr:           isVisaPKR,
       } : null,
 
-      riyal_rate: exchangeRate,
-      is_hotel_pkr: isHotelPKR,
+      riyal_rate:       exchangeRate,
+      is_hotel_pkr:     isHotelPKR,
       is_transport_pkr: isTransPKR,
-      is_visa_pkr: isVisaPKR,
-      families_count: families.length,
-      food_included: foodRows.some(r => r.food_id),
-      ziyarat_included: ziaratRows.some(r => r.ziarat_id),
-      food_rows: foodRows.filter(r => r.food_id).map(r => ({
-        food_id: r.food_id,
-        city: r.city || '',
-        start_date: r.startDate || '',
-        end_date: r.endDate || '',
-        self_pickup: r.selfPickup || false
-      })),
-      ziarat_rows: ziaratRows.filter(r => r.ziarat_id).map(r => ({
-        ziarat_id: r.ziarat_id,
-        city: r.city || '',
-        visit_date: r.visitDate || '',
-        self: r.self || false
-      })),
+      is_visa_pkr:      isVisaPKR,
+      families_count:   families.length,
       family_breakdown: families.map((fam, fi) => ({
         family_id: `family_${fi + 1}`,
-        adults: fam.adults || 0,
-        children: fam.children || 0,
-        infants: fam.infants || 0,
+        adults:    fam.adults   || 0,
+        children:  fam.children || 0,
+        infants:   fam.infants  || 0,
       }))
     };
   };
@@ -1454,56 +1029,9 @@ const CustomBookingPage = ({ calculatorData: initialData, onBack, resumeId }) =>
         passengers: passengersPayload,
         total_passengers: passengers.length,
         total_amount: grandTotal,
-        discount_group_id: discountGroup ? (discountGroup._id || discountGroup.id) : null,
-        discount_amount: discountAmount || 0,
-        payment_details: {
-          payment_method: paymentMethod,
-          payment_status: 'unpaid'
-        },
-        booking_status: 'underprocess',
-        // ── SAR/PKR dual pricing (aggregated across all families) ──
-        sar_to_pkr_rate: riyalRate?.rate || 1,
-        ...(() => {
-          const exc = riyalRate?.rate || 1;
-          const isVisaPKR = riyalRate?.is_visa_pkr ?? false;
-          const isHotelPKR = riyalRate?.is_hotel_pkr ?? false;
-          const isTransPKR = riyalRate?.is_transport_pkr ?? true;
-          const isFoodPKR = riyalRate?.is_food_pkr ?? true;
-          const isZiaratPKR = riyalRate?.is_ziarat_pkr ?? true;
-
-          let totalVisaNat = 0, totalVisaPKR = 0;
-          let totalHotelNat = 0, totalHotelPKR = 0;
-          let totalTransNat = 0, totalTransPKR = 0;
-          let totalFoodNat = 0, totalFoodPKR = 0;
-          let totalZiaratNat = 0, totalZiaratPKR = 0;
-
-          families.forEach(fam => {
-            const inv = buildFamilyInvoice(fam);
-            totalVisaNat += inv.totalVisaNative || 0;
-            totalVisaPKR += inv.totalVisaPKR || 0;
-            totalHotelNat += inv.accomNative || 0;
-            totalHotelPKR += inv.accomPKR || 0;
-            totalTransNat += inv.transportNative || 0;
-            totalTransPKR += inv.transportNet || 0;
-            totalFoodNat += inv.foodNative || 0;
-            totalFoodPKR += inv.foodPKR || 0;
-            totalZiaratNat += inv.ziaratNative || 0;
-            totalZiaratPKR += inv.ziaratPKR || 0;
-          });
-
-          return {
-            visa_cost_sar: isVisaPKR ? null : totalVisaNat,
-            visa_cost_pkr: totalVisaPKR,
-            hotel_cost_sar: isHotelPKR ? null : totalHotelNat,
-            hotel_cost_pkr: totalHotelPKR,
-            transport_cost_sar: isTransPKR ? null : totalTransNat,
-            transport_cost_pkr: totalTransPKR,
-            food_cost_sar: isFoodPKR ? null : totalFoodNat,
-            food_cost_pkr: totalFoodPKR,
-            ziyarat_cost_sar: isZiaratPKR ? null : totalZiaratNat,
-            ziyarat_cost_pkr: totalZiaratPKR,
-          };
-        })()
+        payment_method: paymentMethod,
+        payment_status: 'unpaid',
+        booking_status: 'under_process'
       };
 
       const res = await fetch(`${API}/api/custom-bookings/`, {
@@ -1520,7 +1048,7 @@ const CustomBookingPage = ({ calculatorData: initialData, onBack, resumeId }) =>
       const data = await res.json();
       setCreatedBooking(data);
       setPaymentData(prev => ({ ...prev, amount: grandTotal }));
-      updateStep(3);
+      setCurrentStep(3);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -1551,7 +1079,7 @@ const CustomBookingPage = ({ calculatorData: initialData, onBack, resumeId }) =>
           </div>
           <div className="text-right hidden md:block">
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Grand Total</p>
-            <p className="text-lg font-black text-blue-600">{PKR(createdBooking?.total_amount || grandTotal)}</p>
+            <p className="text-lg font-black text-blue-600">{PKR(grandTotal)}</p>
           </div>
         </div>
       </div>
@@ -1577,7 +1105,7 @@ const CustomBookingPage = ({ calculatorData: initialData, onBack, resumeId }) =>
             setPassengers={setPassengers}
             expandedPax={expandedPax}
             setExpandedPax={setExpandedPax}
-            onNext={() => updateStep(2)}
+            onNext={() => setCurrentStep(2)}
           />
         )}
 
@@ -1589,11 +1117,8 @@ const CustomBookingPage = ({ calculatorData: initialData, onBack, resumeId }) =>
             grandTotal={grandTotal}
             familyInvoices={familyInvoices}
             isLoading={isLoading}
-            onEdit={() => updateStep(1)}
+            onEdit={() => setCurrentStep(1)}
             onNext={handleCreateBooking}
-            discountGroup={discountGroup}
-            discountAmount={discountAmount}
-            subtotal={subtotal}
           />
         )}
 
@@ -1601,7 +1126,7 @@ const CustomBookingPage = ({ calculatorData: initialData, onBack, resumeId }) =>
         {currentStep === 3 && createdBooking && (
           <StepThreePayment
             booking={createdBooking}
-            totalAmount={createdBooking.total_amount || grandTotal}
+            totalAmount={grandTotal}
             paymentMethod={paymentMethod}
             setPaymentMethod={setPaymentMethod}
             paymentData={paymentData}
@@ -1611,8 +1136,6 @@ const CustomBookingPage = ({ calculatorData: initialData, onBack, resumeId }) =>
             isLoading={isLoading}
             setIsLoading={setIsLoading}
             setError={setError}
-            discountGroup={discountGroup}
-            discountAmount={discountAmount}
           />
         )}
       </div>

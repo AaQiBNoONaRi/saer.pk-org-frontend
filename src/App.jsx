@@ -32,12 +32,20 @@ import OrderTicketDetailView from './components/views/OrderTicketDetailView';
 import CommissionEarningsView from './components/views/CommissionEarningsView';
 import DiscountsView from './components/views/DiscountsView';
 import CommissionsView from './components/views/CommissionsView';
+import AddCommissionView from './components/views/AddCommissionView';
 import ServiceChargesView from './components/views/ServiceChargesView';
+import AddServiceChargeView from './components/views/AddServiceChargeView';
 import PaxMovementView from './components/views/PaxMovementView';
 import DailyOperationsView from './components/views/DailyOperationsView';
 import EmployeeDashboard from './components/employee/EmployeeDashboard';
 import HRManagementView from './components/views/HRManagementView';
 import RolesPermissionsPage from './components/views/RolesPermissionsPage';
+import BookingHistoryView from './components/views/BookingHistoryView';
+import UmrahPackagePage from './components/views/bookings/UmrahPackagePage';
+import UmrahBookingPage from './components/views/bookings/UmrahBookingPage';
+import TicketPageBooking from './components/views/bookings/TicketPage';
+import AgentUmrahCalculator from './components/views/bookings/AgentUmrahCalculator';
+import CustomBookingPage from './components/views/bookings/CustomBookingPage';
 // The Customer Database and Leads modules might not have specific views yet, but let's map them to generic if they don't, or map to what we have.
 // Wait, I see we have EmployeesView already, which maps to Employees. The sidebar uses 'HR Employees'.
 
@@ -61,6 +69,10 @@ const ROUTES = {
   '/hr-employees': 'HR Employees',
   '/blogs': 'Blogs',
   '/forms': 'Forms',
+  '/bookings': 'Booking History',
+  '/bookings/custom': 'Custom Booking',
+  '/bookings/ticket': 'Ticket Booking',
+  '/bookings/umrah': 'Umrah Booking',
   '/order-delivery': 'Order Delivery',
   '/payments': 'Payments',
   '/payments/add': 'Add Bank Account',
@@ -116,6 +128,10 @@ const App = () => {
 
   const [viewingOrder, setViewingOrder] = useState(null);
   const [editingAccount, setEditingAccount] = useState(null);
+  const [editingCommission, setEditingCommission] = useState(null);
+  const [editingServiceCharge, setEditingServiceCharge] = useState(null);
+  const [selectedPackage, setSelectedPackage] = useState({ pkg: null, flights: [], airlines: [] });
+  const [customBookingData, setCustomBookingData] = useState(null);
   const [isOrderConfirmed, setIsOrderConfirmed] = useState(false);
 
   // Handle window resize and sidebar state
@@ -283,14 +299,97 @@ const App = () => {
         return <EmployeesView />;
       case 'HR Employees':
         return <HRManagementView />;
+      case 'Booking History':
+        return <BookingHistoryView />;
+      case 'Custom Booking':
+        return (
+          <AgentUmrahCalculator
+            onBookCustomPackage={(data) => {
+              setCustomBookingData(data);
+              setActiveTab('Custom Booking Wizard');
+            }}
+          />
+        );
+      case 'Custom Booking Wizard':
+        return (
+          <CustomBookingPage
+            calculatorData={customBookingData}
+            onBack={() => {
+              setCustomBookingData(null);
+              setActiveTab('Custom Booking');
+            }}
+          />
+        );
+      case 'Ticket Booking':
+        return <TicketPageBooking />;
+      case 'Umrah Booking':
+        return (
+          <UmrahPackagePage
+            onBookPackage={(pkg, flights, airlines) => {
+              setSelectedPackage({ pkg, flights, airlines });
+              setActiveTab('Umrah Booking Wizard');
+            }}
+          />
+        );
+      case 'Umrah Booking Wizard':
+        return (
+          <UmrahBookingPage
+            packageData={selectedPackage.pkg}
+            flights={selectedPackage.flights || []}
+            airlines={selectedPackage.airlines || []}
+            onBack={() => { setSelectedPackage({ pkg: null, flights: [], airlines: [] }); setActiveTab('Umrah Booking'); }}
+          />
+        );
       case 'Commission Earnings':
         return <CommissionEarningsView />;
       case 'Discounts':
         return <DiscountsView />;
       case 'Commissions':
-        return <CommissionsView />;
+        return (
+          <CommissionsView
+            onAddCommission={() => {
+              setEditingCommission(null);
+              setActiveTab('Add Commission');
+            }}
+            onEditCommission={(c) => {
+              setEditingCommission(c);
+              setActiveTab('Add Commission');
+            }}
+          />
+        );
+      case 'Add Commission':
+        return (
+          <AddCommissionView
+            onBack={() => {
+              setEditingCommission(null);
+              setActiveTab('Commissions');
+            }}
+            initialData={editingCommission}
+          />
+        );
       case 'Service Charges':
-        return <ServiceChargesView />;
+        return (
+          <ServiceChargesView
+            onAddServiceCharge={() => {
+              setEditingServiceCharge(null);
+              setActiveTab('Add Service Charge');
+            }}
+            onEditServiceCharge={(sc) => {
+              setEditingServiceCharge(sc);
+              setActiveTab('Add Service Charge');
+            }}
+          />
+        );
+      case 'Add Service Charge':
+        return (
+          <AddServiceChargeView
+            onBack={() => {
+              setEditingServiceCharge(null);
+              setActiveTab('Service Charges');
+            }}
+            initialData={editingServiceCharge}
+          />
+        );
       case 'Pax Movement':
         return <PaxMovementView />;
       case 'Daily Operations':
